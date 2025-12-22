@@ -1,0 +1,25 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run India Proxy Tracer",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"proxy-service/scripts/run_india_proxy_tests.sh"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run India Proxy Tracer (explicit path)",
+			"type": "shell",
+			"command": "/bin/bash",
+			"args": [
+				"/Users/geetsoni/Downloads/project 4/proxy-service/scripts/run_india_proxy_tests.sh"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

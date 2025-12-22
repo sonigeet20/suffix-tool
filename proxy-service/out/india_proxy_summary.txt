@@ -1,0 +1,24 @@
+=== India Proxy Test (2025-12-22T11:03:43+05:30) ===
+Proxy: as.lunaproxy.com:12233 user=user-static_W6isN-region-in-sessid-inv1iziqrfdz5y9o3y-sesstime-90
+-- myip.lunaproxy.io --
+49.36.177.174|Delhi|IN|28.65195|77.23149
+-- ip-api.com --
+{"countryCode":"IN","query":"152.56.135.63"}
+-- Trial 1 --
+Running HTML Lite Trace...
+HTML written: /Users/geetsoni/Downloads/project 4/proxy-service/out/html-lite-trace-in-1.html
+Summary: hops=1, total=4030ms, avg=4030ms/hop
+Open: /Users/geetsoni/Downloads/project 4/proxy-service/out/html-lite-trace-in-1.html
+
+-- Trial 2 --
+Running HTML Lite Trace...
+HTML written: /Users/geetsoni/Downloads/project 4/proxy-service/out/html-lite-trace-in-2.html
+Summary: hops=1, total=4026ms, avg=4026ms/hop
+Open: /Users/geetsoni/Downloads/project 4/proxy-service/out/html-lite-trace-in-2.html
+
+-- Trial 3 --
+Running HTML Lite Trace...
+HTML written: /Users/geetsoni/Downloads/project 4/proxy-service/out/html-lite-trace-in-3.html
+Summary: hops=1, total=4028ms, avg=4028ms/hop
+Open: /Users/geetsoni/Downloads/project 4/proxy-service/out/html-lite-trace-in-3.html
+

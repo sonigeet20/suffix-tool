@@ -1,0 +1,1494 @@
+const express = require('express');
+const puppeteer = require('puppeteer');
+const axios = require('axios');
+const cors = require('cors');
+const helmet = require('helmet');
+const winston = require('winston');
+const UserAgent = require('user-agents');
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+let proxySettings = null;
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  transports: [
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' }),
+    new winston.transports.Console({ format: winston.format.simple() })
+  ],
+});
+
+app.use(helmet());
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+
+class UserAgentRotator {
+  constructor(options = {}) {
+    this.mode = options.mode || process.env.USER_AGENT_MODE || 'dynamic';
+    this.poolSize = parseInt(options.poolSize || process.env.USER_AGENT_POOL_SIZE || '10000');
+    this.refreshIntervalHours = parseInt(process.env.USER_AGENT_REFRESH_INTERVAL_HOURS || '12');
+    this.refreshInterval = this.refreshIntervalHours * 60 * 60 * 1000;
+
+    this.pool = [];
+    this.currentIndex = 0;
+    this.lastRefresh = Date.now();
+    this.totalGenerated = 0;
+    this.uniqueGenerated = new Set();
+    this.requestCount = 0;
+
+    this.deviceCategories = [
+      { deviceCategory: 'desktop', weight: 60 },
+      { deviceCategory: 'mobile', weight: 30 },
+      { deviceCategory: 'tablet', weight: 10 }
+    ];
+
+    logger.info(`UserAgentRotator initialized in '${this.mode}' mode with pool size: ${this.poolSize}`);
+
+    if (this.mode === 'pool' || this.mode === 'hybrid') {
+      this.refreshPool();
+    }
+  }
+
+  generateRandomCategory() {
+    const rand = Math.random() * 100;
+    let cumulative = 0;
+
+    for (const cat of this.deviceCategories) {
+      cumulative += cat.weight;
+      if (rand < cumulative) {
+        return cat.deviceCategory;
+      }
+    }
+    return 'desktop';
+  }
+
+  generateUserAgent() {
+    const category = this.generateRandomCategory();
+    const userAgent = new UserAgent({ deviceCategory: category });
+    const uaString = userAgent.toString();
+
+    this.totalGenerated++;
+    this.uniqueGenerated.add(uaString);
+
+    return uaString;
+  }
+
+  refreshPool() {
+    logger.info(`Refreshing user agent pool with ${this.poolSize} agents...`);
+    const startTime = Date.now();
+
+    this.pool = [];
+    const uniqueSet = new Set();
+
+    while (uniqueSet.size < this.poolSize) {
+      const ua = this.generateUserAgent();
+      if (!uniqueSet.has(ua)) {
+        uniqueSet.add(ua);
+        this.pool.push(ua);
+      }
+
+      if (uniqueSet.size % 1000 === 0) {
+        logger.info(`Generated ${uniqueSet.size}/${this.poolSize} unique user agents...`);
+      }
+    }
+
+    this.currentIndex = 0;
+    this.lastRefresh = Date.now();
+
+    const duration = Date.now() - startTime;
+    logger.info(`User agent pool refreshed with ${this.pool.length} unique agents in ${duration}ms`);
+  }
+
+  getNext() {
+    this.requestCount++;
+
+    if (this.mode === 'dynamic') {
+      return this.generateUserAgent();
+    }
+
+    if (this.mode === 'pool' || this.mode === 'hybrid') {
+      if (Date.now() - this.lastRefresh > this.refreshInterval) {
+        this.refreshPool();
+      }
+
+      if (this.pool.length === 0) {
+        if (this.mode === 'hybrid') {
+          return this.generateUserAgent();
+        }
+        this.refreshPool();
+      }
+
+      const ua = this.pool[this.currentIndex];
+      this.currentIndex = (this.currentIndex + 1) % this.pool.length;
+      return ua;
+    }
+
+    return this.generateUserAgent();
+  }
+
+  getRandom() {
+    this.requestCount++;
+
+    if (this.mode === 'dynamic') {
+      return this.generateUserAgent();
+    }
+
+    if (this.mode === 'pool' || this.mode === 'hybrid') {
+      if (Date.now() - this.lastRefresh > this.refreshInterval) {
+        this.refreshPool();
+      }
+
+      if (this.pool.length === 0) {
+        if (this.mode === 'hybrid') {
+          return this.generateUserAgent();
+        }
+        this.refreshPool();
+      }
+
+      const randomIndex = Math.floor(Math.random() * this.pool.length);
+      return this.pool[randomIndex];
+    }
+
+    return this.generateUserAgent();
+  }
+
+  getStats() {
+    const stats = {
+      mode: this.mode,
+      poolSize: this.mode === 'dynamic' ? 'N/A (generates on-demand)' : this.pool.length,
+      configuredPoolSize: this.poolSize,
+      currentIndex: this.mode === 'dynamic' ? 'N/A' : this.currentIndex,
+      lastRefresh: new Date(this.lastRefresh).toISOString(),
+      nextRefresh: this.mode === 'dynamic' ? 'N/A' : new Date(this.lastRefresh + this.refreshInterval).toISOString(),
+      refreshIntervalHours: this.refreshIntervalHours,
+      totalRequests: this.requestCount,
+      totalGenerated: this.totalGenerated,
+      uniqueGenerated: this.uniqueGenerated.size,
+      repetitionRate: this.requestCount > 0
+        ? `${((1 - (this.uniqueGenerated.size / this.requestCount)) * 100).toFixed(2)}%`
+        : '0%',
+      estimatedDailyCapacity: this.mode === 'dynamic'
+        ? 'Unlimited (generates fresh each time)'
+        : `${this.poolSize} unique per cycle`,
+      deviceDistribution: {
+        desktop: '60%',
+        mobile: '30%',
+        tablet: '10%'
+      }
+    };
+
+    return stats;
+  }
+}
+
+const userAgentRotator = new UserAgentRotator();
+
+const BLOCKED_DOMAINS = [
+  'google-analytics.com',
+  'googletagmanager.com',
+  'facebook.com/tr',
+  'doubleclick.net',
+  'analytics.google.com',
+  'adservice.google.com',
+  'facebook.net',
+  'connect.facebook.net',
+  'hotjar.com',
+  'mouseflow.com',
+  'crazyegg.com',
+  'mixpanel.com',
+  'segment.com',
+  'amplitude.com',
+  'optimizely.com',
+  'quantserve.com',
+  'scorecardresearch.com',
+  'zopim.com',
+  'livechat.com',
+  'intercom.io',
+  'drift.com',
+  'tawk.to',
+  'newrelic.com',
+  'sentry.io',
+  'bugsnag.com',
+  'loggly.com',
+];
+
+let browser = null;
+
+async function loadProxySettings() {
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('luna_proxy_host, luna_proxy_port, luna_proxy_username, luna_proxy_password')
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      throw new Error('No proxy settings found in database. Please configure Luna proxy credentials in settings table.');
+    }
+
+    if (!data.luna_proxy_host || !data.luna_proxy_port || !data.luna_proxy_username || !data.luna_proxy_password) {
+      throw new Error('Incomplete proxy settings in database. Missing: ' +
+        [
+          !data.luna_proxy_host && 'luna_proxy_host',
+          !data.luna_proxy_port && 'luna_proxy_port',
+          !data.luna_proxy_username && 'luna_proxy_username',
+          !data.luna_proxy_password && 'luna_proxy_password'
+        ].filter(Boolean).join(', '));
+    }
+
+    proxySettings = {
+      host: data.luna_proxy_host,
+      port: data.luna_proxy_port,
+      username: data.luna_proxy_username,
+      password: data.luna_proxy_password,
+    };
+
+    logger.info('Proxy settings loaded from database:', {
+      host: proxySettings.host,
+      port: proxySettings.port,
+    });
+
+    return proxySettings;
+  } catch (error) {
+    logger.error('Failed to load proxy settings from database:', error);
+    throw error;
+  }
+}
+
+async function initBrowser() {
+  if (browser) return browser;
+
+  if (!proxySettings) {
+    await loadProxySettings();
+  }
+
+  const proxyServer = `http://${proxySettings.host}:${proxySettings.port}`;
+
+  logger.info('Initializing browser with proxy:', proxyServer);
+
+  browser = await puppeteer.launch({
+    headless: 'new',
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--disable-gpu',
+      '--window-size=1920x1080',
+      `--proxy-server=${proxyServer}`,
+      '--disable-extensions',
+      '--disable-default-apps',
+      '--disable-sync',
+      '--disable-translate',
+      '--disable-background-networking',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-client-side-phishing-detection',
+      '--disable-hang-monitor',
+      '--disable-prompt-on-repost',
+      '--disable-domain-reliability',
+      '--disable-component-extensions-with-background-pages',
+      '--disable-ipc-flooding-protection',
+      '--metrics-recording-only',
+      '--mute-audio',
+      '--no-default-browser-check',
+      '--no-first-run',
+      '--disable-features=site-per-process,TranslateUI,BlinkGenPropertyTrees',
+      '--disable-blink-features=AutomationControlled',
+    ],
+  });
+
+  return browser;
+}
+
+async function fetchGeolocation(username = null, password = null) {
+  try {
+    if (!proxySettings) {
+      await loadProxySettings();
+    }
+
+    const response = await axios.get('http://ip-api.com/json/', {
+      proxy: {
+        host: proxySettings.host,
+        port: parseInt(proxySettings.port),
+        auth: {
+          username: username || proxySettings.username,
+          password: password || proxySettings.password,
+        },
+      },
+      timeout: 3000,
+    });
+
+    const data = response.data;
+    return {
+      ip: data.query || 'unknown',
+      country: data.country || data.countryCode,
+      city: data.city,
+      region: data.regionName || data.region,
+      full_data: data,
+    };
+  } catch (error) {
+    logger.warn('Geolocation fetch error (non-critical):', error.message);
+    return {
+      ip: 'unknown',
+      country: null,
+      city: null,
+      region: null,
+      error: error.message,
+    };
+  }
+}
+
+async function traceRedirectsHttpOnly(url, options = {}) {
+  const {
+    maxRedirects = 20,
+    timeout = 60000,
+    userAgent = userAgentRotator.getNext(),
+    targetCountry = null,
+    referrer = null,
+    proxyIp = null,
+    proxyPort = null,
+  } = options;
+
+  const chain = [];
+  let currentUrl = url;
+  let redirectCount = 0;
+  const visitedUrls = new Set();
+
+  if (!proxySettings) {
+    await loadProxySettings();
+  }
+
+  let proxyUsername = proxyIp || proxySettings.username;
+  const proxyPassword = proxySettings.password;
+  const proxyHost = proxySettings.host;
+  const proxyPortNum = parseInt(proxyPort || proxySettings.port);
+
+  if (targetCountry && targetCountry.length === 2 && !proxyUsername.includes('-region-')) {
+    const countryCode = targetCountry.toLowerCase();
+    proxyUsername = `${proxyUsername}-region-${countryCode}`;
+    logger.info(`🌍 HTTP-Only geo-targeting: ${countryCode.toUpperCase()}`);
+  }
+
+  const proxyConfig = {
+    host: proxyHost,
+    port: proxyPortNum,
+    auth: {
+      username: proxyUsername,
+      password: proxyPassword,
+    },
+  };
+
+  while (redirectCount < maxRedirects) {
+    if (visitedUrls.has(currentUrl)) {
+      chain.push({
+        url: currentUrl,
+        status: 0,
+        redirect_type: 'error',
+        method: 'loop_detected',
+        error: 'Redirect loop detected',
+      });
+      break;
+    }
+    visitedUrls.add(currentUrl);
+
+    const startTime = Date.now();
+
+    try {
+      const headers = {
+        'User-Agent': userAgent,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+      };
+
+      if (referrer) {
+        headers['Referer'] = referrer;
+      }
+
+      const response = await axios.get(currentUrl, {
+        proxy: proxyConfig,
+        headers,
+        maxRedirects: 0,
+        validateStatus: (status) => status < 500,
+        timeout,
+      });
+
+      const timing = Date.now() - startTime;
+      const status = response.status;
+      const responseHeaders = response.headers;
+
+      const urlObj = new URL(currentUrl);
+      const params = {};
+      urlObj.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+
+      if (status >= 300 && status < 400) {
+        const location = responseHeaders['location'];
+        if (!location) {
+          chain.push({
+            url: currentUrl,
+            status,
+            redirect_type: 'error',
+            method: 'http',
+            headers: responseHeaders,
+            params,
+            error: 'No location header in redirect',
+            timing_ms: timing,
+          });
+          break;
+        }
+
+        chain.push({
+          url: currentUrl,
+          status,
+          redirect_type: 'http',
+          method: 'location_header',
+          headers: responseHeaders,
+          params,
+          timing_ms: timing,
+        });
+
+        currentUrl = new URL(location, currentUrl).toString();
+        redirectCount++;
+        continue;
+      }
+
+      if (status >= 200 && status < 300) {
+        const html = response.data;
+
+        if (typeof html === 'string') {
+          const metaRefreshMatch = html.match(/<meta[^>]*http-equiv=["']?refresh["']?[^>]*content=["']?\d+;\s*url=([^"'>\s]+)["']?[^>]*>/i);
+          if (metaRefreshMatch) {
+            chain.push({
+              url: currentUrl,
+              status,
+              redirect_type: 'meta',
+              method: 'meta_refresh',
+              headers: responseHeaders,
+              params,
+              html_snippet: metaRefreshMatch[0].substring(0, 200),
+              timing_ms: timing,
+            });
+
+            currentUrl = new URL(metaRefreshMatch[1].trim(), currentUrl).toString();
+            redirectCount++;
+            continue;
+          }
+
+          const jsRedirectPatterns = [
+            /window\.location\.href\s*=\s*["']([^"']+)["']/i,
+            /window\.location\.replace\(["']([^"']+)["']\)/i,
+            /window\.location\s*=\s*["']([^"']+)["']/i,
+            /location\.href\s*=\s*["']([^"']+)["']/i,
+            /location\.replace\(["']([^"']+)["']\)/i,
+          ];
+
+          for (const pattern of jsRedirectPatterns) {
+            const jsMatch = html.match(pattern);
+            if (jsMatch) {
+              try {
+                const nextUrl = new URL(jsMatch[1].trim(), currentUrl).toString();
+                chain.push({
+                  url: currentUrl,
+                  status,
+                  redirect_type: 'javascript',
+                  method: 'js_redirect',
+                  headers: responseHeaders,
+                  params,
+                  html_snippet: jsMatch[0].substring(0, 200),
+                  timing_ms: timing,
+                });
+
+                currentUrl = nextUrl;
+                redirectCount++;
+                break;
+              } catch (e) {
+                continue;
+              }
+            }
+          }
+
+          if (chain.length > 0 && chain[chain.length - 1].redirect_type === 'javascript') {
+            continue;
+          }
+        }
+
+        chain.push({
+          url: currentUrl,
+          status,
+          redirect_type: 'final',
+          method: 'http_final',
+          headers: responseHeaders,
+          params,
+          timing_ms: timing,
+        });
+        break;
+      }
+
+      chain.push({
+        url: currentUrl,
+        status,
+        redirect_type: 'error',
+        method: 'http',
+        headers: responseHeaders,
+        params,
+        error: `HTTP ${status}`,
+        timing_ms: timing,
+      });
+      break;
+
+    } catch (error) {
+      const timing = Date.now() - startTime;
+      chain.push({
+        url: currentUrl,
+        status: 0,
+        redirect_type: 'error',
+        method: 'http_error',
+        error: error.message,
+        timing_ms: timing,
+      });
+      break;
+    }
+  }
+
+  if (redirectCount >= maxRedirects) {
+    chain.push({
+      url: 'max_redirects_reached',
+      status: 0,
+      redirect_type: 'error',
+      method: 'limit',
+      error: `Maximum redirect limit (${maxRedirects}) reached`,
+    });
+  }
+
+  return {
+    success: chain.length > 0 && chain[chain.length - 1].redirect_type !== 'error',
+    chain,
+    total_steps: chain.length,
+    final_url: chain.length > 0 ? chain[chain.length - 1].url : url,
+    user_agent: userAgent,
+  };
+}
+
+async function traceRedirectsBrowser(url, options = {}) {
+  const {
+    maxRedirects = 20,
+    timeout = 60000,
+    userAgent = userAgentRotator.getNext(),
+    targetCountry = null,
+    referrer = null,
+  } = options;
+
+  const chain = [];
+  const popupChains = [];
+  let browser = null;
+  let page = null;
+
+  try {
+    browser = await initBrowser();
+    page = await browser.newPage();
+
+    if (!proxySettings) {
+      await loadProxySettings();
+    }
+
+    let proxyUsername = proxySettings.username;
+
+    if (targetCountry && targetCountry.length === 2) {
+      const countryCode = targetCountry.toLowerCase();
+      if (!proxyUsername.includes('-region-')) {
+        proxyUsername = `${proxyUsername}-region-${countryCode}`;
+        logger.info(`🌍 Browser geo-targeting: ${countryCode.toUpperCase()}`);
+      }
+    }
+
+    await page.authenticate({
+      username: proxyUsername,
+      password: proxySettings.password,
+    });
+
+    await page.setUserAgent(userAgent);
+    await page.setViewport({ width: 1920, height: 1080 });
+
+    if (referrer) {
+      await page.setExtraHTTPHeaders({
+        'Referer': referrer,
+      });
+      logger.info(`🔗 Browser using custom referrer: ${referrer}`);
+    }
+
+    await page.evaluateOnNewDocument(() => {
+      const style = document.createElement('style');
+      style.textContent = `
+        * {
+          animation-duration: 0s !important;
+          animation-delay: 0s !important;
+          transition-duration: 0s !important;
+          transition-delay: 0s !important;
+        }
+      `;
+      document.addEventListener('DOMContentLoaded', () => {
+        document.head.appendChild(style);
+      });
+    });
+
+    await page.setRequestInterception(true);
+
+    const redirectChain = [];
+    let requestCount = 0;
+    let lastUrlChange = Date.now();
+
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) {
+        lastUrlChange = Date.now();
+      }
+    });
+
+    page.on('request', (request) => {
+      const resourceType = request.resourceType();
+
+      if (resourceType === 'document') {
+        const startTime = Date.now();
+        redirectChain.push({
+          url: request.url(),
+          method: request.method(),
+          headers: request.headers(),
+          startTime,
+        });
+        requestCount++;
+      }
+
+      const blockedTypes = ['image', 'stylesheet', 'font', 'media', 'imageset', 'texttrack', 'websocket', 'manifest', 'other'];
+      const requestUrl = request.url();
+      const shouldBlockDomain = BLOCKED_DOMAINS.some(domain => requestUrl.includes(domain));
+
+      if (blockedTypes.includes(resourceType) || shouldBlockDomain) {
+        request.abort();
+      } else {
+        // Override headers to maintain the same referrer across all hops
+        if (referrer && resourceType === 'document') {
+          const overrideHeaders = {
+            ...request.headers(),
+            'Referer': referrer,
+          };
+          request.continue({ headers: overrideHeaders });
+        } else {
+          request.continue();
+        }
+      }
+    });
+
+    page.on('response', async (response) => {
+      const request = response.request();
+      const resourceType = request.resourceType();
+
+      if (resourceType === 'document') {
+        const url = response.url();
+        const status = response.status();
+        const headers = response.headers();
+
+        const matchingRequest = redirectChain.find(r => r.url === url);
+        const timing = matchingRequest ? Date.now() - matchingRequest.startTime : 0;
+
+        const params = {};
+        try {
+          const urlObj = new URL(url);
+          urlObj.searchParams.forEach((value, key) => {
+            params[key] = value;
+          });
+        } catch (e) {}
+
+        let redirectType = 'http';
+        if (status >= 300 && status < 400) {
+          redirectType = 'http';
+        } else if (status >= 200 && status < 300) {
+          redirectType = 'final';
+        } else {
+          redirectType = 'error';
+        }
+
+        chain.push({
+          url,
+          status,
+          redirect_type: redirectType,
+          method: 'browser',
+          headers,
+          params,
+          timing_ms: timing,
+          error: status >= 400 ? `HTTP ${status}` : undefined,
+        });
+      }
+    });
+
+    page.on('popup', async (popup) => {
+      const popupIndex = popupChains.length + 1;
+      logger.info(`🪟 Browser mode: Popup #${popupIndex} detected!`);
+
+      const openerUrl = page.url();
+      const popupChain = [];
+
+      try {
+        await popup.waitForNavigation({ timeout: 10000, waitUntil: 'domcontentloaded' }).catch(() => {});
+        const popupUrl = popup.url();
+
+        const popupParams = {};
+        try {
+          const urlObj = new URL(popupUrl);
+          urlObj.searchParams.forEach((value, key) => {
+            popupParams[key] = value;
+          });
+        } catch (e) {}
+
+        popupChain.push({
+          url: popupUrl,
+          status: 200,
+          redirect_type: 'popup',
+          method: 'window.open',
+          params: popupParams,
+          timing_ms: 0,
+        });
+
+        popupChains.push({
+          popup_index: popupIndex,
+          opener_url: openerUrl,
+          final_url: popupUrl,
+          chain: popupChain,
+        });
+
+        await popup.close();
+      } catch (err) {
+        logger.error(`Error handling popup #${popupIndex}:`, err.message);
+      }
+    });
+
+    const navigationPromise = page.goto(url, {
+      waitUntil: 'domcontentloaded',
+      timeout,
+    });
+
+    const idleDetectionPromise = new Promise((resolve) => {
+      const checkIdle = setInterval(() => {
+        const timeSinceLastChange = Date.now() - lastUrlChange;
+        // Wait 5 seconds of no URL changes before early stop
+        // This allows time for JavaScript redirects (setTimeout/setInterval)
+        if (timeSinceLastChange > 5000) {
+          clearInterval(checkIdle);
+          logger.info('⚡ Browser: Early stop - no URL changes for 5s');
+          resolve();
+        }
+      }, 500);
+
+      setTimeout(() => {
+        clearInterval(checkIdle);
+        resolve();
+      }, timeout);
+    });
+
+    await Promise.race([navigationPromise, idleDetectionPromise]);
+
+    // Give page extra time for JavaScript redirects to execute
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Check for pending JavaScript redirects
+    let hasPendingRedirect = false;
+    try {
+      hasPendingRedirect = await page.evaluate(() => {
+        // Check for common redirect patterns in page content
+        const pageText = document.documentElement.innerHTML;
+        return pageText.includes('window.location') ||
+               pageText.includes('location.href') ||
+               pageText.includes('location.replace');
+      });
+      if (hasPendingRedirect) {
+        logger.info('🔄 Detected JavaScript redirect code, waiting 3s more...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    } catch (err) {
+      logger.warn('⚠️ Could not check for JS redirects: page navigated');
+    }
+
+    let metaRefresh = null;
+    try {
+      metaRefresh = await page.evaluate(() => {
+        const meta = document.querySelector('meta[http-equiv="refresh"]');
+        if (meta) {
+          const content = meta.getAttribute('content');
+          const match = content.match(/url=(.+)/i);
+          return match ? match[1] : null;
+        }
+        return null;
+      });
+    } catch (err) {
+      // Page might have navigated, execution context destroyed
+      logger.warn('⚠️ Could not check meta refresh: page navigated');
+    }
+
+    if (metaRefresh && chain.length < maxRedirects) {
+      chain.push({
+        url: page.url(),
+        status: 200,
+        redirect_type: 'meta',
+        method: 'meta_refresh',
+        params: {},
+        timing_ms: 0,
+        html_snippet: `<meta http-equiv="refresh" content="...url=${metaRefresh}">`,
+      });
+    }
+
+    const finalUrl = page.url();
+    if (chain.length === 0 || chain[chain.length - 1].url !== finalUrl) {
+      const finalParams = {};
+      try {
+        const urlObj = new URL(finalUrl);
+        urlObj.searchParams.forEach((value, key) => {
+          finalParams[key] = value;
+        });
+      } catch (e) {}
+
+      chain.push({
+        url: finalUrl,
+        status: 200,
+        redirect_type: 'final',
+        method: 'browser',
+        params: finalParams,
+        timing_ms: 0,
+      });
+    }
+
+    return {
+      success: true,
+      chain,
+      popup_chains: popupChains,
+      total_popups: popupChains.length,
+      total_steps: chain.length,
+      final_url: finalUrl,
+      user_agent: userAgent,
+    };
+
+  } catch (error) {
+    logger.error('Browser trace error:', error);
+
+    if (chain.length === 0) {
+      chain.push({
+        url,
+        status: 0,
+        redirect_type: 'error',
+        method: 'browser',
+        error: error.message,
+        timing_ms: 0,
+      });
+    }
+
+    return {
+      success: false,
+      chain,
+      popup_chains: popupChains,
+      total_popups: popupChains.length,
+      total_steps: chain.length,
+      final_url: url,
+      error: error.message,
+    };
+  } finally {
+    if (page) {
+      await page.close().catch(e => logger.error('Failed to close page:', e));
+    }
+  }
+}
+
+async function traceRedirectsAntiCloaking(url, options = {}) {
+  const {
+    maxRedirects = 20,
+    timeout = 90000,
+    userAgent = userAgentRotator.getNext(),
+    targetCountry = null,
+    referrer = null,
+  } = options;
+
+  const chain = [];
+  const popupChains = [];
+  const obfuscatedUrls = [];
+  const cloakingIndicators = [];
+  let browser = null;
+  let page = null;
+  let aggressivenessLevel = 'low';
+
+  try {
+    browser = await initBrowser();
+    page = await browser.newPage();
+
+    if (!proxySettings) {
+      await loadProxySettings();
+    }
+
+    let proxyUsername = proxySettings.username;
+
+    if (targetCountry && targetCountry.length === 2) {
+      const countryCode = targetCountry.toLowerCase();
+      if (!proxyUsername.includes('-region-')) {
+        proxyUsername = `${proxyUsername}-region-${countryCode}`;
+        logger.info(`🕵️ Anti-cloaking geo-targeting: ${countryCode.toUpperCase()}`);
+      }
+    }
+
+    await page.authenticate({
+      username: proxyUsername,
+      password: proxySettings.password,
+    });
+
+    await page.setUserAgent(userAgent);
+    await page.setViewport({
+      width: 1920 + Math.floor(Math.random() * 100),
+      height: 1080 + Math.floor(Math.random() * 100)
+    });
+
+    if (referrer) {
+      await page.setExtraHTTPHeaders({
+        'Referer': referrer,
+      });
+      logger.info(`🔗 Anti-cloaking using custom referrer: ${referrer}`);
+    }
+
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined,
+      });
+
+      window.chrome = {
+        runtime: {},
+      };
+
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [1, 2, 3, 4, 5],
+      });
+
+      Object.defineProperty(navigator, 'languages', {
+        get: () => ['en-US', 'en'],
+      });
+
+      const style = document.createElement('style');
+      style.textContent = `
+        * {
+          animation-duration: 0s !important;
+          animation-delay: 0s !important;
+          transition-duration: 0s !important;
+          transition-delay: 0s !important;
+        }
+      `;
+      document.addEventListener('DOMContentLoaded', () => {
+        document.head.appendChild(style);
+      });
+    });
+
+    await page.setRequestInterception(true);
+
+    const redirectChain = [];
+    let requestCount = 0;
+    let lastUrlChange = Date.now();
+
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) {
+        lastUrlChange = Date.now();
+      }
+    });
+
+    page.on('request', (request) => {
+      const resourceType = request.resourceType();
+
+      if (resourceType === 'document') {
+        const startTime = Date.now();
+        redirectChain.push({
+          url: request.url(),
+          method: request.method(),
+          headers: request.headers(),
+          startTime,
+        });
+        requestCount++;
+      }
+
+      const blockedTypes = ['image', 'stylesheet', 'font', 'media', 'imageset', 'texttrack', 'websocket', 'manifest', 'other'];
+      const requestUrl = request.url();
+      const shouldBlockDomain = BLOCKED_DOMAINS.some(domain => requestUrl.includes(domain));
+
+      if (blockedTypes.includes(resourceType) || shouldBlockDomain) {
+        request.abort();
+      } else {
+        // Override headers to maintain the same referrer across all hops
+        if (referrer && resourceType === 'document') {
+          const overrideHeaders = {
+            ...request.headers(),
+            'Referer': referrer,
+          };
+          request.continue({ headers: overrideHeaders });
+        } else {
+          request.continue();
+        }
+      }
+    });
+
+    page.on('response', async (response) => {
+      const request = response.request();
+      const resourceType = request.resourceType();
+
+      if (resourceType === 'document') {
+        const url = response.url();
+        const status = response.status();
+        const headers = response.headers();
+
+        const matchingRequest = redirectChain.find(r => r.url === url);
+        const timing = matchingRequest ? Date.now() - matchingRequest.startTime : 0;
+
+        const params = {};
+        try {
+          const urlObj = new URL(url);
+          urlObj.searchParams.forEach((value, key) => {
+            params[key] = value;
+          });
+        } catch (e) {}
+
+        let redirectType = 'http';
+        if (status >= 300 && status < 400) {
+          redirectType = 'http';
+        } else if (status >= 200 && status < 300) {
+          redirectType = 'final';
+        } else {
+          redirectType = 'error';
+        }
+
+        chain.push({
+          url,
+          status,
+          redirect_type: redirectType,
+          method: 'anti_cloaking',
+          headers,
+          params,
+          timing_ms: timing,
+          error: status >= 400 ? `HTTP ${status}` : undefined,
+        });
+      }
+    });
+
+    page.on('popup', async (popup) => {
+      const popupIndex = popupChains.length + 1;
+      logger.info(`🪟 Popup #${popupIndex} detected!`);
+
+      const openerUrl = page.url();
+      const popupChain = [];
+
+      try {
+        await popup.waitForNavigation({ timeout: 10000, waitUntil: 'domcontentloaded' }).catch(() => {});
+        const popupUrl = popup.url();
+
+        popupChain.push({
+          url: popupUrl,
+          status: 200,
+          redirect_type: 'popup',
+          method: 'window.open',
+          timing_ms: 0,
+        });
+
+        popupChains.push({
+          popup_index: popupIndex,
+          opener_url: openerUrl,
+          final_url: popupUrl,
+          chain: popupChain,
+        });
+
+        await popup.close();
+      } catch (err) {
+        logger.error(`Error handling popup #${popupIndex}:`, err.message);
+      }
+    });
+
+    const navigationPromise = page.goto(url, {
+      waitUntil: 'domcontentloaded',
+      timeout,
+    });
+
+    const idleDetectionPromise = new Promise((resolve) => {
+      const checkIdle = setInterval(() => {
+        const timeSinceLastChange = Date.now() - lastUrlChange;
+        // Wait 5 seconds for JavaScript redirects to execute
+        if (timeSinceLastChange > 5000) {
+          clearInterval(checkIdle);
+          logger.info('⚡ Anti-cloaking: Early stop - no URL changes for 5s');
+          resolve();
+        }
+      }, 300);
+
+      setTimeout(() => {
+        clearInterval(checkIdle);
+        resolve();
+      }, timeout);
+    });
+
+    await Promise.race([navigationPromise, idleDetectionPromise]);
+
+    // Give page extra time for JavaScript redirects to execute
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+
+    // Check for pending JavaScript redirects
+    let hasPendingRedirect = false;
+    try {
+      hasPendingRedirect = await page.evaluate(() => {
+        const pageText = document.documentElement.innerHTML;
+        return pageText.includes('window.location') ||
+               pageText.includes('location.href') ||
+               pageText.includes('location.replace') ||
+               pageText.includes('setTimeout') && pageText.includes('redirect');
+      });
+      if (hasPendingRedirect) {
+        logger.info('🔄 Anti-cloaking: Detected JavaScript redirect code, waiting 3s more...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    } catch (err) {
+      logger.warn('⚠️ Could not check for JS redirects: page navigated');
+    }
+
+    await page.mouse.move(100 + Math.random() * 200, 100 + Math.random() * 200);
+    await page.mouse.move(300 + Math.random() * 200, 300 + Math.random() * 200);
+
+    const pageContent = await page.content();
+
+    if (pageContent.includes('data:text/html') || pageContent.includes('atob(') || pageContent.includes('fromCharCode')) {
+      cloakingIndicators.push('obfuscated_code');
+    }
+
+    if (pageContent.match(/navigator\.webdriver|bot|crawler|spider/i)) {
+      cloakingIndicators.push('bot_detection');
+    }
+
+    if (pageContent.match(/setTimeout.*redirect|setInterval.*redirect/i)) {
+      cloakingIndicators.push('delayed_redirect');
+    }
+
+    let decodedUrls = [];
+    try {
+      decodedUrls = await page.evaluate(() => {
+        const results = [];
+        const html = document.documentElement.innerHTML;
+
+        const base64Matches = html.match(/(?:atob|Base64\.decode)\(['"]([A-Za-z0-9+/=]+)['"]\)/g);
+        if (base64Matches) {
+          base64Matches.forEach(match => {
+            const encoded = match.match(/['"]([A-Za-z0-9+/=]+)['"]/)?.[1];
+            if (encoded) {
+              try {
+                const decoded = atob(encoded);
+                if (decoded.includes('http')) {
+                  results.push({ type: 'base64', encoded, decoded });
+                }
+              } catch (e) {}
+            }
+          });
+        }
+
+        const hexMatches = html.match(/\\x[0-9a-fA-F]{2}/g);
+        if (hexMatches && hexMatches.length > 10) {
+          results.push({ type: 'hex_encoded', count: hexMatches.length });
+        }
+
+        return results;
+      });
+    } catch (err) {
+      // Page might have navigated, execution context destroyed
+      logger.warn('⚠️ Could not decode URLs: page navigated');
+    }
+
+    obfuscatedUrls.push(...decodedUrls);
+
+    if (popupChains.length > 2) {
+      aggressivenessLevel = 'high';
+    } else if (popupChains.length > 0 || cloakingIndicators.length > 0) {
+      aggressivenessLevel = 'medium';
+    }
+
+    let metaRefresh = null;
+    try {
+      metaRefresh = await page.evaluate(() => {
+        const meta = document.querySelector('meta[http-equiv="refresh"]');
+        if (meta) {
+          const content = meta.getAttribute('content');
+          const match = content.match(/url=(.+)/i);
+          return match ? match[1] : null;
+        }
+        return null;
+      });
+    } catch (err) {
+      // Page might have navigated, execution context destroyed
+      logger.warn('⚠️ Could not check meta refresh in cloaking detection: page navigated');
+    }
+
+    if (metaRefresh && chain.length < maxRedirects) {
+      chain.push({
+        url: page.url(),
+        status: 200,
+        redirect_type: 'meta',
+        method: 'meta_refresh',
+        params: {},
+        timing_ms: 0,
+        html_snippet: `<meta http-equiv="refresh" content="...url=${metaRefresh}">`,
+      });
+    }
+
+    const finalUrl = page.url();
+    if (chain.length === 0 || chain[chain.length - 1].url !== finalUrl) {
+      const finalParams = {};
+      try {
+        const urlObj = new URL(finalUrl);
+        urlObj.searchParams.forEach((value, key) => {
+          finalParams[key] = value;
+        });
+      } catch (e) {}
+
+      chain.push({
+        url: finalUrl,
+        status: 200,
+        redirect_type: 'final',
+        method: 'anti_cloaking',
+        params: finalParams,
+        timing_ms: 0,
+      });
+    }
+
+    return {
+      success: true,
+      chain,
+      popup_chains: popupChains,
+      obfuscated_urls: obfuscatedUrls,
+      cloaking_indicators: cloakingIndicators,
+      aggressiveness_level: aggressivenessLevel,
+      total_popups: popupChains.length,
+      total_steps: chain.length,
+      final_url: finalUrl,
+      user_agent: userAgent,
+    };
+
+  } catch (error) {
+    logger.error('Anti-cloaking trace error:', error);
+
+    if (chain.length === 0) {
+      chain.push({
+        url,
+        status: 0,
+        redirect_type: 'error',
+        method: 'anti_cloaking',
+        error: error.message,
+        timing_ms: 0,
+      });
+    }
+
+    return {
+      success: false,
+      chain,
+      popup_chains: popupChains,
+      obfuscated_urls: obfuscatedUrls,
+      cloaking_indicators: cloakingIndicators,
+      aggressiveness_level: aggressivenessLevel,
+      total_popups: popupChains.length,
+      total_steps: chain.length,
+      final_url: url,
+      error: error.message,
+    };
+  } finally {
+    if (page) {
+      await page.close().catch(e => logger.error('Failed to close page:', e));
+    }
+  }
+}
+
+app.post('/trace', async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    const {
+      url,
+      max_redirects,
+      timeout_ms,
+      user_agent,
+      target_country,
+      referrer,
+      mode = 'browser',
+      proxy_ip,
+      proxy_port,
+    } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    logger.info('⚡ Trace request:', {
+      url,
+      mode,
+      max_redirects,
+      timeout_ms,
+      target_country,
+      referrer,
+      proxy_ip,
+      proxy_port,
+    });
+
+    if (!proxySettings) {
+      await loadProxySettings();
+    }
+
+    let geoUsername = proxy_ip || proxySettings.username;
+    if (target_country && target_country.length === 2) {
+      const countryCode = target_country.toLowerCase();
+      if (!geoUsername.includes('-region-')) {
+        geoUsername = `${geoUsername}-region-${countryCode}`;
+        logger.info(`🌍 Geo-targeting: ${countryCode.toUpperCase()}`);
+      }
+    }
+
+    const geoPromise = fetchGeolocation(geoUsername, proxySettings.password);
+
+    let tracePromise;
+    if (mode === 'http_only') {
+      logger.info('⚡ Using HTTP-only mode (fast)');
+      tracePromise = traceRedirectsHttpOnly(url, {
+        maxRedirects: max_redirects || 20,
+        timeout: timeout_ms || 60000,
+        userAgent: user_agent || userAgentRotator.getNext(),
+        targetCountry: target_country || null,
+        referrer: referrer || null,
+        proxyIp: proxy_ip || null,
+        proxyPort: proxy_port || null,
+      });
+    } else if (mode === 'anti_cloaking') {
+      logger.info('🕵️ Using Anti-Cloaking mode (advanced stealth)');
+      tracePromise = traceRedirectsAntiCloaking(url, {
+        maxRedirects: max_redirects || 20,
+        timeout: timeout_ms || 90000,
+        userAgent: user_agent || userAgentRotator.getNext(),
+        targetCountry: target_country || null,
+        referrer: referrer || null,
+      });
+    } else {
+      logger.info('🌐 Using Browser mode (full rendering)');
+      tracePromise = traceRedirectsBrowser(url, {
+        maxRedirects: max_redirects || 20,
+        timeout: timeout_ms || 60000,
+        userAgent: user_agent || userAgentRotator.getNext(),
+        targetCountry: target_country || null,
+        referrer: referrer || null,
+      });
+    }
+
+    const [result, geoData] = await Promise.all([tracePromise, geoPromise]);
+
+    const totalTime = Date.now() - startTime;
+    logger.info(`✅ Trace completed (${mode}): ${result.total_steps} steps in ${totalTime}ms`);
+
+    res.json({
+      ...result,
+      proxy_used: true,
+      proxy_type: 'residential',
+      proxy_ip: geoData.ip,
+      geo_location: {
+        country: geoData.country,
+        city: geoData.city,
+        region: geoData.region,
+      },
+      total_timing_ms: totalTime,
+      mode_used: mode,
+    });
+
+  } catch (error) {
+    logger.error('Request error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Internal server error',
+    });
+  }
+});
+
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    browser_initialized: !!browser,
+    modes_supported: ['http_only', 'browser', 'anti_cloaking'],
+  });
+});
+
+app.get('/ip', async (req, res) => {
+  try {
+    if (!proxySettings) {
+      await loadProxySettings();
+    }
+
+    const response = await axios.get('https://api.ipify.org?format=json', {
+      proxy: {
+        host: proxySettings.host,
+        port: parseInt(proxySettings.port),
+        auth: {
+          username: proxySettings.username,
+          password: proxySettings.password,
+        },
+      },
+    });
+
+    res.json({
+      proxy_ip: response.data.ip,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('IP check error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/user-agent-stats', (req, res) => {
+  res.json({
+    ...userAgentRotator.getStats(),
+    description: 'User agent rotation stats - pool refreshes every hour with fresh agents'
+  });
+});
+
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received, closing browser...');
+  if (browser) {
+    await browser.close();
+  }
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  logger.info('SIGINT received, closing browser...');
+  if (browser) {
+    await browser.close();
+  }
+  process.exit(0);
+});
+
+app.listen(PORT, '0.0.0.0', async () => {
+  logger.info(`Proxy service running on 0.0.0.0:${PORT}`);
+  logger.info('Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth)');
+
+  try {
+    await loadProxySettings();
+    logger.info('Luna Proxy configured from database:', {
+      host: proxySettings.host,
+      port: proxySettings.port,
+    });
+  } catch (error) {
+    logger.error('Failed to load proxy settings on startup:', error);
+  }
+});
