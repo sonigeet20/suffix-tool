@@ -31,6 +31,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
   const [activeTab, setActiveTab] = useState<'settings' | 'rotation' | 'parameters' | 'tracer'>('settings');
   const [formData, setFormData] = useState({
     offer_name: offer?.offer_name || '',
+    campaign_name: (offer as any)?.campaign_name || '',
     final_url: offer?.final_url || '',
     tracking_template: offer?.tracking_template || '',
     suffix_pattern: offer?.suffix_pattern || '',
@@ -84,6 +85,25 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Validation
+    if (!formData.offer_name.trim()) {
+      setError('Offer name is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.campaign_name.trim()) {
+      setError('Campaign name is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.final_url.trim()) {
+      setError('Final URL is required');
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -371,6 +391,25 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                   className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 dark:focus:ring-brand-400/20 focus:border-brand-500 dark:focus:border-brand-400 outline-none transition-smooth"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                  Campaign Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.campaign_name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, campaign_name: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 dark:focus:ring-brand-400/20 focus:border-brand-500 dark:focus:border-brand-400 outline-none transition-smooth"
+                  placeholder="e.g., Black Friday 2025, Spring Campaign"
+                  required
+                />
+                <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                  Use this to group and identify related offers (searchable)
+                </p>
               </div>
 
               <div>

@@ -83,9 +83,11 @@ export default function OfferList() {
   };
 
   const filteredOffers = offers.filter((offer) => {
+    const searchLower = searchQuery.toLowerCase();
     const matchesSearch =
-      offer.offer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      offer.final_url.toLowerCase().includes(searchQuery.toLowerCase());
+      offer.offer_name.toLowerCase().includes(searchLower) ||
+      offer.final_url.toLowerCase().includes(searchLower) ||
+      ((offer as any).campaign_name || '').toLowerCase().includes(searchLower);
 
     const matchesStatus =
       statusFilter === 'all' ||
@@ -208,6 +210,16 @@ export default function OfferList() {
                         </span>
                       )}
                     </div>
+                    
+                    {/* Campaign Name Badge */}
+                    {(offer as any).campaign_name && (
+                      <div className="mb-2">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50">
+                          📋 {(offer as any).campaign_name}
+                        </span>
+                      </div>
+                    )}
+                    
                     <div className="flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">
                       <ExternalLink size={12} />
                       <a

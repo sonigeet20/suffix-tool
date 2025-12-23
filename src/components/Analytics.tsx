@@ -122,7 +122,10 @@ export default function Analytics() {
   };
 
   const filteredOffersWithStats = offersWithStats.filter(({ offer, stats }) => {
-    const matchesSearch = offer.offer_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = 
+      offer.offer_name.toLowerCase().includes(searchLower) ||
+      ((offer as any).campaign_name || '').toLowerCase().includes(searchLower);
 
     const matchesStatus =
       statusFilter === 'all' ||
@@ -303,7 +306,7 @@ export default function Analytics() {
                       <div className="flex items-center gap-4 flex-1">
                         <div className={`w-3 h-3 rounded-full ${getRecencyColor(stats?.last_request_at || null)}`} />
                         <div className="text-left flex-1">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 mb-1">
                             <h4 className="text-base font-semibold text-neutral-900 dark:text-neutral-50">{offer.offer_name}</h4>
                             {offer.is_active ? (
                               <span className="px-2 py-0.5 bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400 text-xs font-medium rounded">
@@ -315,6 +318,16 @@ export default function Analytics() {
                               </span>
                             )}
                           </div>
+                          
+                          {/* Campaign Name Badge */}
+                          {(offer as any).campaign_name && (
+                            <div className="mb-2">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50">
+                                📋 {(offer as any).campaign_name}
+                              </span>
+                            </div>
+                          )}
+                          
                           <div className="flex items-center gap-6 mt-2 text-sm text-neutral-600 dark:text-neutral-400">
                             <div className="flex items-center gap-1">
                               <Link2 size={14} />
