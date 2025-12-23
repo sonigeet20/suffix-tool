@@ -1,0 +1,11 @@
+{"level":"info","message":"UserAgentRotator initialized in 'hybrid-remote-first' mode with pool size: 10000, remote refresh interval: 1h"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth)"}
+{"level":"info","message":"User agent mode: hybrid-remote-first"}
+{"level":"info","message":"Starting async pool initialization with 10000 agents..."}
+{"level":"info","message":"Starting remote UA scheduler: refresh every 1h with 22s jitter"}
+{"code":"","details":"TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND dummy-project.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND dummy-project.supabase.co\n    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:121:26)","hint":"","level":"error","message":"Failed to load proxy settings from database: TypeError: fetch failed"}
+{"code":"","details":"TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND dummy-project.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND dummy-project.supabase.co\n    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:121:26)","hint":"","level":"error","message":"Failed to load proxy settings on startup: TypeError: fetch failed"}
+{"level":"info","message":"⚡ Trace request:","mode":"http_only","session_id":"none","url":"https://httpbin.org/get"}
+{"code":"","details":"TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND dummy-project.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND dummy-project.supabase.co\n    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:121:26)","hint":"","level":"error","message":"Failed to load proxy settings from database: TypeError: fetch failed"}
+{"level":"error","message":"Failed to load proxy settings:"}
