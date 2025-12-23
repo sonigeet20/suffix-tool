@@ -10,7 +10,6 @@ const winston = require('winston');
 const UserAgent = require('user-agents');
 const { createClient } = require('@supabase/supabase-js');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-const { randomUUID } = require('crypto');
 require('dotenv').config();
 
 // Pre-import got at module level to avoid dynamic import overhead per hop
@@ -72,134 +71,19 @@ function formatBytes(bytes) {
   return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
 }
 
-// Lightweight geo-routing helper to build provider-specific proxy URLs
-class GeoRouting {
-  constructor(provider, credentials, defaultRegion = 'us') {
-    this.provider = provider.toLowerCase();
-    this.credentials = credentials;
-    this.defaultRegion = defaultRegion;
-  }
-
-  getProxyUrl(region = null) {
-    const targetRegion = region || this.defaultRegion;
-
-    switch (this.provider) {
-      case 'luna':
-        return this.buildLunaProxy(targetRegion);
-      case 'bright':
-      case 'brightdata':
-        return this.buildBrightProxy(targetRegion);
-      case 'oxylabs':
-        return this.buildOxylabsProxy(targetRegion);
-      case 'smartproxy':
-        return this.buildSmartProxy(targetRegion);
-      default:
-        return this.credentials.url || this.credentials;
-    }
-  }
-
-  buildLunaProxy(region) {
-    const { username, password, host, port } = this.parseCredentials();
-    const baseUser = username.split('-region-')[0];
-    const sessionParts = username.match(/-(sessid-[^-]+-sesstime-\d+)$/);
-    const sessionSuffix = sessionParts ? `-${sessionParts[1]}` : '';
-    const geoUser = `${baseUser}-region-${region}${sessionSuffix}`;
-    return `http://${geoUser}:${password}@${host}:${port}`;
-  }
-
-  buildBrightProxy(region) {
-    const { username, password, host, port } = this.parseCredentials();
-    const baseUser = username.split('-country-')[0];
-    const sessionParts = username.match(/-(sessionid-[^-]+)$/);
-    const sessionSuffix = sessionParts ? `-${sessionParts[1]}` : '';
-    const geoUser = `${baseUser}-country-${region}${sessionSuffix}`;
-    return `http://${geoUser}:${password}@${host}:${port}`;
-  }
-
-  buildOxylabsProxy(region) {
-    const { username, password, host, port } = this.parseCredentials();
-    const baseUser = username.split('-cc-')[0];
-    const geoUser = `${baseUser}-cc-${region}`;
-    return `http://${geoUser}:${password}@${host}:${port}`;
-  }
-
-  buildSmartProxy(region) {
-    const { username, password, host, port } = this.parseCredentials();
-    const baseUser = username.split('-country-')[0];
-    const geoUser = `${baseUser}-country-${region}`;
-    return `http://${geoUser}:${password}@${host}:${port}`;
-  }
-
-  parseCredentials() {
-    if (typeof this.credentials === 'string') {
-      const match = this.credentials.match(/^(https?):\/\/([^:]+):([^@]+)@([^:]+):(\d+)$/);
-      if (!match) throw new Error('Invalid proxy URL format');
-      return {
-        protocol: match[1],
-        username: match[2],
-        password: match[3],
-        host: match[4],
-        port: match[5],
-      };
-    }
-    return this.credentials;
-  }
-
-  async verifyGeo(proxyUrl) {
-    const got = require('got').default || require('got');
-    const { HttpsProxyAgent } = require('https-proxy-agent');
-    const agent = { https: new HttpsProxyAgent(proxyUrl), http: new HttpsProxyAgent(proxyUrl) };
-
-    try {
-      const res = await got('http://ip-api.com/json/?fields=countryCode,query', {
-        agent,
-        timeout: { request: 5000 },
-        retry: { limit: 1 },
-      });
-      const data = JSON.parse(res.body);
-      return { countryCode: data.countryCode, ip: data.query };
-    } catch (err) {
-      return { countryCode: null, ip: null, error: err.message };
-    }
-  }
-}
-
 class UserAgentRotator {
   constructor(options = {}) {
-    this.mode = options.mode || process.env.USER_AGENT_MODE || 'hybrid-remote-first';
-    this.poolSize = parseInt(options.poolSize || process.env.USER_AGENT_POOL_SIZE || '10000'); // Reduced for faster startup
-    this.refreshIntervalHours = parseInt(process.env.USER_AGENT_REFRESH_INTERVAL_HOURS || '1');
+    this.mode = options.mode || process.env.USER_AGENT_MODE || 'dynamic';
+    this.poolSize = parseInt(options.poolSize || process.env.USER_AGENT_POOL_SIZE || '10000');
+    this.refreshIntervalHours = parseInt(process.env.USER_AGENT_REFRESH_INTERVAL_HOURS || '12');
     this.refreshInterval = this.refreshIntervalHours * 60 * 60 * 1000;
 
     this.pool = [];
-    this.localFallbackPool = [];
     this.currentIndex = 0;
     this.lastRefresh = Date.now();
     this.totalGenerated = 0;
     this.uniqueGenerated = new Set();
     this.requestCount = 0;
-    this.poolReady = false; // Flag to track if pool is initialized
-
-    // Session stickiness: sessionId -> { ua, assignedAt, expiresAt }
-    this.sessionMap = new Map();
-    this.sessionTTL = 24 * 60 * 60 * 1000; // 24 hours
-    this.maxSessions = 10000;
-
-    // Remote feed tracking
-    this.remotePoolSize = 0;
-    this.lastRemoteFetch = null;
-    this.lastRemoteFetchSuccess = null;
-    this.remoteFetchFailureCount = 0;
-    this.remoteFeedHealthy = false;
-    this.remotePoolAge = null;
-
-    // Validation stats
-    this.validationStats = {
-      totalChecked: 0,
-      accepted: 0,
-      rejected: 0,
-      rejectionReasons: {}
-    };
 
     this.deviceCategories = [
       { deviceCategory: 'desktop', weight: 60 },
@@ -207,59 +91,11 @@ class UserAgentRotator {
       { deviceCategory: 'tablet', weight: 10 }
     ];
 
-    logger.info(`UserAgentRotator initialized in '${this.mode}' mode with pool size: ${this.poolSize}, remote refresh interval: ${this.refreshIntervalHours}h`);
+    logger.info(`UserAgentRotator initialized in '${this.mode}' mode with pool size: ${this.poolSize}`);
 
-    // Initialize local pool asynchronously in background (non-blocking)
-    if (this.mode === 'pool' || this.mode === 'hybrid' || this.mode === 'hybrid-remote-first') {
-      setImmediate(() => {
-        this.refreshLocalPoolAsync();
-      });
+    if (this.mode === 'pool' || this.mode === 'hybrid') {
+      this.refreshPool();
     }
-
-    // Start remote fetch scheduler if in remote mode (also non-blocking)
-    if (this.mode === 'hybrid-remote-first') {
-      setImmediate(() => {
-        this.startRemoteScheduler();
-      });
-    }
-  }
-
-  // Async pool initialization (non-blocking)
-  async refreshLocalPoolAsync() {
-    logger.info(`Starting async pool initialization with ${this.poolSize} agents...`);
-    const startTime = Date.now();
-
-    this.pool = [];
-    const uniqueSet = new Set();
-
-    // Generate in chunks with yields to avoid blocking event loop
-    const chunkSize = 500;
-    while (uniqueSet.size < this.poolSize) {
-      for (let i = 0; i < chunkSize && uniqueSet.size < this.poolSize; i++) {
-        const ua = this.generateUserAgent();
-        if (!uniqueSet.has(ua)) {
-          uniqueSet.add(ua);
-          this.pool.push(ua);
-        }
-      }
-
-      // Yield to event loop every chunk
-      await new Promise(resolve => setImmediate(resolve));
-
-      if (uniqueSet.size % 1000 === 0) {
-        logger.info(`Generated ${uniqueSet.size}/${this.poolSize} unique user agents...`);
-      }
-    }
-
-    this.currentIndex = 0;
-    this.lastRefresh = Date.now();
-    this.poolReady = true;
-
-    const duration = Date.now() - startTime;
-    logger.info(`✅ Local user agent pool ready with ${this.pool.length} unique agents in ${duration}ms`);
-
-    // Keep a copy as fallback
-    this.localFallbackPool = [...this.pool];
   }
 
   generateRandomCategory() {
@@ -286,8 +122,8 @@ class UserAgentRotator {
     return uaString;
   }
 
-  refreshLocalPool() {
-    logger.info(`Refreshing local user agent pool with ${this.poolSize} agents...`);
+  refreshPool() {
+    logger.info(`Refreshing user agent pool with ${this.poolSize} agents...`);
     const startTime = Date.now();
 
     this.pool = [];
@@ -309,260 +145,26 @@ class UserAgentRotator {
     this.lastRefresh = Date.now();
 
     const duration = Date.now() - startTime;
-    logger.info(`Local user agent pool refreshed with ${this.pool.length} unique agents in ${duration}ms`);
-
-    // Keep a copy as fallback
-    this.localFallbackPool = [...this.pool];
+    logger.info(`User agent pool refreshed with ${this.pool.length} unique agents in ${duration}ms`);
   }
 
-  // Validate a single UA against quality rules
-  validateUserAgent(ua) {
-    const reasons = [];
-
-    // Check basic format (Mozilla/5.0 + rendering engine)
-    if (!ua || typeof ua !== 'string' || ua.length < 50 || ua.length > 500) {
-      reasons.push('format_invalid');
-      return { valid: false, reasons };
-    }
-
-    if (!ua.includes('Mozilla/5.0')) {
-      reasons.push('missing_mozilla_header');
-    }
-
-    // Check for deprecated patterns
-    if (ua.includes('Windows NT 6.1') || ua.includes('Windows NT 6.0')) {
-      reasons.push('deprecated_os_version');
-    }
-
-    // Basic coherence check: if it says iPhone, shouldn't say Windows
-    const hasWindows = ua.includes('Windows');
-    const hasMac = ua.includes('Macintosh') || ua.includes('Mac OS');
-    const hasLinux = ua.includes('Linux') || ua.includes('X11');
-    const hasAndroid = ua.includes('Android');
-    const hasIOS = ua.includes('iPhone') || ua.includes('iPad') || ua.includes('iPod');
-
-    const osCount = [hasWindows, hasMac, hasLinux, hasAndroid, hasIOS].filter(Boolean).length;
-    if (osCount > 1) {
-      reasons.push('os_coherence_fail');
-    }
-
-    return { valid: reasons.length === 0, reasons };
-  }
-
-  // Fetch remote UA pool (non-blocking background task)
-  async fetchRemotePool() {
-    const feedUrl = process.env.UA_FEED_URL || process.env.REMOTE_UA_FEED_URL;
-    if (!feedUrl) {
-      logger.debug('No remote UA feed URL configured, skipping remote fetch');
-      return null;
-    }
-
-    try {
-      this.lastRemoteFetch = Date.now();
-      logger.info(`Fetching remote UA pool from ${feedUrl.substring(0, 60)}...`);
-
-      const response = await axios.get(feedUrl, {
-        timeout: 5000,
-        headers: {
-          'Accept': 'application/json',
-          ...(process.env.UA_FEED_AUTH_HEADER ? { 'Authorization': process.env.UA_FEED_AUTH_HEADER } : {}),
-        },
-      });
-
-      const feedData = response.data;
-      if (!Array.isArray(feedData)) {
-        throw new Error('Remote feed is not an array');
-      }
-
-      logger.info(`Remote feed received: ${feedData.length} UAs, validating...`);
-
-      // Validate each UA
-      const validatedUAs = [];
-      let rejectionReasons = {};
-
-      for (const item of feedData) {
-        const ua = typeof item === 'string' ? item : item.ua;
-        this.validationStats.totalChecked++;
-
-        const validation = this.validateUserAgent(ua);
-        if (validation.valid) {
-          validatedUAs.push(ua);
-          this.validationStats.accepted++;
-        } else {
-          this.validationStats.rejected++;
-          for (const reason of validation.reasons) {
-            rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
-          }
-        }
-      }
-
-      this.validationStats.rejectionReasons = rejectionReasons;
-
-      // Reject batch if too many invalid
-      const rejectionRate = this.validationStats.rejected / this.validationStats.totalChecked;
-      if (rejectionRate > 0.2) {
-        logger.warn(`❌ Remote feed rejection rate too high (${(rejectionRate * 100).toFixed(1)}%), rejecting batch`);
-        return null;
-      }
-
-      // Deduplicate
-      const uniqueUAs = [...new Set(validatedUAs)];
-      const minCount = parseInt(process.env.UA_FEED_MIN_COUNT || '50');
-      if (uniqueUAs.length < minCount) {
-        logger.warn(`❌ Remote feed has only ${uniqueUAs.length} unique UAs (min: ${minCount}), rejecting`);
-        return null;
-      }
-
-      logger.info(`✅ Remote feed validated: ${uniqueUAs.length} unique UAs accepted out of ${feedData.length}`);
-
-      this.lastRemoteFetchSuccess = Date.now();
-      this.remoteFetchFailureCount = 0;
-      this.remoteFeedHealthy = true;
-      this.remotePoolSize = uniqueUAs.length;
-      this.remotePoolAge = Date.now();
-
-      return uniqueUAs;
-    } catch (error) {
-      logger.warn(`⚠️ Failed to fetch remote UA pool: ${error.message}`);
-      this.remoteFetchFailureCount++;
-      this.remoteFeedHealthy = false;
-
-      if (this.remoteFetchFailureCount > 2) {
-        logger.error(`Remote feed unreachable for ${this.remoteFetchFailureCount} attempts, will use local fallback`);
-      }
-
-      return null;
-    }
-  }
-
-  // Atomic swap of active pool
-  atomicPoolSwap(newPool) {
-    if (!newPool || newPool.length === 0) {
-      logger.warn('Cannot swap to empty pool');
-      return false;
-    }
-
-    const oldPoolSize = this.pool.length;
-    this.pool = [...newPool];
-    this.currentIndex = 0;
-    this.lastRefresh = Date.now();
-
-    logger.info(`✅ Atomic pool swap: ${oldPoolSize} → ${this.pool.length} UAs`);
-    return true;
-  }
-
-  // Background scheduler for remote feed refresh
-  startRemoteScheduler() {
-    const intervalMs = this.refreshInterval;
-    const jitterMs = Math.random() * 60000; // 0-60s jitter to avoid thundering herd
-
-    logger.info(`Starting remote UA scheduler: refresh every ${this.refreshIntervalHours}h with ${Math.round(jitterMs / 1000)}s jitter`);
-
-    setTimeout(() => {
-      // First fetch after jitter
-      this.refreshRemoteAsync();
-
-      // Then recurring interval
-      setInterval(() => {
-        this.refreshRemoteAsync();
-      }, intervalMs);
-    }, jitterMs);
-  }
-
-  // Non-blocking async refresh
-  async refreshRemoteAsync() {
-    try {
-      const remotePool = await this.fetchRemotePool();
-      if (remotePool && remotePool.length > 0) {
-        this.atomicPoolSwap(remotePool);
-        // Also update local fallback with larger pool (10k for high-traffic scenarios)
-        this.localFallbackPool = remotePool.slice(0, 10000);
-      }
-    } catch (error) {
-      logger.error(`Background remote refresh failed: ${error.message}`);
-    }
-  }
-
-  // Generate or get session-based UA
-  getUAForSession(sessionId) {
-    if (!sessionId) {
-      // No session, return random from active pool
-      return this.getNextUA();
-    }
-
-    // Check if session has cached UA
-    const cached = this.sessionMap.get(sessionId);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.ua;
-    }
-
-    // Assign new UA to session
-    const ua = this.getNextUA();
-    this.sessionMap.set(sessionId, {
-      ua,
-      assignedAt: Date.now(),
-      expiresAt: Date.now() + this.sessionTTL,
-    });
-
-    // Cleanup old sessions if map is too large (simple LRU)
-    if (this.sessionMap.size > this.maxSessions) {
-      const entries = Array.from(this.sessionMap.entries());
-      const expired = entries.filter(([_, session]) => session.expiresAt <= Date.now());
-      for (const [sid] of expired) {
-        this.sessionMap.delete(sid);
-      }
-
-      // If still too large, remove oldest
-      if (this.sessionMap.size > this.maxSessions) {
-        const toDelete = this.sessionMap.size - this.maxSessions + 100;
-        for (const [sid] of entries.slice(0, toDelete)) {
-          this.sessionMap.delete(sid);
-        }
-      }
-    }
-
-    return ua;
-  }
-
-  // Get next UA (respects mode and pool availability)
-  getNextUA() {
+  getNext() {
     this.requestCount++;
 
     if (this.mode === 'dynamic') {
       return this.generateUserAgent();
     }
 
-    if (this.mode === 'hybrid-remote-first') {
-      // Use remote pool if healthy and available
-      if (this.remoteFeedHealthy && this.pool.length > 0) {
-        const ua = this.pool[this.currentIndex];
-        this.currentIndex = (this.currentIndex + 1) % this.pool.length;
-        return ua;
-      }
-
-      // Fallback to local pool if ready
-      if (this.poolReady && this.localFallbackPool.length > 0) {
-        const randomIndex = Math.floor(Math.random() * this.localFallbackPool.length);
-        return this.localFallbackPool[randomIndex];
-      }
-
-      // Last resort (pool still initializing): generate fresh
-      logger.debug('Pool not ready yet, generating fresh UA');
-      return this.generateUserAgent();
-    }
-
     if (this.mode === 'pool' || this.mode === 'hybrid') {
       if (Date.now() - this.lastRefresh > this.refreshInterval) {
-        // Schedule async refresh but don't block
-        setImmediate(() => this.refreshLocalPoolAsync());
+        this.refreshPool();
       }
 
       if (this.pool.length === 0) {
         if (this.mode === 'hybrid') {
           return this.generateUserAgent();
         }
-        // If pool is empty, generate fresh
-        return this.generateUserAgent();
+        this.refreshPool();
       }
 
       const ua = this.pool[this.currentIndex];
@@ -573,10 +175,6 @@ class UserAgentRotator {
     return this.generateUserAgent();
   }
 
-  getNext() {
-    return this.getNextUA();
-  }
-
   getRandom() {
     this.requestCount++;
 
@@ -584,30 +182,16 @@ class UserAgentRotator {
       return this.generateUserAgent();
     }
 
-    if (this.mode === 'hybrid-remote-first') {
-      if (this.remoteFeedHealthy && this.pool.length > 0) {
-        const randomIndex = Math.floor(Math.random() * this.pool.length);
-        return this.pool[randomIndex];
-      }
-
-      if (this.localFallbackPool.length > 0) {
-        const randomIndex = Math.floor(Math.random() * this.localFallbackPool.length);
-        return this.localFallbackPool[randomIndex];
-      }
-
-      return this.generateUserAgent();
-    }
-
     if (this.mode === 'pool' || this.mode === 'hybrid') {
       if (Date.now() - this.lastRefresh > this.refreshInterval) {
-        this.refreshLocalPool();
+        this.refreshPool();
       }
 
       if (this.pool.length === 0) {
         if (this.mode === 'hybrid') {
           return this.generateUserAgent();
         }
-        this.refreshLocalPool();
+        this.refreshPool();
       }
 
       const randomIndex = Math.floor(Math.random() * this.pool.length);
@@ -618,15 +202,6 @@ class UserAgentRotator {
   }
 
   getStats() {
-    const cacheAgeMins = this.lastRemoteFetch
-      ? Math.round((Date.now() - this.lastRemoteFetch) / 60000)
-      : null;
-
-    const activeSessions = this.sessionMap.size;
-    const sessionHitRate = this.requestCount > 0
-      ? `${((activeSessions / this.requestCount) * 100).toFixed(2)}%`
-      : '0%';
-
     const stats = {
       mode: this.mode,
       poolSize: this.mode === 'dynamic' ? 'N/A (generates on-demand)' : this.pool.length,
@@ -648,35 +223,7 @@ class UserAgentRotator {
         desktop: '60%',
         mobile: '30%',
         tablet: '10%'
-      },
-      // Remote feed stats
-      remotePool: {
-        size: this.remotePoolSize,
-        healthy: this.remoteFeedHealthy,
-        lastFetchTime: this.lastRemoteFetch ? new Date(this.lastRemoteFetch).toISOString() : null,
-        lastSuccessTime: this.lastRemoteFetchSuccess ? new Date(this.lastRemoteFetchSuccess).toISOString() : null,
-        cacheAgeMinutes: cacheAgeMins,
-        failureCount: this.remoteFetchFailureCount,
-      },
-      // Local fallback stats
-      localFallback: {
-        poolSize: this.localFallbackPool.length,
-        available: this.localFallbackPool.length > 0,
-      },
-      // Validation stats
-      validation: {
-        totalChecked: this.validationStats.totalChecked,
-        accepted: this.validationStats.accepted,
-        rejected: this.validationStats.rejected,
-        rejectionReasons: this.validationStats.rejectionReasons,
-      },
-      // Session stickiness stats
-      sessionStickiness: {
-        activeSessions,
-        sessionHitRate,
-        sessionTTLHours: this.sessionTTL / (60 * 60 * 1000),
-        maxSessions: this.maxSessions,
-      },
+      }
     };
 
     return stats;
@@ -685,33 +232,26 @@ class UserAgentRotator {
 
 const userAgentRotator = new UserAgentRotator();
 
+// Minimal blocking list - only block heavy trackers that may interfere
+// Keeping it minimal to avoid detection and allow normal page behavior
 const BLOCKED_DOMAINS = [
   'google-analytics.com',
   'googletagmanager.com',
-  'facebook.com/tr',
   'doubleclick.net',
-  'analytics.google.com',
-  'adservice.google.com',
-  'facebook.net',
-  'connect.facebook.net',
-  'hotjar.com',
-  'mouseflow.com',
-  'crazyegg.com',
-  'mixpanel.com',
-  'segment.com',
-  'amplitude.com',
-  'optimizely.com',
-  'quantserve.com',
-  'scorecardresearch.com',
-  'zopim.com',
-  'livechat.com',
-  'intercom.io',
-  'drift.com',
-  'tawk.to',
-  'newrelic.com',
-  'sentry.io',
-  'bugsnag.com',
-  'loggly.com',
+  'facebook.com/tr',
+];
+
+// Unified resource types to block in browser-based modes to reduce bandwidth
+const BLOCKED_RESOURCE_TYPES = [
+  'image',
+  'stylesheet',
+  'font',
+  'media',
+  'imageset',
+  'texttrack',
+  'websocket',
+  'manifest',
+  'other',
 ];
 
 let browser = null;
@@ -805,50 +345,6 @@ async function initBrowser() {
   return browser;
 }
 
-// Launch a per-trace browser bound to the trace-specific proxy host/port
-async function launchBrowserForContext(context) {
-  const proxyServer = `http://${context.proxyHost}:${context.proxyPort}`;
-
-  logger.info('Initializing per-trace browser with proxy:', {
-    proxyServer,
-    session: context.sessionId,
-    region: context.region || 'default',
-  });
-
-  return puppeteer.launch({
-    headless: 'new',
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--disable-gpu',
-      '--window-size=1920x1080',
-      `--proxy-server=${proxyServer}`,
-      '--disable-extensions',
-      '--disable-default-apps',
-      '--disable-sync',
-      '--disable-translate',
-      '--disable-background-networking',
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-      '--disable-client-side-phishing-detection',
-      '--disable-hang-monitor',
-      '--disable-prompt-on-repost',
-      '--disable-domain-reliability',
-      '--disable-component-extensions-with-background-pages',
-      '--disable-ipc-flooding-protection',
-      '--metrics-recording-only',
-      '--mute-audio',
-      '--no-default-browser-check',
-      '--no-first-run',
-      '--disable-features=site-per-process,TranslateUI,BlinkGenPropertyTrees',
-      '--disable-blink-features=AutomationControlled',
-    ],
-  });
-}
-
 async function fetchGeolocation(username = null, password = null) {
   try {
     if (!proxySettings) {
@@ -887,60 +383,15 @@ async function fetchGeolocation(username = null, password = null) {
   }
 }
 
-async function getTraceContext({ targetCountry = null, userAgentOverride = null, sessionId = null } = {}) {
-  if (!proxySettings) {
-    await loadProxySettings();
-  }
-
-  const sessionTtl = parseInt(process.env.PROXY_SESSION_TTL_SECONDS || process.env.IP_COOLDOWN_SECONDS || '120', 10);
-  const traceSessionId = randomUUID().replace(/-/g, '');
-
-  // Strip any prior region/session to build a fresh suffix
-  const baseUser = proxySettings.username.split('-sessid-')[0].split('-region-')[0];
-  const usernameWithSession = `${baseUser}-sessid-${traceSessionId}-sesstime-${sessionTtl}`;
-
-  const geoRouting = new GeoRouting('luna', {
-    username: usernameWithSession,
-    password: proxySettings.password,
-    host: proxySettings.host,
-    port: proxySettings.port,
-  });
-
-  const region = targetCountry && targetCountry.length === 2 ? targetCountry.toLowerCase() : null;
-  const proxyUrl = geoRouting.getProxyUrl(region || undefined);
-
-  const parsed = new URL(proxyUrl);
-
-  // Use session-based UA if session ID provided, otherwise override or generate
-  let userAgent = userAgentOverride;
-  if (!userAgent && sessionId) {
-    userAgent = userAgentRotator.getUAForSession(sessionId);
-  }
-  if (!userAgent) {
-    userAgent = userAgentRotator.getNext();
-  }
-
-  return {
-    proxyUrl,
-    proxyHost: parsed.hostname,
-    proxyPort: parseInt(parsed.port || proxySettings.port, 10),
-    proxyUsername: decodeURIComponent(parsed.username),
-    proxyPassword: decodeURIComponent(parsed.password),
-    userAgent,
-    sessionId: traceSessionId,
-    sessionTtl,
-    region,
-  };
-}
-
 async function traceRedirectsHttpOnly(url, options = {}) {
   const {
     maxRedirects = 20,
     timeout = 5000,
-    userAgent = null,
+    userAgent = userAgentRotator.getNext(),
     targetCountry = null,
     referrer = null,
-    traceContext = null,
+    proxyIp = null,
+    proxyPort = null,
   } = options;
 
   // Lightweight HTML sniff patterns to mimic browser-like meta/JS redirects without full rendering
@@ -948,11 +399,8 @@ async function traceRedirectsHttpOnly(url, options = {}) {
   const jsRedirectRegex = /(window\.location|location\.href|location\.replace)\s*=\s*["']([^"']+)["']/i;
   const setTimeoutRedirectRegex = /setTimeout\s*\(\s*function\s*\(\)\s*{[^}]{0,200}?(?:window\.location|location\.href|location\.replace)\s*=\s*["']([^"']+)["']/i;
 
-  const context = traceContext || await getTraceContext({ targetCountry, userAgentOverride: userAgent });
-  const effectiveUA = userAgent || context.userAgent;
-
   logger.info(`⚡ HTTP-only INSTANT (GET + stream headers): ${url.substring(0, 80)}... | maxRedirects: ${maxRedirects}`);
-  logger.info(`📱 User-Agent: ${effectiveUA.substring(0, 80)}...`);
+  logger.info(`📱 User-Agent: ${userAgent.substring(0, 80)}...`);
 
   const chain = [];
   let currentUrl = url;
@@ -961,7 +409,23 @@ async function traceRedirectsHttpOnly(url, options = {}) {
   const startBudget = Date.now();
   const budgetMs = timeout;
 
-  const traceAgent = new HttpsProxyAgent(context.proxyUrl, {
+  if (!proxySettings) {
+    await loadProxySettings();
+  }
+
+  let proxyUsername = proxyIp || proxySettings.username;
+  const proxyPassword = proxySettings.password;
+  const proxyHost = proxySettings.host;
+  const proxyPortNum = parseInt(proxyPort || proxySettings.port);
+
+  if (!proxyIp && targetCountry && targetCountry.length === 2 && !proxyUsername.includes('-region-')) {
+    const countryCode = targetCountry.toLowerCase();
+    proxyUsername = `${proxyUsername}-region-${countryCode}`;
+    logger.info(`🌍 Geo-targeting: ${countryCode.toUpperCase()}`);
+  }
+
+  const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPortNum}`;
+  const traceAgent = new HttpsProxyAgent(proxyUrl, {
     keepAlive: true,
     keepAliveMsecs: 10000,
     maxSockets: 20, // Increase for parallel speculation
@@ -1025,9 +489,8 @@ async function traceRedirectsHttpOnly(url, options = {}) {
     
     // Use AbortController for instant cancellation
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => {
-      abortController.abort();
-    }, budgetPerHop);
+    const timeoutId = setTimeout(() => abortController.abort(), budgetPerHop);
+    
     try {
       // Use got.stream() with AbortController for instant kill
       const stream = got.stream(url, {
@@ -1037,7 +500,7 @@ async function traceRedirectsHttpOnly(url, options = {}) {
         decompress: false,
         throwHttpErrors: false,
         headers: {
-          'user-agent': effectiveUA,
+          'user-agent': userAgent,
           'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'accept-language': 'en-US,en;q=0.9',
           'accept-encoding': 'identity', // No compression - faster headers
@@ -1244,7 +707,7 @@ async function traceRedirectsHttpOnly(url, options = {}) {
     chain,
     total_steps: chain.length,
     final_url: chain.length > 0 ? chain[chain.length - 1].url : url,
-    user_agent: effectiveUA,
+    user_agent: userAgent,
     total_bandwidth_bytes: totalBandwidth,
     bandwidth_per_step_bytes: Math.round(avgBandwidth),
     parallel_metrics: {
@@ -1259,47 +722,99 @@ async function traceRedirectsBrowser(url, options = {}) {
   const {
     maxRedirects = 20,
     timeout = 60000,
-    userAgent = null,
+    userAgent = userAgentRotator.getNext(),
     targetCountry = null,
     referrer = null,
-    traceContext = null,
   } = options;
 
   const chain = [];
   const popupChains = [];
   let browser = null;
   let page = null;
-  let context = null;
-  let effectiveUA = null;
-  let redirectLimitHit = false;
-
-  const idleThresholdMs = 5000; // Option A: wait 5s of no URL changes before early stop
-  const settleAfterIdleMs = 600; // brief settle to catch meta/JS refresh after idle
-  let mainDocumentRequests = 0;
 
   try {
-    context = traceContext || await getTraceContext({ targetCountry, userAgentOverride: userAgent });
-
-    browser = await launchBrowserForContext(context);
+    browser = await initBrowser();
     page = await browser.newPage();
-    effectiveUA = context.userAgent;
 
-    await page.authenticate({
-      username: context.proxyUsername,
-      password: context.proxyPassword,
-    });
-
-    await page.setUserAgent(effectiveUA);
-    await page.setViewport({ width: 1920, height: 1080 });
-
-    if (referrer) {
-      await page.setExtraHTTPHeaders({
-        'Referer': referrer,
-      });
-      logger.info(`🔗 Browser using custom referrer: ${referrer}`);
+    if (!proxySettings) {
+      await loadProxySettings();
     }
 
+    let proxyUsername = proxySettings.username;
+
+    if (targetCountry && targetCountry.length === 2) {
+      const countryCode = targetCountry.toLowerCase();
+      if (!proxyUsername.includes('-region-')) {
+        proxyUsername = `${proxyUsername}-region-${countryCode}`;
+        logger.info(`🌍 Browser geo-targeting: ${countryCode.toUpperCase()}`);
+      }
+    }
+
+    await page.authenticate({
+      username: proxyUsername,
+      password: proxySettings.password,
+    });
+
+    await page.setUserAgent(userAgent);
+    logger.info(`🎭 Using User Agent: ${userAgent.substring(0, 80)}...`);
+    
+    // Realistic viewport sizes
+    const viewports = [
+      { width: 1920, height: 1080 },
+      { width: 1366, height: 768 },
+      { width: 1536, height: 864 },
+      { width: 1440, height: 900 },
+    ];
+    const viewport = viewports[Math.floor(Math.random() * viewports.length)];
+    await page.setViewport(viewport);
+
+    // Set realistic browser headers
+    const headers = {
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+      'Upgrade-Insecure-Requests': '1',
+      'Cache-Control': 'max-age=0',
+    };
+    
+    if (referrer) {
+      headers['Referer'] = referrer;
+      logger.info(`🔗 Browser using custom referrer: ${referrer}`);
+    }
+    
+    await page.setExtraHTTPHeaders(headers);
+
+    // Enhanced stealth: mask automation indicators
     await page.evaluateOnNewDocument(() => {
+      // Override webdriver property
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => false,
+      });
+      
+      // Mock plugins
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [1, 2, 3, 4, 5],
+      });
+      
+      // Mock languages
+      Object.defineProperty(navigator, 'languages', {
+        get: () => ['en-US', 'en'],
+      });
+      
+      // Add chrome object
+      window.chrome = {
+        runtime: {},
+      };
+      
+      // Override permissions
+      const originalQuery = window.navigator.permissions.query;
+      window.navigator.permissions.query = (parameters) => (
+        parameters.name === 'notifications' ?
+          Promise.resolve({ state: Notification.permission }) :
+          originalQuery(parameters)
+      );
+      
+      // Disable animations for faster loading
       const style = document.createElement('style');
       style.textContent = `
         * {
@@ -1317,6 +832,7 @@ async function traceRedirectsBrowser(url, options = {}) {
     await page.setRequestInterception(true);
 
     const redirectChain = [];
+    let requestCount = 0;
     let lastUrlChange = Date.now();
 
     page.on('framenavigated', (frame) => {
@@ -1329,14 +845,6 @@ async function traceRedirectsBrowser(url, options = {}) {
       const resourceType = request.resourceType();
 
       if (resourceType === 'document') {
-        mainDocumentRequests++;
-        if (mainDocumentRequests > maxRedirects) {
-          redirectLimitHit = true;
-          logger.warn(`🚦 Browser: maxRedirects ${maxRedirects} hit, aborting navigation to ${request.url().substring(0, 120)}...`);
-          request.abort();
-          return;
-        }
-
         const startTime = Date.now();
         redirectChain.push({
           url: request.url(),
@@ -1344,13 +852,13 @@ async function traceRedirectsBrowser(url, options = {}) {
           headers: request.headers(),
           startTime,
         });
+        requestCount++;
       }
 
-      const blockedTypes = ['image', 'stylesheet', 'font', 'media', 'imageset', 'texttrack', 'websocket', 'manifest', 'other'];
       const requestUrl = request.url();
       const shouldBlockDomain = BLOCKED_DOMAINS.some(domain => requestUrl.includes(domain));
 
-      if (blockedTypes.includes(resourceType) || shouldBlockDomain) {
+      if (BLOCKED_RESOURCE_TYPES.includes(resourceType) || shouldBlockDomain) {
         request.abort();
       } else {
         // Override headers to maintain the same referrer across all hops
@@ -1420,13 +928,6 @@ async function traceRedirectsBrowser(url, options = {}) {
       const popupChain = [];
 
       try {
-        // Ensure popup inherits proxy auth and UA to avoid mismatched behavior
-        await popup.authenticate({
-          username: context.proxyUsername,
-          password: context.proxyPassword,
-        }).catch(() => {});
-        await popup.setUserAgent(effectiveUA).catch(() => {});
-
         await popup.waitForNavigation({ timeout: 10000, waitUntil: 'domcontentloaded' }).catch(() => {});
         const popupUrl = popup.url();
 
@@ -1468,25 +969,22 @@ async function traceRedirectsBrowser(url, options = {}) {
     const idleDetectionPromise = new Promise((resolve) => {
       const checkIdle = setInterval(() => {
         const timeSinceLastChange = Date.now() - lastUrlChange;
-        if (timeSinceLastChange > idleThresholdMs) {
+        // Wait 2 seconds of no URL changes before early stop
+        // Optimized for faster execution while allowing JS redirects
+        if (timeSinceLastChange > 2000) {
           clearInterval(checkIdle);
-          logger.info(`⚡ Browser: Early stop - no URL changes for ${idleThresholdMs / 1000}s`);
-          resolve('idle');
+          logger.info('⚡ Browser: Early stop - no URL changes for 2s');
+          resolve();
         }
       }, 200);
 
       setTimeout(() => {
         clearInterval(checkIdle);
-        resolve('timeout');
+        resolve();
       }, timeout);
     });
 
-    const raceOutcome = await Promise.race([navigationPromise, idleDetectionPromise]);
-
-    // Small settle after idle detection to catch late meta/JS redirects
-    if (raceOutcome === 'idle') {
-      await page.waitForTimeout(settleAfterIdleMs).catch(() => {});
-    }
+    await Promise.race([navigationPromise, idleDetectionPromise]);
 
     const finalUrl = page.url();
     if (chain.length === 0 || chain[chain.length - 1].url !== finalUrl) {
@@ -1509,21 +1007,8 @@ async function traceRedirectsBrowser(url, options = {}) {
       });
     }
 
-    if (redirectLimitHit) {
-      chain.push({
-        url: 'max_redirects_reached',
-        status: 0,
-        redirect_type: 'error',
-        method: 'limit',
-        error: `Max ${maxRedirects} redirects`,
-        timing_ms: 0,
-        bandwidth_bytes: null,
-      });
-    }
-
     const totalBandwidth = chain.reduce((sum, entry) => sum + (entry.bandwidth_bytes || 0), 0);
     const avgBandwidth = chain.length > 0 ? totalBandwidth / chain.length : 0;
-    const returnedUA = effectiveUA || userAgent || userAgentRotator.getNext();
 
     return {
       success: true,
@@ -1532,7 +1017,7 @@ async function traceRedirectsBrowser(url, options = {}) {
       total_popups: popupChains.length,
       total_steps: chain.length,
       final_url: finalUrl,
-      user_agent: returnedUA,
+      user_agent: userAgent,
       total_bandwidth_bytes: totalBandwidth,
       bandwidth_per_step_bytes: Math.round(avgBandwidth),
       execution_model: 'browser_full_rendering',
@@ -1555,7 +1040,6 @@ async function traceRedirectsBrowser(url, options = {}) {
 
     const totalBandwidth = chain.reduce((sum, entry) => sum + (entry.bandwidth_bytes || 0), 0);
     const avgBandwidth = chain.length > 0 ? totalBandwidth / chain.length : 0;
-    const returnedUA = effectiveUA || userAgent || userAgentRotator.getNext();
 
     return {
       success: false,
@@ -1573,9 +1057,6 @@ async function traceRedirectsBrowser(url, options = {}) {
     if (page) {
       await page.close().catch(e => logger.error('Failed to close page:', e));
     }
-    if (browser) {
-      await browser.close().catch(e => logger.error('Failed to close browser:', e));
-    }
   }
 }
 
@@ -1583,10 +1064,9 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
   const {
     maxRedirects = 20,
     timeout = 90000,
-    userAgent = null,
+    userAgent = userAgentRotator.getNext(),
     targetCountry = null,
     referrer = null,
-    traceContext = null,
   } = options;
 
   const chain = [];
@@ -1596,22 +1076,31 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
   let browser = null;
   let page = null;
   let aggressivenessLevel = 'low';
-  let context = null;
-  let effectiveUA = null;
 
   try {
-    context = traceContext || await getTraceContext({ targetCountry, userAgentOverride: userAgent });
-
-    browser = await launchBrowserForContext(context);
+    browser = await initBrowser();
     page = await browser.newPage();
-    effectiveUA = context.userAgent;
+
+    if (!proxySettings) {
+      await loadProxySettings();
+    }
+
+    let proxyUsername = proxySettings.username;
+
+    if (targetCountry && targetCountry.length === 2) {
+      const countryCode = targetCountry.toLowerCase();
+      if (!proxyUsername.includes('-region-')) {
+        proxyUsername = `${proxyUsername}-region-${countryCode}`;
+        logger.info(`🕵️ Anti-cloaking geo-targeting: ${countryCode.toUpperCase()}`);
+      }
+    }
 
     await page.authenticate({
-      username: context.proxyUsername,
-      password: context.proxyPassword,
+      username: proxyUsername,
+      password: proxySettings.password,
     });
 
-    await page.setUserAgent(effectiveUA);
+    await page.setUserAgent(userAgent);
     await page.setViewport({
       width: 1920 + Math.floor(Math.random() * 100),
       height: 1080 + Math.floor(Math.random() * 100)
@@ -1681,11 +1170,10 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
         requestCount++;
       }
 
-      const blockedTypes = ['image', 'stylesheet', 'font', 'media', 'imageset', 'texttrack', 'websocket', 'manifest', 'other'];
       const requestUrl = request.url();
       const shouldBlockDomain = BLOCKED_DOMAINS.some(domain => requestUrl.includes(domain));
 
-      if (blockedTypes.includes(resourceType) || shouldBlockDomain) {
+      if (BLOCKED_RESOURCE_TYPES.includes(resourceType) || shouldBlockDomain) {
         request.abort();
       } else {
         // Override headers to maintain the same referrer across all hops
@@ -1849,7 +1337,6 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
 
     const totalBandwidth = chain.reduce((sum, entry) => sum + (entry.bandwidth_bytes || 0), 0);
     const avgBandwidth = chain.length > 0 ? totalBandwidth / chain.length : 0;
-    const returnedUA = effectiveUA || userAgent || userAgentRotator.getNext();
 
     return {
       success: true,
@@ -1861,7 +1348,7 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       total_popups: popupChains.length,
       total_steps: chain.length,
       final_url: finalUrl,
-      user_agent: returnedUA,
+      user_agent: userAgent,
       total_bandwidth_bytes: totalBandwidth,
       bandwidth_per_step_bytes: Math.round(avgBandwidth),
       execution_model: 'anti_cloaking_stealth',
@@ -1884,7 +1371,6 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
 
     const totalBandwidth = chain.reduce((sum, entry) => sum + (entry.bandwidth_bytes || 0), 0);
     const avgBandwidth = chain.length > 0 ? totalBandwidth / chain.length : 0;
-    const returnedUA = effectiveUA || userAgent || userAgentRotator.getNext();
 
     return {
       success: false,
@@ -1905,9 +1391,6 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     if (page) {
       await page.close().catch(e => logger.error('Failed to close page:', e));
     }
-    if (browser) {
-      await browser.close().catch(e => logger.error('Failed to close browser:', e));
-    }
   }
 }
 
@@ -1926,7 +1409,6 @@ app.post('/trace', async (req, res) => {
       proxy_ip,
       proxy_port,
       follow_http_only,
-      session_id,
     } = req.body;
 
     if (!url) {
@@ -1943,22 +1425,10 @@ app.post('/trace', async (req, res) => {
       proxy_ip,
       proxy_port,
       follow_http_only,
-      session_id: session_id ? '***' : 'none',
     });
 
     if (!proxySettings) {
       await loadProxySettings();
-    }
-
-    // Get user agent (with session stickiness if session_id provided)
-    let selectedUserAgent;
-    if (user_agent) {
-      selectedUserAgent = user_agent;
-    } else if (session_id) {
-      selectedUserAgent = userAgentRotator.getUAForSession(session_id);
-      logger.info(`🔒 Session UA assigned: ${session_id.substring(0, 8)}...`);
-    } else {
-      selectedUserAgent = userAgentRotator.getNext();
     }
 
     let geoUsername = proxy_ip || proxySettings.username;
@@ -1978,7 +1448,7 @@ app.post('/trace', async (req, res) => {
       tracePromise = traceRedirectsHttpOnly(url, {
         maxRedirects: max_redirects || 20,
         timeout: timeout_ms || 5000,
-        userAgent: selectedUserAgent,
+        userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: target_country || null,
         referrer: referrer || null,
         proxyIp: proxy_ip || null,
@@ -1989,7 +1459,7 @@ app.post('/trace', async (req, res) => {
       tracePromise = traceRedirectsAntiCloaking(url, {
         maxRedirects: max_redirects || 20,
         timeout: timeout_ms || 90000,
-        userAgent: selectedUserAgent,
+        userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: target_country || null,
         referrer: referrer || null,
       });
@@ -1998,7 +1468,7 @@ app.post('/trace', async (req, res) => {
       tracePromise = traceRedirectsBrowser(url, {
         maxRedirects: max_redirects || 20,
         timeout: timeout_ms || 60000,
-        userAgent: selectedUserAgent,
+        userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: target_country || null,
         referrer: referrer || null,
       });
@@ -2024,7 +1494,6 @@ app.post('/trace', async (req, res) => {
       total_timing_ms: totalTime,
       total_bandwidth_formatted: formatBytes(result.total_bandwidth_bytes),
       mode_used: mode,
-      session_id: session_id || null,
     });
 
   } catch (error) {
@@ -2048,23 +1517,23 @@ app.get('/health', (req, res) => {
 
 app.get('/ip', async (req, res) => {
   try {
-    const context = await getTraceContext();
+    if (!proxySettings) {
+      await loadProxySettings();
+    }
 
     const response = await axios.get('https://api.ipify.org?format=json', {
       proxy: {
-        host: context.proxyHost,
-        port: parseInt(context.proxyPort),
+        host: proxySettings.host,
+        port: parseInt(proxySettings.port),
         auth: {
-          username: context.proxyUsername,
-          password: context.proxyPassword,
+          username: proxySettings.username,
+          password: proxySettings.password,
         },
       },
     });
 
     res.json({
       proxy_ip: response.data.ip,
-      region: context.region || 'default',
-      session_id: context.sessionId,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -2076,90 +1545,7 @@ app.get('/ip', async (req, res) => {
 app.get('/user-agent-stats', (req, res) => {
   res.json({
     ...userAgentRotator.getStats(),
-    description: 'User agent rotation stats with remote feed health and session stickiness metrics'
-  });
-});
-
-// Admin endpoint: force immediate remote refresh
-app.post('/ua-admin/force-refresh', async (req, res) => {
-  const adminKey = process.env.UA_ADMIN_KEY || 'admin-key-not-set';
-  const providedKey = req.headers['x-admin-key'] || req.query.admin_key;
-
-  if (providedKey !== adminKey) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  try {
-    logger.info('🔄 Admin force-refresh triggered');
-    const remotePool = await userAgentRotator.fetchRemotePool();
-
-    if (remotePool && remotePool.length > 0) {
-      const swapped = userAgentRotator.atomicPoolSwap(remotePool);
-      res.json({
-        success: swapped,
-        message: swapped ? 'Pool refreshed and swapped' : 'Validation failed',
-        poolSize: remotePool.length,
-        stats: userAgentRotator.getStats(),
-      });
-    } else {
-      res.json({
-        success: false,
-        message: 'Remote fetch failed or returned empty pool',
-        stats: userAgentRotator.getStats(),
-      });
-    }
-  } catch (error) {
-    logger.error('Force refresh error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-});
-
-// Admin endpoint: fallback to local-only mode
-app.post('/ua-admin/fallback-local', (req, res) => {
-  const adminKey = process.env.UA_ADMIN_KEY || 'admin-key-not-set';
-  const providedKey = req.headers['x-admin-key'] || req.query.admin_key;
-
-  if (providedKey !== adminKey) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  try {
-    logger.warn('🚨 Admin fallback-local triggered - switching to local-only mode');
-    userAgentRotator.remoteFeedHealthy = false;
-    userAgentRotator.remoteFetchFailureCount = 999;
-
-    res.json({
-      success: true,
-      message: 'Switched to local fallback mode (remote feed disabled)',
-      mode: 'local-fallback',
-      stats: userAgentRotator.getStats(),
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-});
-
-// Debug endpoint: recent validation log and pool sample
-app.get('/ua-debug/pool-sample', (req, res) => {
-  const adminKey = process.env.UA_ADMIN_KEY || 'admin-key-not-set';
-  const providedKey = req.headers['x-admin-key'] || req.query.admin_key;
-
-  if (providedKey !== adminKey) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  const sample = userAgentRotator.pool.slice(0, 20);
-  res.json({
-    poolSize: userAgentRotator.pool.length,
-    remoteFeedHealthy: userAgentRotator.remoteFeedHealthy,
-    sample,
-    validationStats: userAgentRotator.validationStats,
+    description: 'User agent rotation stats - pool refreshes every hour with fresh agents'
   });
 });
 
@@ -2182,7 +1568,6 @@ process.on('SIGINT', async () => {
 app.listen(PORT, '0.0.0.0', async () => {
   logger.info(`Proxy service running on 0.0.0.0:${PORT}`);
   logger.info('Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth)');
-  logger.info(`User agent mode: ${userAgentRotator.mode}`);
 
   try {
     await loadProxySettings();

@@ -275,7 +275,8 @@ Deno.serve(async (req: Request) => {
       })
       .eq('id', offer.id);
 
-    let finalSuffix = offer.suffix_pattern || '';
+    // Remove default suffix pattern fallback; only return suffix when extracted
+    let finalSuffix = '';
     let extractedParams: Record<string, string> = {};
     let filteredParams: Record<string, string> = {};
     let traceSuccessful = false;
@@ -385,8 +386,6 @@ Deno.serve(async (req: Request) => {
                   traceSuccessful = true;
                   const status = selectedStep.error ? 'error' : `status ${selectedStep.status}`;
                   console.log(`Extracted ${Object.keys(extractedParams).length} params, filtered to ${Object.keys(filteredParams).length} params from step ${stepIndex + 1}/${chain.length} (${status})`);
-                } else {
-                  console.log(`Step ${stepIndex + 1} has no extractable params, using default suffix pattern`);
                 }
               } else {
                 console.error(`Configured step ${stepIndex + 1} exceeds chain length ${chain.length}`);
@@ -457,9 +456,15 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // If no params extracted or trace failed, send no content so the campaign retains last suffix
+    if (!traceSuccessful || !finalSuffix) {
+      console.warn('No params extracted or trace failed; returning 204 to preserve existing campaign suffix');
+      return new Response('', { status: 204, headers: { ...corsHeaders } });
+    }
+
     const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
     const userAgent = req.headers.get('user-agent') || 'unknown';
-    const wasTraced = !!trackingUrlToUse && finalSuffix !== (offer.suffix_pattern || '');
+    const wasTraced = !!trackingUrlToUse && finalSuffix.length > 0;
 
     console.log('💾 Inserting suffix_request with proxy_ip:', proxyIp);
 

@@ -249,15 +249,6 @@ export default function OfferList() {
                 </div>
 
                 <div className="space-y-2 text-xs">
-                  <div className="flex items-start gap-2">
-                    <span className="text-neutral-500 dark:text-neutral-400 font-medium min-w-[120px] flex-shrink-0">
-                      Suffix Pattern:
-                    </span>
-                    <code className="bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200 font-mono text-xs">
-                      {offer.suffix_pattern || '(none)'}
-                    </code>
-                  </div>
-
                   {offer.tracking_template && (
                     <div className="flex items-start gap-2">
                       <span className="text-neutral-500 dark:text-neutral-400 font-medium min-w-[120px] flex-shrink-0">

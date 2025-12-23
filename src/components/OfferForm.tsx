@@ -442,21 +442,6 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                  Suffix Pattern
-                </label>
-                <input
-                  type="text"
-                  value={formData.suffix_pattern}
-                  onChange={(e) =>
-                    setFormData({ ...formData, suffix_pattern: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 dark:focus:ring-brand-400/20 focus:border-brand-500 dark:focus:border-brand-400 outline-none transition-smooth"
-                  required
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
