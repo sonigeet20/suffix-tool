@@ -309,7 +309,8 @@ async function initBrowser() {
 
   logger.info('Initializing browser with proxy:', proxyServer);
 
-  browser = await puppeteer.launch({
+  // macOS workaround: Try to use system Chrome if bundled Chromium fails
+  const launchOptions = {
     headless: 'new',
     args: [
       '--no-sandbox',
@@ -340,7 +341,27 @@ async function initBrowser() {
       '--disable-features=site-per-process,TranslateUI,BlinkGenPropertyTrees',
       '--disable-blink-features=AutomationControlled',
     ],
-  });
+  };
+
+  // On macOS, try to use system Chrome to avoid ARM/Rosetta issues
+  if (process.platform === 'darwin') {
+    const chromePaths = [
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium',
+      '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+    ];
+    
+    const fs = require('fs');
+    for (const chromePath of chromePaths) {
+      if (fs.existsSync(chromePath)) {
+        launchOptions.executablePath = chromePath;
+        logger.info(`Using system browser: ${chromePath}`);
+        break;
+      }
+    }
+  }
+
+  browser = await puppeteer.launch(launchOptions);
 
   return browser;
 }
@@ -1073,9 +1094,11 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
   const popupChains = [];
   const obfuscatedUrls = [];
   const cloakingIndicators = [];
+  const visitedScriptUrls = new Set();
   let browser = null;
   let page = null;
   let aggressivenessLevel = 'low';
+  let latestPageContent = '';
 
   try {
     browser = await initBrowser();
@@ -1142,6 +1165,27 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       document.addEventListener('DOMContentLoaded', () => {
         document.head.appendChild(style);
       });
+
+      // Capture top/parent navigation attempts (assign/replace) for later follow-up
+      try {
+        const hookLocation = (locObj) => {
+          if (!locObj) return;
+          ['assign', 'replace'].forEach(fn => {
+            const original = locObj[fn];
+            if (typeof original !== 'function') return;
+            Object.defineProperty(locObj, fn, {
+              configurable: true,
+              value: function(url) {
+                try { window.__forcedNavTarget = url; } catch (e) {}
+                return original.call(this, url);
+              }
+            });
+          });
+        };
+
+        hookLocation(window.top && window.top.location);
+        hookLocation(window.parent && window.parent.location);
+      } catch (e) {}
     });
 
     await page.setRequestInterception(true);
@@ -1150,9 +1194,18 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     let requestCount = 0;
     let lastUrlChange = Date.now();
 
-    page.on('framenavigated', (frame) => {
+    // Capture content after each navigation to avoid context destruction
+    page.on('framenavigated', async (frame) => {
       if (frame === page.mainFrame()) {
         lastUrlChange = Date.now();
+        
+        // Capture content immediately after navigation completes
+        try {
+          latestPageContent = await page.content();
+        } catch (err) {
+          // Context may still be destroyed in rapid redirects; ignore
+          logger.warn('Could not capture content after navigation:', err.message);
+        }
       }
     });
 
@@ -1275,13 +1328,35 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     const idleDetectionPromise = new Promise((resolve) => {
       const checkIdle = setInterval(() => {
         const timeSinceLastChange = Date.now() - lastUrlChange;
-        // Wait 2 seconds for JavaScript redirects to execute (optimized)
-        if (timeSinceLastChange > 2000) {
+        // Wait ~3.5s for JavaScript redirects to execute; light DOM mutation sniff
+        if (timeSinceLastChange > 3500) {
           clearInterval(checkIdle);
           logger.info('⚡ Anti-cloaking: Early stop - no URL changes for 2s');
           resolve();
         }
       }, 200);
+
+      // Single mutation observer burst (~400ms) after 3s to see if page is still active
+      setTimeout(async () => {
+        try {
+          const hadRecentMutation = await page.evaluate(() => {
+            return new Promise((resolve) => {
+              let mutated = false;
+              const obs = new MutationObserver(() => { mutated = true; });
+              obs.observe(document.documentElement || document.body, { subtree: true, childList: true, attributes: true });
+              setTimeout(() => { obs.disconnect(); resolve(mutated); }, 400);
+            });
+          });
+
+          if (!hadRecentMutation && (Date.now() - lastUrlChange) > 3000) {
+            clearInterval(checkIdle);
+            logger.info('⚡ Anti-cloaking: Early stop - idle + no mutations');
+            resolve();
+          }
+        } catch (e) {
+          // ignore and let main timeout handle
+        }
+      }, 3000);
 
       setTimeout(() => {
         clearInterval(checkIdle);
@@ -1294,18 +1369,108 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     // Single mouse movement for lightweight human simulation
     await page.mouse.move(150 + Math.random() * 100, 150 + Math.random() * 100);
 
-    const pageContent = await page.content();
+    // Handle pages that set target_url and redirect via programmatic click
+    try {
+      const scriptRedirect = await page.evaluate(() => {
+        try {
+          const t = typeof target_url !== 'undefined' ? target_url : null;
+          return t && t.trim() ? t.trim() : null;
+        } catch (e) {
+          return null;
+        }
+      });
 
-    if (pageContent.includes('data:text/html') || pageContent.includes('atob(') || pageContent.includes('fromCharCode')) {
-      cloakingIndicators.push('obfuscated_code');
+      if (scriptRedirect && !visitedScriptUrls.has(scriptRedirect)) {
+        visitedScriptUrls.add(scriptRedirect);
+        logger.info(`🔀 Anti-cloaking: Following script-defined target_url -> ${scriptRedirect.substring(0, 120)}...`);
+        try {
+          await page.goto(scriptRedirect, { waitUntil: 'domcontentloaded', timeout: Math.min(10000, timeout) });
+        } catch (err) {
+          logger.warn(`Script redirect navigation failed: ${err.message}`);
+        }
+      }
+    } catch (err) {
+      logger.warn(`Script redirect detection error: ${err.message}`);
     }
 
-    if (pageContent.match(/navigator\.webdriver|bot|crawler|spider/i)) {
-      cloakingIndicators.push('bot_detection');
+    // Handle form auto-submit patterns (single follow)
+    try {
+      const formRedirect = await page.evaluate(() => {
+        try {
+          const forms = Array.from(document.forms || []);
+          for (const f of forms) {
+            const action = f.getAttribute('action') || f.action;
+            if (action && action.trim()) {
+              const url = new URL(action, document.baseURI).toString();
+              return url;
+            }
+          }
+          return null;
+        } catch (e) {
+          return null;
+        }
+      });
+
+      if (formRedirect && !visitedScriptUrls.has(formRedirect)) {
+        visitedScriptUrls.add(formRedirect);
+        logger.info(`📝 Anti-cloaking: Following form action -> ${formRedirect.substring(0, 120)}...`);
+        try {
+          await page.goto(formRedirect, { waitUntil: 'domcontentloaded', timeout: Math.min(10000, timeout) });
+        } catch (err) {
+          logger.warn(`Form redirect navigation failed: ${err.message}`);
+        }
+      }
+    } catch (err) {
+      logger.warn(`Form redirect detection error: ${err.message}`);
     }
 
-    if (pageContent.match(/setTimeout.*redirect|setInterval.*redirect/i)) {
-      cloakingIndicators.push('delayed_redirect');
+    // Follow captured parent/top navigation attempts
+    try {
+      const forcedNav = await page.evaluate(() => {
+        try { return window.__forcedNavTarget || null; } catch (e) { return null; }
+      });
+
+      if (forcedNav && !visitedScriptUrls.has(forcedNav)) {
+        visitedScriptUrls.add(forcedNav);
+        logger.info(`⬆️ Anti-cloaking: Following top/parent redirect -> ${forcedNav.substring(0, 120)}...`);
+        try {
+          await page.goto(forcedNav, { waitUntil: 'domcontentloaded', timeout: Math.min(10000, timeout) });
+        } catch (err) {
+          logger.warn(`Top/parent redirect navigation failed: ${err.message}`);
+        }
+      }
+    } catch (err) {
+      logger.warn(`Top/parent redirect detection error: ${err.message}`);
+    }
+
+    // Use captured content if available, otherwise try to get it (with safety fallback)
+    let pageContent = latestPageContent;
+    if (!pageContent) {
+      try {
+        pageContent = await page.content();
+      } catch (err) {
+        logger.warn('Could not get final page content (context destroyed):', err.message);
+        pageContent = '';
+      }
+    }
+
+    if (pageContent) {
+      if (pageContent.includes('data:text/html') || pageContent.includes('atob(') || pageContent.includes('fromCharCode')) {
+        cloakingIndicators.push('obfuscated_code');
+      }
+
+      if (pageContent.match(/navigator\.webdriver|bot|crawler|spider/i)) {
+        cloakingIndicators.push('bot_detection');
+      }
+
+      if (pageContent.match(/setTimeout.*redirect|setInterval.*redirect/i)) {
+        cloakingIndicators.push('delayed_redirect');
+      }
+
+      // Detect meta refresh that opens new windows
+      if (pageContent.match(/<meta[^>]+http-equiv=["']?refresh["']?[^>]*>/i)) {
+        cloakingIndicators.push('meta_refresh');
+      }
     }
 
     if (popupChains.length > 2) {

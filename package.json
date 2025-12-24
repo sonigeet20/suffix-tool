@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "safe:commit": "bash scripts/safe-commit.sh",
+    "safe:push": "bash scripts/safe-push.sh",
+    "safe:commit-push": "bash scripts/safe-commit-push.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
