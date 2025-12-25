@@ -228,8 +228,22 @@ class UserAgentRotator {
 
 const userAgentRotator = new UserAgentRotator();
 
-// Unique fingerprint generator per trace
-function generateBrowserFingerprint() {
+// Detect device type from user agent string
+function detectDeviceType(userAgent) {
+  const ua = userAgent.toLowerCase();
+  
+  if (/mobile|android|iphone|ipod|windows phone|blackberry|iemobile/.test(ua)) {
+    return 'mobile';
+  } else if (/ipad|tablet|playbook|silk|android 3|android 4/.test(ua)) {
+    return 'tablet';
+  }
+  return 'desktop';
+}
+
+// Unique fingerprint generator per trace - now synced with user agent
+function generateBrowserFingerprint(userAgent) {
+  const deviceType = detectDeviceType(userAgent);
+
   // Randomize Accept-Language with various locale combinations
   const languages = [
     'en-US,en;q=0.9',
@@ -259,15 +273,44 @@ function generateBrowserFingerprint() {
   ];
   const timezone = timezones[Math.floor(Math.random() * timezones.length)];
 
-  // Random screen resolution (common desktop resolutions with slight variation)
-  const baseResolutions = [
-    { width: 1920, height: 1080 },
-    { width: 1366, height: 768 },
-    { width: 1440, height: 900 },
-    { width: 1536, height: 864 },
-    { width: 1280, height: 720 },
-    { width: 1920, height: 1200 },
-  ];
+  // Device-specific screen resolutions
+  let baseResolutions;
+  let pixelRatios;
+  
+  if (deviceType === 'mobile') {
+    // Mobile resolutions
+    baseResolutions = [
+      { width: 375, height: 667 },   // iPhone 6/7/8
+      { width: 414, height: 896 },   // iPhone 11/XR
+      { width: 390, height: 844 },   // iPhone 12/13
+      { width: 393, height: 851 },   // Pixel 6
+      { width: 412, height: 915 },   // Android
+    ];
+    // Mobile typically has higher pixel ratio
+    pixelRatios = [2, 2.5, 3];
+  } else if (deviceType === 'tablet') {
+    // Tablet resolutions
+    baseResolutions = [
+      { width: 768, height: 1024 },  // iPad
+      { width: 810, height: 1080 },  // iPad Air
+      { width: 834, height: 1194 },  // iPad Pro 11"
+      { width: 1024, height: 1366 }, // iPad Pro 12.9"
+    ];
+    pixelRatios = [1.5, 2];
+  } else {
+    // Desktop resolutions
+    baseResolutions = [
+      { width: 1920, height: 1080 },
+      { width: 1366, height: 768 },
+      { width: 1440, height: 900 },
+      { width: 1536, height: 864 },
+      { width: 1280, height: 720 },
+      { width: 1920, height: 1200 },
+    ];
+    // Desktop typically has lower pixel ratio
+    pixelRatios = [1, 1.25, 1.5];
+  }
+
   const baseRes = baseResolutions[Math.floor(Math.random() * baseResolutions.length)];
   const viewport = {
     width: baseRes.width + Math.floor(Math.random() * 20 - 10),
@@ -278,8 +321,7 @@ function generateBrowserFingerprint() {
   const colorDepths = [24, 32];
   const colorDepth = colorDepths[Math.floor(Math.random() * colorDepths.length)];
 
-  // Pixel ratio
-  const pixelRatios = [1, 1.25, 1.5, 2];
+  // Pixel ratio (device-specific)
   const pixelRatio = pixelRatios[Math.floor(Math.random() * pixelRatios.length)];
 
   return {
@@ -289,6 +331,7 @@ function generateBrowserFingerprint() {
     viewport,
     colorDepth,
     pixelRatio,
+    deviceType,
   };
 }
 
@@ -490,9 +533,9 @@ async function traceRedirectsHttpOnly(url, options = {}) {
   logger.info(`⚡ HTTP-only INSTANT (GET + stream headers): ${url.substring(0, 80)}... | maxRedirects: ${maxRedirects}`);
   logger.info(`📱 User-Agent: ${userAgent.substring(0, 80)}...`);
 
-  // Generate unique fingerprint per trace
-  const fingerprint = generateBrowserFingerprint();
-  logger.info(`🖥️ Unique fingerprint: viewport=${fingerprint.viewport.width}x${fingerprint.viewport.height}, colorDepth=${fingerprint.colorDepth}, lang=${fingerprint.language}`);
+  // Generate unique fingerprint per trace - synced with user agent device type
+  const fingerprint = generateBrowserFingerprint(userAgent);
+  logger.info(`🖥️ Unique fingerprint: ${fingerprint.deviceType} | viewport=${fingerprint.viewport.width}x${fingerprint.viewport.height}, colorDepth=${fingerprint.colorDepth}, pixelRatio=${fingerprint.pixelRatio}`);
 
   const chain = [];
   let currentUrl = url;
@@ -865,9 +908,9 @@ async function traceRedirectsBrowser(url, options = {}) {
     await page.setUserAgent(userAgent);
     logger.info(`🎭 Using User Agent: ${userAgent.substring(0, 80)}...`);
     
-    // Generate unique fingerprint per trace
-    const fingerprint = generateBrowserFingerprint();
-    logger.info(`🖥️ Unique fingerprint: viewport=${fingerprint.viewport.width}x${fingerprint.viewport.height}, colorDepth=${fingerprint.colorDepth}, lang=${fingerprint.language}`);
+    // Generate unique fingerprint per trace - synced with user agent device type
+    const fingerprint = generateBrowserFingerprint(userAgent);
+    logger.info(`🖥️ Unique fingerprint: ${fingerprint.deviceType} | viewport=${fingerprint.viewport.width}x${fingerprint.viewport.height}, colorDepth=${fingerprint.colorDepth}, pixelRatio=${fingerprint.pixelRatio}`);
     
     await page.setViewport(fingerprint.viewport);
 
@@ -1246,9 +1289,9 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     await page.setUserAgent(userAgent);
     logger.info(`🕵️ Anti-cloaking User Agent: ${userAgent.substring(0, 80)}...`);
     
-    // Generate unique fingerprint per trace
-    const fingerprint = generateBrowserFingerprint();
-    logger.info(`🖥️ Unique fingerprint: viewport=${fingerprint.viewport.width}x${fingerprint.viewport.height}, colorDepth=${fingerprint.colorDepth}, lang=${fingerprint.language}`);
+    // Generate unique fingerprint per trace - synced with user agent device type
+    const fingerprint = generateBrowserFingerprint(userAgent);
+    logger.info(`🖥️ Unique fingerprint: ${fingerprint.deviceType} | viewport=${fingerprint.viewport.width}x${fingerprint.viewport.height}, colorDepth=${fingerprint.colorDepth}, pixelRatio=${fingerprint.pixelRatio}`);
     
     await page.setViewport(fingerprint.viewport);
 
