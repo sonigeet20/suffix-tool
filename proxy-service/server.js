@@ -23,20 +23,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Create persistent agents for connection pooling
+// NOTE: These are ONLY used for non-proxy HTTPS calls (like health checks)
+// For proxy-based requests, we create fresh agents per request to ensure IP rotation
 const httpsAgent = new https.Agent({
   rejectUnauthorized: false,
-  keepAlive: true,
-  keepAliveMsecs: 1000,
-  maxSockets: 50,
-  maxFreeSockets: 10,
+  keepAlive: false,  // Disable for fresh connections
   timeout: 60000,
 });
 
 const httpAgent = new http.Agent({
-  keepAlive: true,
-  keepAliveMsecs: 1000,
-  maxSockets: 50,
-  maxFreeSockets: 10,
+  keepAlive: false,  // Disable for fresh connections
   timeout: 60000,
 });
 
@@ -362,16 +358,23 @@ async function loadProxySettings() {
   }
 }
 
-async function initBrowser() {
-  if (browser) return browser;
+async function initBrowser(forceNew = false) {
+  // If forceNew=true (for traces), always launch fresh browser to get new IP
+  // If forceNew=false (for health checks), reuse existing browser
+  if (!forceNew && browser) return browser;
 
   if (!proxySettings) {
     await loadProxySettings();
   }
 
-  const proxyServer = `http://${proxySettings.host}:${proxySettings.port}`;
+  const host = proxySettings.host;
+  const port = proxySettings.port;
 
-  logger.info('Initializing browser with proxy:', proxyServer);
+  // CRITICAL: Chrome/Chromium doesn't support auth in --proxy-server URL
+  // We'll use page.authenticate() instead after browser launches
+  const proxyServer = `http://${host}:${port}`;
+
+  logger.info(forceNew ? 'Launching fresh browser for new IP' : 'Initializing browser with proxy:', proxyServer);
 
   // macOS workaround: Try to use system Chrome if bundled Chromium fails
   const launchOptions = {
@@ -514,14 +517,15 @@ async function traceRedirectsHttpOnly(url, options = {}) {
     proxyUsername = `${proxyUsername}-region-${countryCode}`;
     logger.info(`🌍 HTTP-only: Geo-targeting ${countryCode.toUpperCase()}`);
   } else {
-    logger.info(`🔄 HTTP-only: Using Luna proxy (natural IP rotation)`);
+    logger.info(`🔄 HTTP-only: Using Luna proxy (new connection = new IP)`);
   }
 
   const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPortNum}`;
+  
+  // CRITICAL: Create a FRESH proxy agent for each trace with NO connection reuse
+  // Luna rotates IPs on each new connection - keepAlive defeats this!
   const traceAgent = new HttpsProxyAgent(proxyUrl, {
-    keepAlive: true,
-    keepAliveMsecs: 10000,
-    maxSockets: 20, // Increase for parallel speculation
+    keepAlive: false,  // MUST be false to force new connection = new IP
     timeout: 15000,
   });
 
@@ -822,33 +826,41 @@ async function traceRedirectsBrowser(url, options = {}) {
 
   const chain = [];
   const popupChains = [];
-  let browser = null;
+  let traceBrowser = null;
   let page = null;
 
   try {
-    browser = await initBrowser();
-    page = await browser.newPage();
+    // Launch FRESH browser per trace - each new browser process = potential new IP
+    traceBrowser = await initBrowser(true);
+    page = await traceBrowser.newPage();
 
     if (!proxySettings) {
       await loadProxySettings();
     }
 
-    let proxyUsername = proxySettings.username;
+    // CRITICAL: Generate UNIQUE random ID per trace to force fresh Luna connection
+    // This matches HTTP-only's approach: new agent/credentials = new IP
+    const traceSessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    let proxyUsername = `${proxySettings.username}-sid-${traceSessionId}`;
+    const proxyPassword = proxySettings.password;
 
     // Apply geo-targeting via Luna region parameter
-    // Luna rotates IPs naturally - just ensure new connections per request
     if (targetCountry && targetCountry.length === 2) {
       const countryCode = targetCountry.toLowerCase();
       proxyUsername = `${proxyUsername}-region-${countryCode}`;
-      logger.info(`🌍 Browser: Geo-targeting ${countryCode.toUpperCase()}`);
+      logger.info(`🌍 Browser: Geo-targeting ${countryCode.toUpperCase()} (session: ${traceSessionId.substring(0, 8)}...)`);
     } else {
-      logger.info(`🔄 Browser: Using Luna proxy (natural IP rotation)`);
+      logger.info(`🔄 Browser: Fresh Luna connection (session: ${traceSessionId.substring(0, 8)}...)`);
     }
 
+    // MUST authenticate before any requests to ensure Luna sees the username
     await page.authenticate({
       username: proxyUsername,
-      password: proxySettings.password,
+      password: proxyPassword,
     });
+
+    // CRITICAL: Unique session ID per trace = unique username = fresh Luna connection
+    // This forces Luna to treat each trace as a new session, rotating IPs
 
     await page.setUserAgent(userAgent);
     logger.info(`🎭 Using User Agent: ${userAgent.substring(0, 80)}...`);
@@ -1172,6 +1184,10 @@ async function traceRedirectsBrowser(url, options = {}) {
     if (page) {
       await page.close().catch(e => logger.error('Failed to close page:', e));
     }
+    // CRITICAL: Close browser after trace to force fresh connection next time
+    if (traceBrowser) {
+      await traceBrowser.close().catch(e => logger.error('Failed to close browser:', e));
+    }
   }
 }
 
@@ -1189,35 +1205,43 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
   const obfuscatedUrls = [];
   const cloakingIndicators = [];
   const visitedScriptUrls = new Set();
-  let browser = null;
+  let traceBrowser = null;
   let page = null;
   let aggressivenessLevel = 'low';
   let latestPageContent = '';
 
   try {
-    browser = await initBrowser();
-    page = await browser.newPage();
+    // Launch FRESH browser per trace - each new browser process = potential new IP
+    traceBrowser = await initBrowser(true);
+    page = await traceBrowser.newPage();
 
     if (!proxySettings) {
       await loadProxySettings();
     }
 
-    let proxyUsername = proxySettings.username;
+    // CRITICAL: Generate UNIQUE random ID per trace to force fresh Luna connection
+    // This matches HTTP-only's approach: new agent/credentials = new IP
+    const traceSessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    let proxyUsername = `${proxySettings.username}-sid-${traceSessionId}`;
+    const proxyPassword = proxySettings.password;
 
     // Apply geo-targeting via Luna region parameter
-    // Luna rotates IPs naturally - just ensure new connections per request
     if (targetCountry && targetCountry.length === 2) {
       const countryCode = targetCountry.toLowerCase();
       proxyUsername = `${proxyUsername}-region-${countryCode}`;
-      logger.info(`🕵️ Anti-cloaking: Geo-targeting ${countryCode.toUpperCase()}`);
+      logger.info(`🕵️ Anti-cloaking: Geo-targeting ${countryCode.toUpperCase()} (session: ${traceSessionId.substring(0, 8)}...)`);
     } else {
-      logger.info(`🔄 Anti-cloaking: Using Luna proxy (natural IP rotation)`);
+      logger.info(`🔄 Anti-cloaking: Fresh Luna connection (session: ${traceSessionId.substring(0, 8)}...)`);
     }
 
+    // MUST authenticate before any requests to ensure Luna sees the username
     await page.authenticate({
       username: proxyUsername,
-      password: proxySettings.password,
+      password: proxyPassword,
     });
+
+    // CRITICAL: Unique session ID per trace = unique username = fresh Luna connection
+    // This forces Luna to treat each trace as a new session, rotating IPs
 
     await page.setUserAgent(userAgent);
     logger.info(`🕵️ Anti-cloaking User Agent: ${userAgent.substring(0, 80)}...`);
@@ -1685,6 +1709,10 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
   } finally {
     if (page) {
       await page.close().catch(e => logger.error('Failed to close page:', e));
+    }
+    // CRITICAL: Close browser after trace to force fresh connection next time
+    if (traceBrowser) {
+      await traceBrowser.close().catch(e => logger.error('Failed to close browser:', e));
     }
   }
 }
