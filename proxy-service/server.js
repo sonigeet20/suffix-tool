@@ -232,6 +232,70 @@ class UserAgentRotator {
 
 const userAgentRotator = new UserAgentRotator();
 
+// Unique fingerprint generator per trace
+function generateBrowserFingerprint() {
+  // Randomize Accept-Language with various locale combinations
+  const languages = [
+    'en-US,en;q=0.9',
+    'en-GB,en;q=0.8',
+    'en-US,en;q=0.8,fr;q=0.6',
+    'en-US,en;q=0.7,es;q=0.5',
+    'en-US,en;q=0.9,de;q=0.8',
+    'en,en-US;q=0.8',
+    'en-CA,en;q=0.9',
+    'en-IE,en;q=0.8',
+  ];
+  const language = languages[Math.floor(Math.random() * languages.length)];
+
+  // Randomize Accept-Encoding
+  const encodings = [
+    'gzip, deflate, br',
+    'gzip, deflate',
+    'br, gzip, deflate',
+    'gzip, deflate, br, zstd',
+  ];
+  const encoding = encodings[Math.floor(Math.random() * encodings.length)];
+
+  // Random timezone offset simulation
+  const timezones = [
+    'UTC', 'GMT', 'GMT+0', 'GMT-1', 'GMT-2', 'GMT-3', 'GMT-4', 'GMT-5',
+    'GMT-6', 'GMT-7', 'GMT-8', 'GMT-9', 'GMT-10', 'GMT-11', 'GMT-12',
+  ];
+  const timezone = timezones[Math.floor(Math.random() * timezones.length)];
+
+  // Random screen resolution (common desktop resolutions with slight variation)
+  const baseResolutions = [
+    { width: 1920, height: 1080 },
+    { width: 1366, height: 768 },
+    { width: 1440, height: 900 },
+    { width: 1536, height: 864 },
+    { width: 1280, height: 720 },
+    { width: 1920, height: 1200 },
+  ];
+  const baseRes = baseResolutions[Math.floor(Math.random() * baseResolutions.length)];
+  const viewport = {
+    width: baseRes.width + Math.floor(Math.random() * 20 - 10),
+    height: baseRes.height + Math.floor(Math.random() * 20 - 10),
+  };
+
+  // Color depth variation
+  const colorDepths = [24, 32];
+  const colorDepth = colorDepths[Math.floor(Math.random() * colorDepths.length)];
+
+  // Pixel ratio
+  const pixelRatios = [1, 1.25, 1.5, 2];
+  const pixelRatio = pixelRatios[Math.floor(Math.random() * pixelRatios.length)];
+
+  return {
+    language,
+    encoding,
+    timezone,
+    viewport,
+    colorDepth,
+    pixelRatio,
+  };
+}
+
 // Minimal blocking list - only block heavy trackers that may interfere
 // Keeping it minimal to avoid detection and allow normal page behavior
 const BLOCKED_DOMAINS = [
@@ -423,6 +487,10 @@ async function traceRedirectsHttpOnly(url, options = {}) {
   logger.info(`⚡ HTTP-only INSTANT (GET + stream headers): ${url.substring(0, 80)}... | maxRedirects: ${maxRedirects}`);
   logger.info(`📱 User-Agent: ${userAgent.substring(0, 80)}...`);
 
+  // Generate unique fingerprint per trace
+  const fingerprint = generateBrowserFingerprint();
+  logger.info(`🖥️ Unique fingerprint: viewport=${fingerprint.viewport.width}x${fingerprint.viewport.height}, colorDepth=${fingerprint.colorDepth}, lang=${fingerprint.language}`);
+
   const chain = [];
   let currentUrl = url;
   let redirectCount = 0;
@@ -439,16 +507,14 @@ async function traceRedirectsHttpOnly(url, options = {}) {
   const proxyHost = proxySettings.host;
   const proxyPortNum = parseInt(proxyPort || proxySettings.port);
 
-  // Add Luna session rotation for IP rotation: username-sessid-{id}-sesstime-{timestamp}
-  const sessId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  const sessTime = Date.now();
-  proxyUsername = `${proxyUsername}-sessid-${sessId}-sesstime-${sessTime}`;
-  logger.info(`🔄 HTTP-only: Luna session rotation activated (sessid: ${sessId})`);
-
-  if (!proxyIp && targetCountry && targetCountry.length === 2 && !proxyUsername.includes('-region-')) {
+  // Apply geo-targeting via Luna region parameter
+  // Luna rotates IPs naturally - just ensure new connections per request
+  if (!proxyIp && targetCountry && targetCountry.length === 2) {
     const countryCode = targetCountry.toLowerCase();
     proxyUsername = `${proxyUsername}-region-${countryCode}`;
-    logger.info(`🌍 Geo-targeting: ${countryCode.toUpperCase()}`);
+    logger.info(`🌍 HTTP-only: Geo-targeting ${countryCode.toUpperCase()}`);
+  } else {
+    logger.info(`🔄 HTTP-only: Using Luna proxy (natural IP rotation)`);
   }
 
   const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPortNum}`;
@@ -529,8 +595,8 @@ async function traceRedirectsHttpOnly(url, options = {}) {
         headers: {
           'user-agent': userAgent,
           'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'accept-language': 'en-US,en;q=0.9',
-          'accept-encoding': 'identity', // No compression - faster headers
+          'accept-language': fingerprint.language,
+          'accept-encoding': fingerprint.encoding,
           'connection': 'close', // Don't keep alive - we're killing it anyway
           ...(referrer ? { 'referer': referrer } : {}),
         },
@@ -769,18 +835,14 @@ async function traceRedirectsBrowser(url, options = {}) {
 
     let proxyUsername = proxySettings.username;
 
-    // Add Luna session rotation for IP rotation: username-sessid-{id}-sesstime-{timestamp}
-    const sessId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const sessTime = Date.now();
-    proxyUsername = `${proxyUsername}-sessid-${sessId}-sesstime-${sessTime}`;
-    logger.info(`🔄 Browser: Luna session rotation activated (sessid: ${sessId})`);
-
+    // Apply geo-targeting via Luna region parameter
+    // Luna rotates IPs naturally - just ensure new connections per request
     if (targetCountry && targetCountry.length === 2) {
       const countryCode = targetCountry.toLowerCase();
-      if (!proxyUsername.includes('-region-')) {
-        proxyUsername = `${proxyUsername}-region-${countryCode}`;
-        logger.info(`🌍 Browser geo-targeting: ${countryCode.toUpperCase()}`);
-      }
+      proxyUsername = `${proxyUsername}-region-${countryCode}`;
+      logger.info(`🌍 Browser: Geo-targeting ${countryCode.toUpperCase()}`);
+    } else {
+      logger.info(`🔄 Browser: Using Luna proxy (natural IP rotation)`);
     }
 
     await page.authenticate({
@@ -791,20 +853,16 @@ async function traceRedirectsBrowser(url, options = {}) {
     await page.setUserAgent(userAgent);
     logger.info(`🎭 Using User Agent: ${userAgent.substring(0, 80)}...`);
     
-    // Realistic viewport sizes
-    const viewports = [
-      { width: 1920, height: 1080 },
-      { width: 1366, height: 768 },
-      { width: 1536, height: 864 },
-      { width: 1440, height: 900 },
-    ];
-    const viewport = viewports[Math.floor(Math.random() * viewports.length)];
-    await page.setViewport(viewport);
+    // Generate unique fingerprint per trace
+    const fingerprint = generateBrowserFingerprint();
+    logger.info(`🖥️ Unique fingerprint: viewport=${fingerprint.viewport.width}x${fingerprint.viewport.height}, colorDepth=${fingerprint.colorDepth}, lang=${fingerprint.language}`);
+    
+    await page.setViewport(fingerprint.viewport);
 
-    // Set realistic browser headers
+    // Set realistic browser headers with unique fingerprint
     const headers = {
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
+      'Accept-Language': fingerprint.language,
+      'Accept-Encoding': fingerprint.encoding,
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
       'Upgrade-Insecure-Requests': '1',
       'Cache-Control': 'max-age=0',
@@ -817,7 +875,7 @@ async function traceRedirectsBrowser(url, options = {}) {
     
     await page.setExtraHTTPHeaders(headers);
 
-    // Enhanced stealth: mask automation indicators
+    // Enhanced stealth: mask automation indicators + randomize fingerprints
     await page.evaluateOnNewDocument(() => {
       // Override webdriver property
       Object.defineProperty(navigator, 'webdriver', {
@@ -846,6 +904,30 @@ async function traceRedirectsBrowser(url, options = {}) {
           Promise.resolve({ state: Notification.permission }) :
           originalQuery(parameters)
       );
+      
+      // Randomize Canvas fingerprint
+      const getRandomValues = window.crypto.getRandomValues.bind(window.crypto);
+      Object.defineProperty(window.crypto, 'getRandomValues', {
+        value: function(typedArray) {
+          getRandomValues(typedArray);
+          for (let i = 0; i < typedArray.length; i++) {
+            typedArray[i] = (typedArray[i] + Math.floor(Math.random() * 256)) % 256;
+          }
+          return typedArray;
+        },
+      });
+      
+      // Randomize WebGL fingerprint
+      const getParameter = WebGLRenderingContext.prototype.getParameter;
+      WebGLRenderingContext.prototype.getParameter = function(parameter) {
+        if (parameter === 37445) {
+          return 'Intel Inc.';
+        }
+        if (parameter === 37446) {
+          return 'Intel Iris OpenGL Engine';
+        }
+        return getParameter.call(this, parameter);
+      };
       
       // Disable animations for faster loading
       const style = document.createElement('style');
@@ -1122,18 +1204,14 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
 
     let proxyUsername = proxySettings.username;
 
-    // Add Luna session rotation for IP rotation: username-sessid-{id}-sesstime-{timestamp}
-    const sessId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const sessTime = Date.now();
-    proxyUsername = `${proxyUsername}-sessid-${sessId}-sesstime-${sessTime}`;
-    logger.info(`🔄 Anti-cloaking: Luna session rotation activated (sessid: ${sessId})`);
-
+    // Apply geo-targeting via Luna region parameter
+    // Luna rotates IPs naturally - just ensure new connections per request
     if (targetCountry && targetCountry.length === 2) {
       const countryCode = targetCountry.toLowerCase();
-      if (!proxyUsername.includes('-region-')) {
-        proxyUsername = `${proxyUsername}-region-${countryCode}`;
-        logger.info(`🕵️ Anti-cloaking geo-targeting: ${countryCode.toUpperCase()}`);
-      }
+      proxyUsername = `${proxyUsername}-region-${countryCode}`;
+      logger.info(`🕵️ Anti-cloaking: Geo-targeting ${countryCode.toUpperCase()}`);
+    } else {
+      logger.info(`🔄 Anti-cloaking: Using Luna proxy (natural IP rotation)`);
     }
 
     await page.authenticate({
@@ -1143,16 +1221,25 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
 
     await page.setUserAgent(userAgent);
     logger.info(`🕵️ Anti-cloaking User Agent: ${userAgent.substring(0, 80)}...`);
-    await page.setViewport({
-      width: 1920 + Math.floor(Math.random() * 100),
-      height: 1080 + Math.floor(Math.random() * 100)
-    });
+    
+    // Generate unique fingerprint per trace
+    const fingerprint = generateBrowserFingerprint();
+    logger.info(`🖥️ Unique fingerprint: viewport=${fingerprint.viewport.width}x${fingerprint.viewport.height}, colorDepth=${fingerprint.colorDepth}, lang=${fingerprint.language}`);
+    
+    await page.setViewport(fingerprint.viewport);
 
     if (referrer) {
       await page.setExtraHTTPHeaders({
         'Referer': referrer,
+        'Accept-Language': fingerprint.language,
+        'Accept-Encoding': fingerprint.encoding,
       });
       logger.info(`🔗 Anti-cloaking using custom referrer: ${referrer}`);
+    } else {
+      await page.setExtraHTTPHeaders({
+        'Accept-Language': fingerprint.language,
+        'Accept-Encoding': fingerprint.encoding,
+      });
     }
 
     await page.evaluateOnNewDocument(() => {
@@ -1171,6 +1258,30 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       Object.defineProperty(navigator, 'languages', {
         get: () => ['en-US', 'en'],
       });
+
+      // Randomize Canvas fingerprint
+      const getRandomValues = window.crypto.getRandomValues.bind(window.crypto);
+      Object.defineProperty(window.crypto, 'getRandomValues', {
+        value: function(typedArray) {
+          getRandomValues(typedArray);
+          for (let i = 0; i < typedArray.length; i++) {
+            typedArray[i] = (typedArray[i] + Math.floor(Math.random() * 256)) % 256;
+          }
+          return typedArray;
+        },
+      });
+
+      // Randomize WebGL fingerprint
+      const getParameter = WebGLRenderingContext.prototype.getParameter;
+      WebGLRenderingContext.prototype.getParameter = function(parameter) {
+        if (parameter === 37445) {
+          return 'Intel Inc.';
+        }
+        if (parameter === 37446) {
+          return 'Intel Iris OpenGL Engine';
+        }
+        return getParameter.call(this, parameter);
+      };
 
       const style = document.createElement('style');
       style.textContent = `
@@ -1664,6 +1775,7 @@ app.post('/trace', async (req, res) => {
     const bandwidthFormatted = formatBytes(result.total_bandwidth_bytes);
     logger.info(`✅ Trace completed (${mode}): ${result.total_steps} steps in ${totalTime}ms | ${bandwidthFormatted} transferred`);
     logger.info(`📊 Bandwidth details: total=${result.total_bandwidth_bytes}B, avg_per_step=${result.bandwidth_per_step_bytes}B`);
+    logger.info(`🌐 Proxy IP used: ${geoData.ip} | Location: ${geoData.city}, ${geoData.region}, ${geoData.country}`);
 
     res.json({
       ...result,
