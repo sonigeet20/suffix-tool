@@ -439,6 +439,12 @@ async function traceRedirectsHttpOnly(url, options = {}) {
   const proxyHost = proxySettings.host;
   const proxyPortNum = parseInt(proxyPort || proxySettings.port);
 
+  // Add Luna session rotation for IP rotation: username-sessid-{id}-sesstime-{timestamp}
+  const sessId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const sessTime = Date.now();
+  proxyUsername = `${proxyUsername}-sessid-${sessId}-sesstime-${sessTime}`;
+  logger.info(`🔄 HTTP-only: Luna session rotation activated (sessid: ${sessId})`);
+
   if (!proxyIp && targetCountry && targetCountry.length === 2 && !proxyUsername.includes('-region-')) {
     const countryCode = targetCountry.toLowerCase();
     proxyUsername = `${proxyUsername}-region-${countryCode}`;
@@ -762,6 +768,12 @@ async function traceRedirectsBrowser(url, options = {}) {
     }
 
     let proxyUsername = proxySettings.username;
+
+    // Add Luna session rotation for IP rotation: username-sessid-{id}-sesstime-{timestamp}
+    const sessId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const sessTime = Date.now();
+    proxyUsername = `${proxyUsername}-sessid-${sessId}-sesstime-${sessTime}`;
+    logger.info(`🔄 Browser: Luna session rotation activated (sessid: ${sessId})`);
 
     if (targetCountry && targetCountry.length === 2) {
       const countryCode = targetCountry.toLowerCase();
@@ -1110,6 +1122,12 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
 
     let proxyUsername = proxySettings.username;
 
+    // Add Luna session rotation for IP rotation: username-sessid-{id}-sesstime-{timestamp}
+    const sessId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const sessTime = Date.now();
+    proxyUsername = `${proxyUsername}-sessid-${sessId}-sesstime-${sessTime}`;
+    logger.info(`🔄 Anti-cloaking: Luna session rotation activated (sessid: ${sessId})`);
+
     if (targetCountry && targetCountry.length === 2) {
       const countryCode = targetCountry.toLowerCase();
       if (!proxyUsername.includes('-region-')) {
@@ -1124,6 +1142,7 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     });
 
     await page.setUserAgent(userAgent);
+    logger.info(`🕵️ Anti-cloaking User Agent: ${userAgent.substring(0, 80)}...`);
     await page.setViewport({
       width: 1920 + Math.floor(Math.random() * 100),
       height: 1080 + Math.floor(Math.random() * 100)
