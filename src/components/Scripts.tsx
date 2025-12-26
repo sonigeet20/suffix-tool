@@ -39,7 +39,7 @@ export default function Scripts() {
         body: JSON.stringify({
           url: testUrl,
           max_redirects: 20,
-          timeout_ms: tracerMode === 'anti_cloaking' ? 90000 : 60000,
+          timeout_ms: tracerMode === 'anti_cloaking' ? 90000 : tracerMode === 'interactive' ? 120000 : 60000,
           user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           tracer_mode: tracerMode,
         }),
@@ -507,6 +507,7 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
               <option value="http_only">HTTP-Only (Fast, 2-5s) - Recommended for testing</option>
               <option value="browser">Browser (Complex, 10-30s) - Full JS + Popups</option>
               <option value="anti_cloaking">Anti-Cloaking (Advanced, 15-60s) - Stealth mode</option>
+              <option value="interactive">Interactive (Engagement, 20-40s) - Session engagement</option>
             </select>
             <div className="mt-2 space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
               <p className="flex items-start gap-1">

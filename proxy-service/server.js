@@ -10,6 +10,7 @@ const winston = require('winston');
 const UserAgent = require('user-agents');
 const { createClient } = require('@supabase/supabase-js');
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const { traceRedirectsInteractive } = require('./trace-interactive');
 require('dotenv').config();
 
 // Pre-import got at module level to avoid dynamic import overhead per hop
@@ -1935,6 +1936,17 @@ app.post('/trace', async (req, res) => {
         targetCountry: target_country || null,
         referrer: referrer || null,
       });
+    } else if (mode === 'interactive') {
+      logger.info('🎬 Using Interactive mode (anti-cloaking + session engagement)');
+      tracePromise = traceRedirectsInteractive(url, {
+        maxRedirects: max_redirects || 20,
+        timeout: timeout_ms || 120000,
+        userAgent: user_agent || userAgentRotator.getNext(),
+        targetCountry: target_country || null,
+        referrer: referrer || null,
+        minSessionTime: 4000,
+        maxSessionTime: 8000,
+      }, puppeteer, generateBrowserFingerprint, BLOCKED_DOMAINS, BLOCKED_RESOURCE_TYPES);
     } else {
       logger.info('🌐 Using Browser mode (full rendering)');
       tracePromise = traceRedirectsBrowser(url, {
@@ -1984,7 +1996,7 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     browser_initialized: !!browser,
-    modes_supported: ['http_only', 'browser', 'anti_cloaking'],
+    modes_supported: ['http_only', 'browser', 'anti_cloaking', 'interactive'],
   });
 });
 
@@ -2040,7 +2052,7 @@ process.on('SIGINT', async () => {
 
 app.listen(PORT, '0.0.0.0', async () => {
   logger.info(`Proxy service running on 0.0.0.0:${PORT}`);
-  logger.info('Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth)');
+  logger.info('Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)');
 
   try {
     await loadProxySettings();

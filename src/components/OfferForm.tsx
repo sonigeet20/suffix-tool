@@ -567,6 +567,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                     <option value="http_only">HTTP-Only (Fast, 2-5s)</option>
                     <option value="browser">Browser (Complex, 10-30s)</option>
                     <option value="anti_cloaking">Anti-Cloaking (Advanced, 15-60s)</option>
+                    <option value="interactive">Interactive (Engagement, 20-40s)</option>
                   </select>
                   <div className="mt-2 space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
                     <p className="flex items-start gap-1">
@@ -584,6 +585,10 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                     <p className="flex items-start gap-1">
                       <span className="font-semibold text-brand-700 dark:text-brand-400">Anti-Cloaking:</span>
                       <span>Stealth mode with bot detection bypass, popup tracking, and obfuscation decoding.</span>
+                    </p>
+                    <p className="flex items-start gap-1">
+                      <span className="font-semibold text-purple-700 dark:text-purple-400">Interactive:</span>
+                      <span>Anti-cloaking + realistic session engagement (scrolls, mouse moves, waits) on final URL for minimal bandwidth.</span>
                     </p>
                   </div>
                 </div>
@@ -1003,7 +1008,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                   <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-secondary">
                     Tracer Method
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     <button
                       type="button"
                       onClick={() => setTracerMode('http_only')}
@@ -1035,13 +1040,25 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                           : 'bg-white dark:bg-dark-surface text-gray-700 dark:text-dark-text-primary border-gray-300 dark:border-dark-border hover:border-orange-400'
                       }`}
                     >
-                      🕵️ Anti-Cloaking
+                      🕵️ Anti-Cloak
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTracerMode('interactive')}
+                      className={`px-3 py-2.5 rounded-lg font-medium transition-all border-2 text-sm ${
+                        tracerMode === 'interactive'
+                          ? 'bg-purple-600 text-white border-purple-600'
+                          : 'bg-white dark:bg-dark-surface text-gray-700 dark:text-dark-text-primary border-gray-300 dark:border-dark-border hover:border-purple-400'
+                      }`}
+                    >
+                      🎬 Interactive
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-dark-text-muted mt-2">
                     {tracerMode === 'http_only' && '⚡ Fast HTTP requests only - No JS execution'}
                     {tracerMode === 'browser' && '🌐 Full browser rendering with JS execution & popup tracking'}
                     {tracerMode === 'anti_cloaking' && '🔍 Multi-engine: HTTP + Meta + JS + Form detection with proper headers'}
+                    {tracerMode === 'interactive' && '🎬 Anti-cloaking + realistic session engagement (scrolls, mouse, waits)'}
                   </p>
                 </div>
 
