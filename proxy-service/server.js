@@ -1159,9 +1159,16 @@ async function traceRedirectsBrowser(url, options = {}) {
       }
     });
 
+    // ✅ Limit to 1 attempt: fail fast on navigation errors (no implicit retries)
     const navigationPromise = page.goto(url, {
       waitUntil: 'domcontentloaded',
-      timeout,
+      timeout,  // Single timeout, no retries
+      referer: referrer || undefined,
+    }).catch(err => {
+      // Catch and log navigation errors without retry
+      logger.warn(`⚠️ Browser navigation failed (no retry): ${err.message}`);
+      // Don't re-throw - let idle detection handle it
+      return null;
     });
 
     const idleDetectionPromise = new Promise((resolve) => {
@@ -1591,9 +1598,16 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       }
     });
 
+    // ✅ Limit to 1 attempt: fail fast on navigation errors (no implicit retries)
     const navigationPromise = page.goto(url, {
       waitUntil: 'domcontentloaded',
-      timeout,
+      timeout,  // Single timeout, no retries
+      referer: referrer || undefined,
+    }).catch(err => {
+      // Catch and log navigation errors without retry
+      logger.warn(`⚠️ Anti-cloaking navigation failed (no retry): ${err.message}`);
+      // Don't re-throw - let idle detection handle it
+      return null;
     });
 
     const idleDetectionPromise = new Promise((resolve) => {
