@@ -1004,6 +1004,14 @@ async function traceRedirectsBrowser(url, options = {}) {
     const redirectChain = [];
     let requestCount = 0;
     let lastUrlChange = Date.now();
+    
+    // Track ALL requests to detect retries
+    const requestLog = {
+      documentRequests: new Map(),
+      totalRequests: 0,
+      retryAttempts: 0,
+      startTime: Date.now(),
+    };
 
     page.on('framenavigated', (frame) => {
       if (frame === page.mainFrame()) {
@@ -1013,11 +1021,32 @@ async function traceRedirectsBrowser(url, options = {}) {
 
     page.on('request', (request) => {
       const resourceType = request.resourceType();
+      const requestUrl = request.url();
+      
+      requestLog.totalRequests++;
 
       if (resourceType === 'document') {
         const startTime = Date.now();
+        const key = `${request.method()}-${requestUrl}`;
+        
+        // Check if this document URL was already requested (indicates retry)
+        if (requestLog.documentRequests.has(key)) {
+          const existing = requestLog.documentRequests.get(key);
+          existing.retryCount = (existing.retryCount || 0) + 1;
+          requestLog.retryAttempts++;
+          logger.warn(`🔄 BROWSER RETRY DETECTED: ${requestUrl} (attempt ${existing.retryCount + 1})`);
+        } else {
+          requestLog.documentRequests.set(key, {
+            url: requestUrl,
+            method: request.method(),
+            timestamp: Date.now(),
+            retryCount: 0,
+          });
+          logger.info(`📄 Browser document request #${requestLog.documentRequests.size}: ${requestUrl}`);
+        }
+        
         redirectChain.push({
-          url: request.url(),
+          url: requestUrl,
           method: request.method(),
           headers: request.headers(),
           startTime,
@@ -1025,7 +1054,6 @@ async function traceRedirectsBrowser(url, options = {}) {
         requestCount++;
       }
 
-      const requestUrl = request.url();
       const shouldBlockDomain = BLOCKED_DOMAINS.some(domain => requestUrl.includes(domain));
 
       if (BLOCKED_RESOURCE_TYPES.includes(resourceType) || shouldBlockDomain) {
@@ -1180,6 +1208,18 @@ async function traceRedirectsBrowser(url, options = {}) {
     const totalBandwidth = chain.reduce((sum, entry) => sum + (entry.bandwidth_bytes || 0), 0);
     const avgBandwidth = chain.length > 0 ? totalBandwidth / chain.length : 0;
 
+    // Log network request summary
+    const requestDuration = Date.now() - requestLog.startTime;
+    const requestRatio = requestLog.documentRequests.size > 0 
+      ? (requestLog.totalRequests / requestLog.documentRequests.size).toFixed(2) 
+      : 'N/A';
+    logger.info(`📊 Browser Mode Network Summary:
+  ├─ Document requests: ${requestLog.documentRequests.size}
+  ├─ Total network clicks: ${requestLog.totalRequests}
+  ├─ Retry attempts detected: ${requestLog.retryAttempts}
+  ├─ Request ratio (clicks/docs): ${requestRatio}x
+  └─ Duration: ${requestDuration}ms`);
+
     return {
       success: true,
       chain,
@@ -1191,6 +1231,12 @@ async function traceRedirectsBrowser(url, options = {}) {
       total_bandwidth_bytes: totalBandwidth,
       bandwidth_per_step_bytes: Math.round(avgBandwidth),
       execution_model: 'browser_full_rendering',
+      network_stats: {
+        total_network_clicks: requestLog.totalRequests,
+        document_requests: requestLog.documentRequests.size,
+        retry_attempts: requestLog.retryAttempts,
+        request_ratio: parseFloat(requestRatio),
+      },
     };
 
   } catch (error) {
@@ -1390,6 +1436,14 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     const redirectChain = [];
     let requestCount = 0;
     let lastUrlChange = Date.now();
+    
+    // Track ALL requests to detect retries
+    const requestLog = {
+      documentRequests: new Map(),
+      totalRequests: 0,
+      retryAttempts: 0,
+      startTime: Date.now(),
+    };
 
     // Capture content after each navigation to avoid context destruction
     page.on('framenavigated', async (frame) => {
@@ -1408,11 +1462,32 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
 
     page.on('request', (request) => {
       const resourceType = request.resourceType();
+      const requestUrl = request.url();
+      
+      requestLog.totalRequests++;
 
       if (resourceType === 'document') {
         const startTime = Date.now();
+        const key = `${request.method()}-${requestUrl}`;
+        
+        // Check if this document URL was already requested (indicates retry)
+        if (requestLog.documentRequests.has(key)) {
+          const existing = requestLog.documentRequests.get(key);
+          existing.retryCount = (existing.retryCount || 0) + 1;
+          requestLog.retryAttempts++;
+          logger.warn(`🔄 ANTI-CLOAKING RETRY DETECTED: ${requestUrl} (attempt ${existing.retryCount + 1})`);
+        } else {
+          requestLog.documentRequests.set(key, {
+            url: requestUrl,
+            method: request.method(),
+            timestamp: Date.now(),
+            retryCount: 0,
+          });
+          logger.info(`📄 Anti-cloaking document request #${requestLog.documentRequests.size}: ${requestUrl}`);
+        }
+        
         redirectChain.push({
-          url: request.url(),
+          url: requestUrl,
           method: request.method(),
           headers: request.headers(),
           startTime,
@@ -1420,7 +1495,6 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
         requestCount++;
       }
 
-      const requestUrl = request.url();
       const shouldBlockDomain = BLOCKED_DOMAINS.some(domain => requestUrl.includes(domain));
 
       if (BLOCKED_RESOURCE_TYPES.includes(resourceType) || shouldBlockDomain) {
@@ -1700,6 +1774,18 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     const totalBandwidth = chain.reduce((sum, entry) => sum + (entry.bandwidth_bytes || 0), 0);
     const avgBandwidth = chain.length > 0 ? totalBandwidth / chain.length : 0;
 
+    // Log network request summary
+    const requestDuration = Date.now() - requestLog.startTime;
+    const requestRatio = requestLog.documentRequests.size > 0 
+      ? (requestLog.totalRequests / requestLog.documentRequests.size).toFixed(2) 
+      : 'N/A';
+    logger.info(`📊 Anti-Cloaking Mode Network Summary:
+  ├─ Document requests: ${requestLog.documentRequests.size}
+  ├─ Total network clicks: ${requestLog.totalRequests}
+  ├─ Retry attempts detected: ${requestLog.retryAttempts}
+  ├─ Request ratio (clicks/docs): ${requestRatio}x
+  └─ Duration: ${requestDuration}ms`);
+
     return {
       success: true,
       chain,
@@ -1714,6 +1800,12 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       total_bandwidth_bytes: totalBandwidth,
       bandwidth_per_step_bytes: Math.round(avgBandwidth),
       execution_model: 'anti_cloaking_stealth',
+      network_stats: {
+        total_network_clicks: requestLog.totalRequests,
+        document_requests: requestLog.documentRequests.size,
+        retry_attempts: requestLog.retryAttempts,
+        request_ratio: parseFloat(requestRatio),
+      },
     };
 
   } catch (error) {
