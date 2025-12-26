@@ -33,9 +33,21 @@ export function useRole() {
         .eq('id', user.id)
         .maybeSingle();
 
-      if (!error && data) {
+      if (error) {
+        console.error('Supabase query error:', error);
+        // Log more details for debugging
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: (error as any).details,
+          hint: (error as any).hint,
+        });
+        setRole(null);
+      } else if (data) {
         setRole(data.role as UserRole);
       } else {
+        // No data found, but no error - this means the user profile doesn't exist
+        console.warn('No user profile found for user:', user.id);
         setRole(null);
       }
     } catch (err) {
