@@ -581,7 +581,7 @@ export default function Analytics() {
               totalItems={filteredOffersWithStats.length}
             />
           )}
-        )}
+        )
       </div>
     </div>
   );
