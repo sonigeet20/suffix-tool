@@ -570,18 +570,18 @@ export default function Analytics() {
               );
             })}
           </div>
-          
-          {filteredOffersWithStats.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-              itemsPerPage={itemsPerPage}
-              onItemsPerPageChange={setItemsPerPage}
-              totalItems={filteredOffersWithStats.length}
-            />
-          )}
-        )
+        )}
+
+        {filteredOffersWithStats.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={setItemsPerPage}
+            totalItems={filteredOffersWithStats.length}
+          />
+        )}
       </div>
     </div>
   );
