@@ -300,9 +300,10 @@ export default function Analytics() {
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Offers Overview</h3>
-            {paginatedOffersWithStats.map(({ offer, stats, recentRequests, urlTraces }) => {
+          <>
+            <div className="space-y-3">
+              <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Offers Overview</h3>
+              {paginatedOffersWithStats.map(({ offer, stats, recentRequests, urlTraces }) => {
               const isExpanded = expandedOffers.has(offer.id);
               const currentTab = activeTab[offer.id] || 'suffix';
               return (
@@ -569,18 +570,19 @@ export default function Analytics() {
                 </div>
               );
             })}
-          </div>
-        )}
+            </div>
 
-        {filteredOffersWithStats.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            itemsPerPage={itemsPerPage}
-            onItemsPerPageChange={setItemsPerPage}
-            totalItems={filteredOffersWithStats.length}
-          />
+            {filteredOffersWithStats.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                itemsPerPage={itemsPerPage}
+                onItemsPerPageChange={setItemsPerPage}
+                totalItems={filteredOffersWithStats.length}
+              />
+            )}
+          </>
         )}
       </div>
     </div>
