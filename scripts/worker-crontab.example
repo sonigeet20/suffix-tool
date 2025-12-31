@@ -1,0 +1,17 @@
+# Example crontab configuration for automatic worker triggering
+# Add this to your crontab using: crontab -e
+
+# Run trace worker every 2 minutes (high-frequency processing)
+*/2 * * * * cd /path/to/url-tracker && ./scripts/trigger-worker.sh 20 10 >> /var/log/trace-worker.log 2>&1
+
+# Run trace worker every 5 minutes (medium-frequency processing)
+# */5 * * * * cd /path/to/url-tracker && ./scripts/trigger-worker.sh 10 5 >> /var/log/trace-worker.log 2>&1
+
+# Check pool health every 10 minutes
+*/10 * * * * cd /path/to/url-tracker && ./scripts/check-pool-health.sh >> /var/log/pool-health.log 2>&1
+
+# Run pool statistics collection every hour
+0 * * * * curl -X POST "${VITE_SUPABASE_URL}/functions/v1/pool-monitor" -H "Authorization: Bearer ${VITE_SUPABASE_ANON_KEY}" >> /var/log/pool-stats.log 2>&1
+
+# Cleanup old completed trace requests (keep last 7 days)
+0 2 * * * psql $DATABASE_URL -c "DELETE FROM active_trace_requests WHERE status IN ('completed', 'failed', 'timeout') AND completed_at < NOW() - INTERVAL '7 days';"
