@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, Link2, ExternalLink, Copy, CheckCircle, ChevronDown
 import OfferForm from './OfferForm';
 import SearchBar from './ui/SearchBar';
 import FilterDropdown from './ui/FilterDropdown';
+import Pagination from './ui/Pagination';
 
 export default function OfferList() {
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -14,6 +15,8 @@ export default function OfferList() {
   const [expandedTraces, setExpandedTraces] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   useEffect(() => {
     fetchOffers();
@@ -96,6 +99,15 @@ export default function OfferList() {
 
     return matchesSearch && matchesStatus;
   });
+
+  const totalPages = Math.ceil(filteredOffers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedOffers = filteredOffers.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
 
   const statusOptions = [
     { value: 'all', label: 'All Status' },
@@ -186,8 +198,9 @@ export default function OfferList() {
           </button>
         </div>
       ) : (
+        <>
         <div className="grid gap-4">
-          {filteredOffers.map((offer) => {
+          {paginatedOffers.map((offer) => {
             const apiUrl = getApiUrl(offer.offer_name);
             return (
               <div
@@ -400,6 +413,18 @@ export default function OfferList() {
             );
           })}
         </div>
+        
+        {filteredOffers.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={setItemsPerPage}
+            totalItems={filteredOffers.length}
+          />
+        )}
+        </>
       )}
 
       {showForm && (

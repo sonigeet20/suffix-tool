@@ -3,6 +3,7 @@ import { Activity, ChevronDown, ChevronUp, RefreshCw, TrendingUp, Link2, Calenda
 import { supabase, SuffixRequest, Offer, OfferStatistics, UrlTrace } from '../lib/supabase';
 import SearchBar from './ui/SearchBar';
 import FilterDropdown from './ui/FilterDropdown';
+import Pagination from './ui/Pagination';
 
 interface OfferWithStats {
   offer: Offer;
@@ -19,6 +20,8 @@ export default function Analytics() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [activityFilter, setActivityFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchAllData();
@@ -177,6 +180,15 @@ export default function Analytics() {
     0
   );
 
+  const totalPages = Math.ceil(filteredOffersWithStats.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedOffersWithStats = filteredOffersWithStats.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, activityFilter]);
+
   if (loading) {
     return (
       <div className="space-y-5">
@@ -290,7 +302,7 @@ export default function Analytics() {
         ) : (
           <div className="space-y-3">
             <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Offers Overview</h3>
-            {filteredOffersWithStats.map(({ offer, stats, recentRequests, urlTraces }) => {
+            {paginatedOffersWithStats.map(({ offer, stats, recentRequests, urlTraces }) => {
               const isExpanded = expandedOffers.has(offer.id);
               const currentTab = activeTab[offer.id] || 'suffix';
               return (
@@ -558,6 +570,17 @@ export default function Analytics() {
               );
             })}
           </div>
+          
+          {filteredOffersWithStats.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={setItemsPerPage}
+              totalItems={filteredOffersWithStats.length}
+            />
+          )}
         )}
       </div>
     </div>
