@@ -1595,6 +1595,7 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     userAgent = userAgentRotator.getNext(),
     targetCountry = null,
     referrer = null,
+    expectedFinalUrl = null,
   } = options;
 
   const chain = [];
@@ -1602,10 +1603,50 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
   const obfuscatedUrls = [];
   const cloakingIndicators = [];
   const visitedScriptUrls = new Set();
+  const stoppedUrls = new Set();
+  const stopOnUrls = new Set();
+  const targetHost = expectedFinalUrl ? (() => { try { return new URL(expectedFinalUrl).hostname; } catch (e) { return null; } })() : null;
+  let resolveTargetReached = () => {};
+  const targetPromise = new Promise((res) => { resolveTargetReached = res; });
+  setTimeout(() => resolveTargetReached(), timeout); // safety fallback
+  let targetReached = false;
   let traceBrowser = null;
   let page = null;
   let aggressivenessLevel = 'low';
   let latestPageContent = '';
+
+  const normalizeUrl = (candidate) => {
+    if (!candidate) return null;
+    try {
+      const normalized = new URL(candidate, url).toString();
+      return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const addStopUrl = (candidate) => {
+    const normalized = normalizeUrl(candidate);
+    if (normalized) {
+      stopOnUrls.add(normalized);
+    }
+  };
+
+  const shouldStopOnUrl = (candidate) => {
+    const normalized = normalizeUrl(candidate);
+    if (!normalized) return false;
+    if (stopOnUrls.has(normalized) || stopOnUrls.has(normalized.replace(/\/$/, ''))) return true;
+    if (targetHost) {
+      try {
+        return new URL(normalized).hostname === targetHost;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  };
+
+  addStopUrl(expectedFinalUrl);
 
   try {
     // Launch FRESH browser per trace - each new browser process = potential new IP
@@ -1660,6 +1701,30 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
         'Accept-Encoding': fingerprint.encoding,
       });
     }
+
+    // Use CDP to stop downloading bodies once we hit target URLs (bandwidth savings)
+    const client = await page.target().createCDPSession();
+    await client.send('Page.enable');
+    await client.send('Network.enable');
+
+    client.on('Network.responseReceived', async (event) => {
+      if (event.type !== 'Document') return;
+      const respUrl = event.response?.url;
+      if (shouldStopOnUrl(respUrl)) {
+        try {
+          await client.send('Page.stopLoading');
+          const normalized = normalizeUrl(respUrl);
+          if (normalized) {
+            stoppedUrls.add(normalized);
+          }
+          targetReached = true;
+          resolveTargetReached();
+          logger.info(`🚫 Anti-cloaking: Stopped loading body for target URL ${respUrl.substring(0, 120)}...`);
+        } catch (e) {
+          logger.warn(`Page.stopLoading failed: ${e.message}`);
+        }
+      }
+    });
 
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'webdriver', {
@@ -1755,6 +1820,18 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     page.on('framenavigated', async (frame) => {
       if (frame === page.mainFrame()) {
         lastUrlChange = Date.now();
+
+        // Stop downloading once we reach a configured target URL
+        if (shouldStopOnUrl(frame.url())) {
+          try {
+            await page._client().send('Page.stopLoading');
+            targetReached = true;
+            resolveTargetReached();
+            logger.info(`🚫 Anti-cloaking: Stopped loading after reaching target URL ${frame.url().substring(0, 120)}...`);
+          } catch (err) {
+            logger.warn(`Stop loading after navigation failed: ${err.message}`);
+          }
+        }
         
         // Capture content immediately after navigation completes
         try {
@@ -1841,7 +1918,12 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
         } catch (e) {}
 
         const contentLength = headers['content-length'];
-        const bandwidthBytes = contentLength ? parseInt(contentLength) : null;
+        let bandwidthBytes = contentLength ? parseInt(contentLength) : null;
+        if (shouldStopOnUrl(url)) {
+          bandwidthBytes = 0; // Do not count target page body
+        } else if (shouldStopOnUrl(url) && stoppedUrls.has(normalizeUrl(url))) {
+          bandwidthBytes = 0; // We stopped loading early; do not count full body size
+        }
 
         let redirectType = 'http';
         if (status >= 300 && status < 400) {
@@ -1913,35 +1995,12 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     const idleDetectionPromise = new Promise((resolve) => {
       const checkIdle = setInterval(() => {
         const timeSinceLastChange = Date.now() - lastUrlChange;
-        // Wait ~3.5s for JavaScript redirects to execute; light DOM mutation sniff
         if (timeSinceLastChange > 3500) {
           clearInterval(checkIdle);
-          logger.info('⚡ Anti-cloaking: Early stop - no URL changes for 2s');
+          logger.info('⚡ Anti-cloaking: Early stop - no URL changes for 3.5s');
           resolve();
         }
       }, 200);
-
-      // Single mutation observer burst (~400ms) after 3s to see if page is still active
-      setTimeout(async () => {
-        try {
-          const hadRecentMutation = await page.evaluate(() => {
-            return new Promise((resolve) => {
-              let mutated = false;
-              const obs = new MutationObserver(() => { mutated = true; });
-              obs.observe(document.documentElement || document.body, { subtree: true, childList: true, attributes: true });
-              setTimeout(() => { obs.disconnect(); resolve(mutated); }, 400);
-            });
-          });
-
-          if (!hadRecentMutation && (Date.now() - lastUrlChange) > 3000) {
-            clearInterval(checkIdle);
-            logger.info('⚡ Anti-cloaking: Early stop - idle + no mutations');
-            resolve();
-          }
-        } catch (e) {
-          // ignore and let main timeout handle
-        }
-      }, 3000);
 
       setTimeout(() => {
         clearInterval(checkIdle);
@@ -1949,7 +2008,28 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       }, timeout);
     });
 
-    await Promise.race([navigationPromise, idleDetectionPromise]);
+    if (stopOnUrls.size > 0) {
+      // Wait for initial navigation, then specifically wait for the target host navigation (bounded)
+      await navigationPromise;
+      if (targetHost) {
+        for (let i = 0; i < 5 && !targetReached; i++) {
+          try {
+            await page.waitForNavigation({
+              timeout: 5000,
+              waitUntil: 'domcontentloaded',
+              predicate: (nav) => {
+                try { return new URL(nav.url()).hostname === targetHost; } catch (e) { return false; }
+              },
+            });
+          } catch (e) {
+            // Stop waiting if no further navigations occur within the window
+            break;
+          }
+        }
+      }
+    } else {
+      await Promise.race([navigationPromise, idleDetectionPromise]);
+    }
 
     // Single mouse movement for lightweight human simulation
     await page.mouse.move(150 + Math.random() * 100, 150 + Math.random() * 100);
@@ -1967,6 +2047,7 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
 
       if (scriptRedirect && !visitedScriptUrls.has(scriptRedirect)) {
         visitedScriptUrls.add(scriptRedirect);
+        addStopUrl(scriptRedirect);
         logger.info(`🔀 Anti-cloaking: Following script-defined target_url -> ${scriptRedirect.substring(0, 120)}...`);
         try {
           await page.goto(scriptRedirect, { waitUntil: 'domcontentloaded', timeout: Math.min(10000, timeout) });
@@ -2188,6 +2269,7 @@ app.post('/trace', async (req, res) => {
       enable_interactions = false,
       interaction_count = 0,
       bandwidth_limit_kb = null,
+      expected_final_url = null,
     } = req.body;
 
     if (!url) {
@@ -2266,6 +2348,7 @@ app.post('/trace', async (req, res) => {
         userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: selectedCountry || null,
         referrer: referrer || null,
+        expectedFinalUrl: expected_final_url || null,
       });
     } else if (mode === 'interactive') {
       logger.info('🎬 Using Interactive mode (anti-cloaking + session engagement)');
