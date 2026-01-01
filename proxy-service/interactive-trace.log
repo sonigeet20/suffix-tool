@@ -195,3 +195,632 @@
 {"level":"info","message":"============================================================\n"}
 {"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 6\n  ├─ Total network clicks: 204\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 34.00x\n  ├─ Duration: 21964ms\n  ├─ Session dwell time: 8181ms\n  └─ Total interactions: 11"}
 {"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"info","message":"🎬 Interactive trace started: https://tatrck.com/h/0Hu30-ze0dki?model=cpa..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: swzv8tue...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (iPad; CPU OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, lik..."}
+{"level":"info","message":"🖥️ Fingerprint: mobile | viewport=419x895"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://tatrck.com/h/0Hu30-ze0dki?model=cpa..."}
+{"level":"info","message":"📄 Document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa..."}
+{"level":"info","message":"📨 Response: 302 from https://tatrck.com/h/0Hu30-ze0dki?model=cpa..."}
+{"level":"info","message":"📄 Document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id..."}
+{"level":"info","message":"📨 Response: 200 from https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_..."}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id..."}
+{"level":"info","message":"🎯 Final URL reached: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 7795ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 3 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (139, 249)"}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/047ZCB85KF..."}
+{"level":"info","message":"📄 Document request #3: https://i.gtxen.com/click?campaign_id=158190&pub_id=2611&source=257896&p1=3Ceetbw36fbJGqJwvEEr6vAx3E..."}
+{"level":"info","message":"⚙️ Executing action #2: scroll"}
+{"level":"info","message":"📨 Response: 302 from https://i.gtxen.com/click?campaign_id=158190&pub_id=2611&source=257896&p1=3Ceetb..."}
+{"level":"info","message":"📄 Document request #4: https://clk.tradedoubler.com/click?p=321931&a=3208152&f=0&epi2=69564c551621a3035178ae9d&epi=2611_257..."}
+{"level":"info","message":"📨 Response: 302 from https://clk.tradedoubler.com/click?p=321931&a=3208152&f=0&epi2=69564c551621a3035..."}
+{"level":"info","message":"📄 Document request #5: https://track.adform.net/C/?bn=78263192;gdpr=${gdpr};gdpr_consent=${gdpr_consent_50};cpdir=https://w..."}
+{"level":"info","message":"📄 Frame navigated to: chrome-error://chromewebdata/..."}
+{"level":"warn","message":"⚠️ Could not capture content: Execution context was destroyed, most likely because of a navigation."}
+{"level":"warn","message":"⚠️ Action execution failed: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"✅ Interactive session complete: 14176ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 0\n  ├─ Mouse movements: 1\n  ├─ Waits: 0\n  ├─ Total actions: 1\n  └─ Dwell time: 14176ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 5\n  ├─ Total network clicks: 9\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.80x\n  ├─ Duration: 17635ms\n  ├─ Session dwell time: 14176ms\n  └─ Total interactions: 1"}
+{"level":"warn","message":"⚠️ Error searching for hidden redirects: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"info","message":"🎬 Interactive trace started: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: kfhtc87r...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7_1 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Fingerprint: mobile | viewport=386x842"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #1: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📨 Response: 302 from https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"📨 Response: 200 from https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_..."}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"🎯 Final URL reached: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 4403ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 3 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: scroll"}
+{"level":"info","message":"↕️ Scroll down by 290px (scroll #1)"}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/047ZCB85KF..."}
+{"level":"info","message":"📄 Document request #3: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3Cek5xWo0lwJZk7esdpDbWGAaALdY6aSkhrN..."}
+{"level":"info","message":"⚙️ Executing action #2: scroll"}
+{"level":"info","message":"📄 Frame navigated to: chrome-error://chromewebdata/..."}
+{"level":"warn","message":"⚠️ Could not capture content: Execution context was destroyed, most likely because of a navigation."}
+{"level":"warn","message":"⚠️ Action execution failed: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"⚙️ Executing action #2: scroll"}
+{"level":"info","message":"↕️ Scroll up by 146px (scroll #2)"}
+{"level":"info","message":"↕️ Scroll up by 146px (scroll #3)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (280ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #3: wait"}
+{"level":"info","message":"⏱️ Wait 279ms"}
+{"level":"info","message":"✅ Interactive session complete: 4403ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 3\n  ├─ Mouse movements: 0\n  ├─ Waits: 1\n  ├─ Total actions: 3\n  └─ Dwell time: 4403ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 3\n  ├─ Total network clicks: 8\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 2.67x\n  ├─ Duration: 7802ms\n  ├─ Session dwell time: 4403ms\n  └─ Total interactions: 3"}
+{"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"warn","message":"⚠️ Error searching for hidden redirects: Requesting main frame too early!"}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"🎬 Interactive trace started: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: xvfhtbkc...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Fingerprint: desktop | viewport=1441x903"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #1: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📨 Response: 302 from https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"📨 Response: 200 from https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_..."}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"🤝 Engagement burst on cloaking host tatrck.com"}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/047ZCB85KF..."}
+{"level":"info","message":"📄 Document request #3: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CeZr0nJT9gfmF1z5DqDp9nId5of4zAz7gLT..."}
+{"level":"info","message":"📄 Frame navigated to: chrome-error://chromewebdata/..."}
+{"level":"info","message":"✅ Target host reached or observed: www.hostinger.com"}
+{"level":"info","message":"🎯 Final URL reached: chrome-error://chromewebdata/..."}
+{"level":"info","message":"↩️ Using last document URL fallback: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CeZr0nJT9gfmF1z5DqDp9nId5of4zAz7gLT..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 4649ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 1 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: scroll"}
+{"level":"warn","message":"⚠️ Could not capture content: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"↕️ Scroll down by 303px (scroll #1)"}
+{"level":"info","message":"↕️ Scroll down by 303px (scroll #2)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (3777ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #2: scroll"}
+{"level":"info","message":"↕️ Scroll up by 262px (scroll #3)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (3330ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #3: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (663, 174)"}
+{"level":"info","message":"⚙️ Executing action #4: scroll"}
+{"level":"info","message":"↕️ Scroll up by 176px (scroll #4)"}
+{"level":"info","message":"⚙️ Executing action #5: scroll"}
+{"level":"info","message":"↕️ Scroll down by 396px (scroll #5)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (1931ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #6: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (681, 506)"}
+{"level":"info","message":"⚙️ Executing action #7: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (122, 344)"}
+{"level":"info","message":"⚙️ Executing action #8: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (597, 454)"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (492ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #9: scroll"}
+{"level":"info","message":"↕️ Scroll down by 105px (scroll #6)"}
+{"level":"info","message":"↕️ Scroll down by 105px (scroll #7)"}
+{"level":"info","message":"✅ Interactive session complete: 4842ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 7\n  ├─ Mouse movements: 4\n  ├─ Waits: 0\n  ├─ Total actions: 9\n  └─ Dwell time: 4842ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 3\n  ├─ Total network clicks: 7\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 2.33x\n  ├─ Duration: 13763ms\n  ├─ Session dwell time: 4842ms\n  └─ Total interactions: 9"}
+{"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"warn","message":"⚠️ Error searching for hidden redirects: Requesting main frame too early!"}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"🎬 Interactive trace started: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: 9t83eyw5...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Fingerprint: mobile | viewport=415x895"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #1: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📨 Response: 302 from https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"📨 Response: 200 from https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_..."}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"🤝 Engagement burst on cloaking host tatrck.com"}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/047ZCB85KF..."}
+{"level":"info","message":"📄 Document request #3: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CejoYRykk1x2YgozCPKNvI8ssPvybKNFMXx..."}
+{"level":"info","message":"📄 Frame navigated to: chrome-error://chromewebdata/..."}
+{"level":"warn","message":"⚠️ Could not capture content: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"⏳ Target host www.hostinger.com not observed before timeout window"}
+{"level":"info","message":"🎯 Final URL reached: chrome-error://chromewebdata/..."}
+{"level":"info","message":"↩️ Using last document URL fallback: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CejoYRykk1x2YgozCPKNvI8ssPvybKNFMXx..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 6710ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 2 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: scroll"}
+{"level":"info","message":"↕️ Scroll down by 177px (scroll #1)"}
+{"level":"info","message":"↕️ Scroll down by 177px (scroll #2)"}
+{"level":"info","message":"⚙️ Executing action #2: scroll"}
+{"level":"info","message":"↕️ Scroll down by 234px (scroll #3)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (5660ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #3: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (104, 331)"}
+{"level":"info","message":"⚙️ Executing action #4: scroll"}
+{"level":"info","message":"↕️ Scroll up by 300px (scroll #4)"}
+{"level":"info","message":"⚙️ Executing action #5: scroll"}
+{"level":"info","message":"↕️ Scroll down by 373px (scroll #5)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (4556ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #6: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (830, 693)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (4241ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #7: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (734, 569)"}
+{"level":"info","message":"⚙️ Executing action #8: scroll"}
+{"level":"info","message":"↕️ Scroll up by 130px (scroll #6)"}
+{"level":"info","message":"⚙️ Executing action #9: wait"}
+{"level":"info","message":"⏱️ Wait 863ms"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (2627ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #10: scroll"}
+{"level":"info","message":"↕️ Scroll down by 239px (scroll #7)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (2260ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #11: scroll"}
+{"level":"info","message":"↕️ Scroll down by 311px (scroll #8)"}
+{"level":"info","message":"↕️ Scroll down by 311px (scroll #9)"}
+{"level":"info","message":"⚙️ Executing action #12: scroll"}
+{"level":"info","message":"↕️ Scroll up by 154px (scroll #10)"}
+{"level":"info","message":"↕️ Scroll up by 154px (scroll #11)"}
+{"level":"info","message":"⚙️ Executing action #13: scroll"}
+{"level":"info","message":"↕️ Scroll up by 305px (scroll #12)"}
+{"level":"info","message":"↕️ Scroll up by 305px (scroll #13)"}
+{"level":"info","message":"✅ Interactive session complete: 6804ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 13\n  ├─ Mouse movements: 3\n  ├─ Waits: 1\n  ├─ Total actions: 13\n  └─ Dwell time: 6804ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 3\n  ├─ Total network clicks: 8\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 2.67x\n  ├─ Duration: 39419ms\n  ├─ Session dwell time: 6804ms\n  └─ Total interactions: 13"}
+{"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"info","message":"🎬 Interactive trace started: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: c71r3e1u...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Fingerprint: mobile | viewport=365x671"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #1: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📨 Response: 302 from https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"📨 Response: 200 from https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_..."}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"🤝 Engagement burst on cloaking host tatrck.com"}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/047ZCB85KF..."}
+{"level":"info","message":"📄 Document request #3: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CeZPjHSDh08wcIQA3RHOayGwvheg2dYV15V..."}
+{"level":"info","message":"📄 Frame navigated to: chrome-error://chromewebdata/..."}
+{"level":"warn","message":"⚠️ Could not capture content: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"🎬 Interactive trace started: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: dm8u4vbq...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Fingerprint: desktop | viewport=1917x1081"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #1: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"⏳ Target host www.hostinger.com not observed before timeout window"}
+{"level":"info","message":"🎯 Final URL reached: chrome-error://chromewebdata/..."}
+{"level":"info","message":"↩️ Using last document URL fallback: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CeZPjHSDh08wcIQA3RHOayGwvheg2dYV15V..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 6833ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 2 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: scroll"}
+{"level":"info","message":"↕️ Scroll up by 229px (scroll #1)"}
+{"level":"info","message":"⚙️ Executing action #2: wait"}
+{"level":"info","message":"⏱️ Wait 346ms"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (5993ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #3: wait"}
+{"level":"info","message":"⏱️ Wait 1069ms"}
+{"level":"info","message":"⚙️ Executing action #4: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (659, 435)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (4632ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #5: scroll"}
+{"level":"info","message":"↕️ Scroll down by 299px (scroll #2)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (4241ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #6: scroll"}
+{"level":"info","message":"↕️ Scroll down by 163px (scroll #3)"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (3851ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #7: scroll"}
+{"level":"info","message":"↕️ Scroll up by 151px (scroll #4)"}
+{"level":"info","message":"⚙️ Executing action #8: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (729, 639)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (3012ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #9: scroll"}
+{"level":"info","message":"↕️ Scroll down by 268px (scroll #5)"}
+{"level":"info","message":"⚙️ Executing action #10: scroll"}
+{"level":"info","message":"↕️ Scroll up by 309px (scroll #6)"}
+{"level":"info","message":"↕️ Scroll up by 309px (scroll #7)"}
+{"level":"info","message":"⚙️ Executing action #11: scroll"}
+{"level":"info","message":"↕️ Scroll down by 227px (scroll #8)"}
+{"level":"info","message":"↕️ Scroll down by 227px (scroll #9)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (819ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #12: scroll"}
+{"level":"info","message":"↕️ Scroll down by 231px (scroll #10)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (449ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #13: scroll"}
+{"level":"info","message":"↕️ Scroll down by 198px (scroll #11)"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (120ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #14: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (202, 467)"}
+{"level":"info","message":"✅ Interactive session complete: 6929ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 11\n  ├─ Mouse movements: 3\n  ├─ Waits: 2\n  ├─ Total actions: 14\n  └─ Dwell time: 6929ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 3\n  ├─ Total network clicks: 8\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 2.67x\n  ├─ Duration: 37886ms\n  ├─ Session dwell time: 6929ms\n  └─ Total interactions: 14"}
+{"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"warn","message":"⚠️ Navigation failed (no retry): net::ERR_TIMED_OUT at https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"level":"info","message":"📄 Frame navigated to: chrome-error://chromewebdata/..."}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"✅ Target host reached or observed: www.hostinger.com"}
+{"level":"info","message":"🎯 Final URL reached: chrome-error://chromewebdata/..."}
+{"level":"info","message":"↩️ Using last document URL fallback: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 5572ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 3 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (636, 525)"}
+{"level":"info","message":"⚙️ Executing action #2: scroll"}
+{"level":"info","message":"↕️ Scroll up by 156px (scroll #1)"}
+{"level":"info","message":"↕️ Scroll up by 156px (scroll #2)"}
+{"level":"info","message":"⚙️ Executing action #3: wait"}
+{"level":"info","message":"⏱️ Wait 557ms"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (3758ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #4: wait"}
+{"level":"info","message":"⏱️ Wait 641ms"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (3115ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #5: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (121, 326)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (2434ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #6: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (838, 169)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (1863ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #7: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (875, 583)"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (1549ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #8: wait"}
+{"level":"info","message":"⏱️ Wait 754ms"}
+{"level":"info","message":"⚙️ Executing action #9: scroll"}
+{"level":"info","message":"↕️ Scroll up by 112px (scroll #3)"}
+{"level":"info","message":"↕️ Scroll up by 112px (scroll #4)"}
+{"level":"info","message":"✅ Interactive session complete: 5673ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 4\n  ├─ Mouse movements: 4\n  ├─ Waits: 3\n  ├─ Total actions: 9\n  └─ Dwell time: 5673ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 4\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 4.00x\n  ├─ Duration: 37080ms\n  ├─ Session dwell time: 5673ms\n  └─ Total interactions: 9"}
+{"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"info","message":"🎬 Interactive trace started: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: lrsxyl4q...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Fingerprint: desktop | viewport=1543x872"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #1: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📨 Response: 302 from https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"📨 Response: 200 from https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_..."}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"🤝 Engagement burst on cloaking host tatrck.com"}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/047ZCB85KF..."}
+{"level":"info","message":"📄 Document request #3: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CemReulBLdJuQRYH6tDzKOGpRISrZ1Q017P..."}
+{"level":"info","message":"📄 Frame navigated to: chrome-error://chromewebdata/..."}
+{"level":"warn","message":"⚠️ Could not capture content: Execution context was destroyed, most likely because of a navigation."}
+{"level":"warn","message":"No follow-up navigation during engagement wait: Navigation timeout of 5000 ms exceeded"}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"⏳ Target host www.hostinger.com not observed before timeout window"}
+{"level":"info","message":"🎯 Final URL reached: chrome-error://chromewebdata/..."}
+{"level":"info","message":"↩️ Using last document URL fallback: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CemReulBLdJuQRYH6tDzKOGpRISrZ1Q017P..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 7482ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 1 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: wait"}
+{"level":"info","message":"⏱️ Wait 457ms"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (7025ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #2: scroll"}
+{"level":"info","message":"↕️ Scroll down by 200px (scroll #1)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (6598ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #3: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (841, 428)"}
+{"level":"info","message":"⚙️ Executing action #4: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (120, 520)"}
+{"level":"info","message":"⚙️ Executing action #5: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (161, 102)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (5487ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #6: scroll"}
+{"level":"info","message":"↕️ Scroll up by 334px (scroll #2)"}
+{"level":"info","message":"⚙️ Executing action #7: scroll"}
+{"level":"info","message":"↕️ Scroll up by 331px (scroll #3)"}
+{"level":"info","message":"↕️ Scroll up by 331px (scroll #4)"}
+{"level":"info","message":"⚙️ Executing action #8: scroll"}
+{"level":"info","message":"↕️ Scroll down by 239px (scroll #5)"}
+{"level":"info","message":"↕️ Scroll down by 239px (scroll #6)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (3292ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #9: scroll"}
+{"level":"info","message":"↕️ Scroll down by 120px (scroll #7)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (2816ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #10: scroll"}
+{"level":"info","message":"↕️ Scroll down by 110px (scroll #8)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (2428ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #11: scroll"}
+{"level":"info","message":"↕️ Scroll up by 102px (scroll #9)"}
+{"level":"info","message":"⚙️ Executing action #12: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (284, 467)"}
+{"level":"info","message":"⚙️ Executing action #13: scroll"}
+{"level":"info","message":"↕️ Scroll down by 103px (scroll #10)"}
+{"level":"info","message":"↕️ Scroll down by 103px (scroll #11)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (828ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #14: scroll"}
+{"level":"info","message":"↕️ Scroll up by 125px (scroll #12)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (334ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #15: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (738, 228)"}
+{"level":"info","message":"✅ Interactive session complete: 7620ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 12\n  ├─ Mouse movements: 5\n  ├─ Waits: 1\n  ├─ Total actions: 15\n  └─ Dwell time: 7620ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 3\n  ├─ Total network clicks: 7\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 2.33x\n  ├─ Duration: 39312ms\n  ├─ Session dwell time: 7620ms\n  └─ Total interactions: 15"}
+{"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"info","message":"🎬 Interactive trace started: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: cxi90s6f...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (Linux; Android 8.0; Pixel 2 Build/OPD3.170816.012) AppleWebKit/537...."}
+{"level":"info","message":"🖥️ Fingerprint: mobile | viewport=410x923"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #1: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📨 Response: 302 from https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"📨 Response: 200 from https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_..."}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"🤝 Engagement burst on cloaking host tatrck.com"}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/047ZCB85KF..."}
+{"level":"info","message":"📄 Document request #3: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3Cedi5dp10VChEeJunAqqlb33SuZOTKVbKxW..."}
+{"level":"info","message":"📄 Frame navigated to: chrome-error://chromewebdata/..."}
+{"level":"warn","message":"⚠️ Could not capture content: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"⏳ Target host www.hostinger.com not observed before timeout window"}
+{"level":"info","message":"🎯 Final URL reached: chrome-error://chromewebdata/..."}
+{"level":"info","message":"↩️ Using last document URL fallback: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3Cedi5dp10VChEeJunAqqlb33SuZOTKVbKxW..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 4876ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 2 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (269, 447)"}
+{"level":"info","message":"⚙️ Executing action #2: scroll"}
+{"level":"info","message":"↕️ Scroll up by 142px (scroll #1)"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (3993ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #3: scroll"}
+{"level":"info","message":"↕️ Scroll down by 334px (scroll #2)"}
+{"level":"info","message":"⚙️ Executing action #4: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (346, 632)"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (3153ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #5: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (393, 191)"}
+{"level":"info","message":"⚙️ Executing action #6: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (884, 479)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (2264ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #7: scroll"}
+{"level":"info","message":"↕️ Scroll up by 200px (scroll #3)"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (1822ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #8: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (811, 645)"}
+{"level":"info","message":"⚙️ Executing action #9: wait"}
+{"level":"info","message":"⏱️ Wait 974ms"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (225ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #10: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (186, 421)"}
+{"level":"info","message":"✅ Interactive session complete: 5261ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 3\n  ├─ Mouse movements: 6\n  ├─ Waits: 1\n  ├─ Total actions: 10\n  └─ Dwell time: 5261ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 3\n  ├─ Total network clicks: 8\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 2.67x\n  ├─ Duration: 37326ms\n  ├─ Session dwell time: 5261ms\n  └─ Total interactions: 10"}
+{"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"info","message":"🎬 Interactive trace started: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: 42n9pu8r...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Fingerprint: desktop | viewport=1431x905"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #1: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📨 Response: 302 from https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"📨 Response: 200 from https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_..."}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"🤝 Engagement burst on cloaking host tatrck.com"}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/047ZCB85KF..."}
+{"level":"info","message":"📄 Document request #3: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CemgzaOeE5muCs9lbIODxPca9PqZhhNK1PC..."}
+{"level":"info","message":"📄 Frame navigated to: chrome-error://chromewebdata/..."}
+{"level":"warn","message":"⚠️ Could not capture content: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"⏳ Target host www.hostinger.com not observed before timeout window"}
+{"level":"info","message":"🎯 Final URL reached: chrome-error://chromewebdata/..."}
+{"level":"info","message":"↩️ Using last document URL fallback: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CemgzaOeE5muCs9lbIODxPca9PqZhhNK1PC..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 4970ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 1 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: scroll"}
+{"level":"info","message":"↕️ Scroll down by 212px (scroll #1)"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (4465ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #2: scroll"}
+{"level":"info","message":"↕️ Scroll down by 236px (scroll #2)"}
+{"level":"info","message":"⚙️ Executing action #3: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (363, 542)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (3500ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #4: scroll"}
+{"level":"info","message":"↕️ Scroll down by 313px (scroll #3)"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (3005ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #5: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (147, 404)"}
+{"level":"info","message":"⚙️ Executing action #6: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (499, 554)"}
+{"level":"info","message":"🔄 Generated new batch of 1 actions (2355ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #7: scroll"}
+{"level":"info","message":"↕️ Scroll down by 190px (scroll #4)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (2010ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #8: scroll"}
+{"level":"info","message":"↕️ Scroll up by 168px (scroll #5)"}
+{"level":"info","message":"⚙️ Executing action #9: scroll"}
+{"level":"info","message":"↕️ Scroll up by 203px (scroll #6)"}
+{"level":"info","message":"↕️ Scroll up by 203px (scroll #7)"}
+{"level":"info","message":"⚙️ Executing action #10: scroll"}
+{"level":"info","message":"↕️ Scroll down by 269px (scroll #8)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (409ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #11: scroll"}
+{"level":"info","message":"↕️ Scroll down by 279px (scroll #9)"}
+{"level":"info","message":"⚙️ Executing action #12: scroll"}
+{"level":"info","message":"↕️ Scroll up by 171px (scroll #10)"}
+{"level":"info","message":"✅ Interactive session complete: 5347ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 10\n  ├─ Mouse movements: 3\n  ├─ Waits: 0\n  ├─ Total actions: 12\n  └─ Dwell time: 5347ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 3\n  ├─ Total network clicks: 8\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 2.67x\n  ├─ Duration: 36328ms\n  ├─ Session dwell time: 5347ms\n  └─ Total interactions: 12"}
+{"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"info","message":"🎬 Interactive trace started: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: 4iauqqu6...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Fingerprint: desktop | viewport=1271x721"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #1: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📨 Response: 302 from https://tatrck.com/h/0Hu30-ze0gfz?model=cpa..."}
+{"level":"info","message":"📄 Document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"📨 Response: 200 from https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_..."}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3..."}
+{"level":"info","message":"🤝 Engagement burst on cloaking host tatrck.com"}
+{"level":"info","message":"📄 Frame navigated to: https://tatrck.com/047ZCB85KF..."}
+{"level":"info","message":"📄 Document request #3: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CeYUTQ4u7dfHxw6YbXuBh43Np9CVx4Ztgrp..."}
+{"level":"info","message":"📄 Frame navigated to: chrome-error://chromewebdata/..."}
+{"level":"warn","message":"⚠️ Could not capture content: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"⏳ Target host www.hostinger.com not observed before timeout window"}
+{"level":"info","message":"🎯 Final URL reached: chrome-error://chromewebdata/..."}
+{"level":"info","message":"↩️ Using last document URL fallback: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CeYUTQ4u7dfHxw6YbXuBh43Np9CVx4Ztgrp..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 5418ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 3 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: scroll"}
+{"level":"info","message":"↕️ Scroll up by 105px (scroll #1)"}
+{"level":"info","message":"↕️ Scroll up by 105px (scroll #2)"}
+{"level":"info","message":"⚙️ Executing action #2: scroll"}
+{"level":"info","message":"↕️ Scroll down by 366px (scroll #3)"}
+{"level":"info","message":"↕️ Scroll down by 366px (scroll #4)"}
+{"level":"info","message":"⚙️ Executing action #3: wait"}
+{"level":"info","message":"⏱️ Wait 796ms"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (3014ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #4: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (835, 377)"}
+{"level":"info","message":"⚙️ Executing action #5: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (615, 376)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (1827ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #6: wait"}
+{"level":"info","message":"⏱️ Wait 1071ms"}
+{"level":"info","message":"⚙️ Executing action #7: scroll"}
+{"level":"info","message":"↕️ Scroll up by 159px (scroll #5)"}
+{"level":"info","message":"↕️ Scroll up by 159px (scroll #6)"}
+{"level":"info","message":"⚙️ Executing action #8: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (812, 519)"}
+{"level":"info","message":"✅ Interactive session complete: 5854ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 6\n  ├─ Mouse movements: 3\n  ├─ Waits: 2\n  ├─ Total actions: 8\n  └─ Dwell time: 5854ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 3\n  ├─ Total network clicks: 7\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 2.33x\n  ├─ Duration: 38600ms\n  ├─ Session dwell time: 5854ms\n  └─ Total interactions: 8"}
+{"level":"info","message":"✅ Cleanup complete\n"}

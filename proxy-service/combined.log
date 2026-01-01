@@ -2346,3 +2346,485 @@
 {"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
 {"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
 {"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"SIGINT received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"SIGINT received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"browser","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Browser: Fresh Luna connection (session: 5nfcq3j6...)"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1922x1074, colorDepth=32, pixelRatio=1"}
+{"level":"info","message":"📄 Browser document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"📄 Browser document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CecH1pDvR2abSAwVzsAoXzMJZKTJP1es7ch0lxuA0spj4%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"📄 Browser document request #3: https://i.gtxen.com/click?campaign_id=158190&pub_id=2611&source=257896&p1=3CecH1pDvR2abSAwVzsAoXzMJZKTJP1es7ch0lxuA0spj4&p3=https://www.thebusinessrule.com"}
+{"level":"info","message":"📄 Browser document request #4: https://clk.tradedoubler.com/click?p=321931&a=3208152&f=0&epi2=69564a4e91cad7034d3c40cd&epi=2611_257896"}
+{"level":"info","message":"📄 Browser document request #5: https://track.adform.net/C/?bn=78263192;gdpr=${gdpr};gdpr_consent=${gdpr_consent_50};cpdir=https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"info","message":"📄 Browser document request #6: https://track.adform.net/C/?CC=1&bn=78263192;gdpr=${gdpr};gdpr_consent=${gdpr_consent_50};cpdir=https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"info","message":"📄 Browser document request #7: https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"warn","message":"⚠️ Could not retrieve JS redirect log: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Browser Mode Network Summary:\n  ├─ Document requests: 7\n  ├─ Total network clicks: 10\n  ├─ Retry attempts detected: 0\n  ├─ JS redirects detected: 0\n  ├─ Form submissions: 0\n  ├─ Request ratio (clicks/docs): 1.43x\n  └─ Duration: 15387ms"}
+{"level":"warn","message":"⚠️ Error searching for hidden redirects: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"⚡ Browser: Early stop - no more redirects found"}
+{"level":"info","message":"✅ Trace completed (browser): 7 steps in 16699ms | 218.75 KB transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=224004B, avg_per_step=32001B"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"browser","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Browser: Fresh Luna connection (session: jb9kr9so...)"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=420x897, colorDepth=32, pixelRatio=2"}
+{"level":"info","message":"📄 Browser document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"📄 Browser document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CeZCzfsAnGYVZsdHhclGo8lBIAHqFJTib2phAy22oKOfu%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"warn","message":"⚠️ Error searching for hidden redirects: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"⚡ Browser: Early stop - no more redirects found"}
+{"level":"info","message":"📊 Browser Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 2\n  ├─ Retry attempts detected: 0\n  ├─ JS redirects detected: 0\n  ├─ Form submissions: 0\n  ├─ Request ratio (clicks/docs): 1.00x\n  └─ Duration: 6078ms"}
+{"level":"info","message":"✅ Trace completed (browser): 2 steps in 7908ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 190.98.110.200 | Location: Wanica District, Wanica District, Suriname | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: 2dkrsijr...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, lik..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1356x761, colorDepth=32, pixelRatio=1"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CentQFYZCPL9J5dP32DQmojXGOe2ymyEspUAbkkoOiikI%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 2\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.00x\n  └─ Duration: 3740ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 5073ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 190.167.247.114 | Location: Santo Domingo, Nacional, Dominican Republic | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: 8xojwkbr...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1922x1197, colorDepth=32, pixelRatio=1.5"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CemiXqhXWULYpw0HDrlM8G62YavV9Br8K1BZAb74vD8gI%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 3\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.50x\n  └─ Duration: 5538ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 6777ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 91.106.40.134 | Location: Baghdad, Baghdad, Iraq | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: pskcmlte...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, lik..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1543x863, colorDepth=32, pixelRatio=1.5"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3Cep3c1bZ6qgDtFYAlWRx2r9ZJpugHtgPv9elb4DY8o7c6%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 2\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.00x\n  └─ Duration: 4025ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 5279ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 178.51.98.133 | Location: Brussels, Brussels Capital, Belgium | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"interactive","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🎬 Using Interactive mode (anti-cloaking + session engagement)"}
+{"level":"info","message":"✅ Trace completed (interactive): 4 steps in 19574ms | 480.00 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=480B, avg_per_step=120B"}
+{"level":"info","message":"🌐 Proxy IP used: 124.45.83.126 | Location: Chiyoda City, Tokyo, Japan | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"browser","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Browser: Fresh Luna connection (session: ka95v6ha...)"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHT..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=405x914, colorDepth=24, pixelRatio=2"}
+{"level":"info","message":"📄 Browser document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"📄 Browser document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3Cen9zkV0Z0fzlcIrzBxz2XVmyL5pnAmROxPTUNA09FygI%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"📊 Browser Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 3\n  ├─ Retry attempts detected: 0\n  ├─ JS redirects detected: 0\n  ├─ Form submissions: 0\n  ├─ Request ratio (clicks/docs): 1.50x\n  └─ Duration: 4943ms"}
+{"level":"info","message":"📄 Browser document request #3: https://i.gtxen.com/click?campaign_id=158190&pub_id=2611&source=257896&p1=3Cen9zkV0Z0fzlcIrzBxz2XVmyL5pnAmROxPTUNA09FygI&p3=https://www.thebusinessrule.com"}
+{"level":"info","message":"✅ Trace completed (browser): 3 steps in 6470ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"warn","message":"⚠️ Error searching for hidden redirects: Requesting main frame too early!"}
+{"level":"info","message":"⚡ Browser: Early stop - no more redirects found"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: tk6jphb1...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, lik..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1911x1079, colorDepth=24, pixelRatio=1.25"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3Ceo81GtQ28vhK44cNeicrYnEizYDq7eVKpDk6P2QvgAwI%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 3\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.50x\n  └─ Duration: 5276ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 5776ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: yti807ed...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1432x905, colorDepth=32, pixelRatio=1.25"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CefJOWXb9f5VYR6zNgI2rW2cBA5e0uQ1vfruXmGgL8Xzi%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"📄 Anti-cloaking document request #3: https://i.gtxen.com/click?campaign_id=158190&pub_id=2611&source=257896&p1=3CefJOWXb9f5VYR6zNgI2rW2cBA5e0uQ1vfruXmGgL8Xzi&p3=https://www.thebusinessrule.com"}
+{"level":"info","message":"📄 Anti-cloaking document request #4: https://clk.tradedoubler.com/click?p=321931&a=3208152&f=0&epi2=69564ec2d56ccc034942baa7&epi=2611_257896"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📄 Anti-cloaking document request #5: https://track.adform.net/C/?bn=78263192;gdpr=${gdpr};gdpr_consent=${gdpr_consent_50};cpdir=https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"info","message":"📄 Anti-cloaking document request #6: https://track.adform.net/C/?CC=1&bn=78263192;gdpr=${gdpr};gdpr_consent=${gdpr_consent_50};cpdir=https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"info","message":"📄 Anti-cloaking document request #7: https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"warn","message":"Could not capture content after navigation:"}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 7\n  ├─ Total network clicks: 11\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.57x\n  └─ Duration: 15234ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 7 steps in 16552ms | 218.75 KB transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=224004B, avg_per_step=32001B"}
+{"level":"info","message":"🌐 Proxy IP used: 186.191.224.39 | Location: Montevideo, Montevideo Department, Uruguay | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: 5a7m6q68...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (iPad; CPU OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, lik..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=408x886, colorDepth=32, pixelRatio=3"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CedfW9GI6V2UQP2gOOzO1bbHXa3xopIIytSKUpAQB88Sk%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 2\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.00x\n  └─ Duration: 4954ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 6307ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 197.149.245.131 | Location: Conakry, Conakry Region, Guinea | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: 51zydq71...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1535x866, colorDepth=32, pixelRatio=1"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CecWhKZmaPckyfewdmZafPPQ4way9kYTxPk3BXMjo29B8%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 2\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.00x\n  └─ Duration: 4349ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 5373ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: 1r6g5rar...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1542x868, colorDepth=24, pixelRatio=1.5"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CekmI9keEuldM13ctFCrxY9Hh0fr17iiBoQrd4A4vzHQE%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 3\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.50x\n  └─ Duration: 8050ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 9383ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 109.228.111.188 | Location: Podgorica, Podgorica, Montenegro | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: glizpkwf...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1924x1194, colorDepth=24, pixelRatio=1.5"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3Ceboav4yoJ3hAb72BLpG4QE8YrKdvoBw1kDg4OYJS011a%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 3\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.50x\n  └─ Duration: 7064ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 8194ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: vv6mdsm0...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1371x762, colorDepth=24, pixelRatio=1"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CehhxuZiw3fmp41NurRAhIm7bqD7BXFtRrclQcDtlzQEI%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 3\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.50x\n  └─ Duration: 7919ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 9209ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 118.103.138.100 | Location: Thimphu, Thimphu District, Bhutan | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: nztk4pmi...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (iPad; CPU OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, lik..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=420x918, colorDepth=32, pixelRatio=2.5"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CelFoSxDTJS3MRpOIq7dOA5JlGUiCtYmMLhfmFcWGJcU2%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"📄 Anti-cloaking document request #3: https://i.gtxen.com/click?campaign_id=158190&pub_id=2611&source=257896&p1=3CelFoSxDTJS3MRpOIq7dOA5JlGUiCtYmMLhfmFcWGJcU2&p3=https://www.thebusinessrule.com"}
+{"level":"info","message":"📄 Anti-cloaking document request #4: https://clk.tradedoubler.com/click?p=321931&a=3208152&f=0&epi2=69564ff277a4a2035ad7f009&epi=2611_257896"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📄 Anti-cloaking document request #5: https://track.adform.net/C/?bn=78263192;gdpr=${gdpr};gdpr_consent=${gdpr_consent_50};cpdir=https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"info","message":"📄 Anti-cloaking document request #6: https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"warn","message":"Could not capture content after navigation:"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 6\n  ├─ Total network clicks: 10\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.67x\n  └─ Duration: 16426ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 6 steps in 17600ms | 218.75 KB transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=224004B, avg_per_step=37334B"}
+{"level":"info","message":"🌐 Proxy IP used: 190.171.218.102 | Location: Santa Cruz, Santa Cruz Department, Bolivia | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: m6xz425x...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1447x894, colorDepth=32, pixelRatio=1.25"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3Cedu9loGuAFmSjLgyMIAiEVSPsuVbXkeyaq62mZzIJkn8%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 3\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.50x\n  └─ Duration: 4534ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 5936ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 178.79.68.124 | Location: Maribor, Maribor City Municipality, Slovenia | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: a7opm6hy...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1923x1190, colorDepth=32, pixelRatio=1.5"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CehE67w3Wl2EbxaGPPB9Tk1O5vjJmypcxRL4HZDNPaVMc%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 2\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.00x\n  └─ Duration: 13030ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 14360ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 37.8.77.178 | Location: Ramallah, Ramallah and al-Bireh Governorate, Palestine | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: s1b92rj1...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 26_0_1 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=395x840, colorDepth=24, pixelRatio=2.5"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CefpqBjOCdHOFnua1wPtfWvKC34RyO25O7cwVqEv6U01u%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"📄 Anti-cloaking document request #3: https://i.gtxen.com/click?campaign_id=158190&pub_id=2611&source=257896&p1=3CefpqBjOCdHOFnua1wPtfWvKC34RyO25O7cwVqEv6U01u&p3=https://www.thebusinessrule.com"}
+{"level":"info","message":"📄 Anti-cloaking document request #4: https://clk.tradedoubler.com/click?p=321931&a=3208152&f=0&epi2=6956508264e8ae035db21918&epi=2611_257896"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📄 Anti-cloaking document request #5: https://track.adform.net/C/?bn=78263192;gdpr=${gdpr};gdpr_consent=${gdpr_consent_50};cpdir=https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"info","message":"📄 Anti-cloaking document request #6: https://track.adform.net/C/?CC=1&bn=78263192;gdpr=${gdpr};gdpr_consent=${gdpr_consent_50};cpdir=https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"info","message":"📄 Anti-cloaking document request #7: https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"warn","message":"Could not capture content after navigation:"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 7\n  ├─ Total network clicks: 9\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.29x\n  └─ Duration: 11567ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 7 steps in 12842ms | 218.75 KB transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=224004B, avg_per_step=32001B"}
+{"level":"info","message":"🌐 Proxy IP used: 137.115.4.153 | Location: Lilongwe, Central Region, Malawi | Selected Geo: N/A"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: ezsgkpnb...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=376x672, colorDepth=24, pixelRatio=3"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CefKG4Q5sDV464EPvNa5XpjA0zAtNTHKspdtkvp3wVSUA%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 3.5s"}
+{"level":"info","message":"📄 Anti-cloaking document request #3: https://i.gtxen.com/click?campaign_id=158190&pub_id=2611&source=257896&p1=3CefKG4Q5sDV464EPvNa5XpjA0zAtNTHKspdtkvp3wVSUA&p3=https://www.thebusinessrule.com"}
+{"level":"info","message":"📄 Anti-cloaking document request #4: https://clk.tradedoubler.com/click?p=321931&a=3208152&f=0&epi2=695650dc3991c6034c7e9802&epi=2611_257896"}
+{"level":"info","message":"📄 Anti-cloaking document request #5: https://track.adform.net/C/?bn=78263192;gdpr=${gdpr};gdpr_consent=${gdpr_consent_50};cpdir=https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"info","message":"📄 Anti-cloaking document request #6: https://track.adform.net/C/?CC=1&bn=78263192;gdpr=${gdpr};gdpr_consent=${gdpr_consent_50};cpdir=https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"info","message":"📄 Anti-cloaking document request #7: https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedoubler_2025&utm_term=Acquisizione_Kena_Homepage_textlink_Tradedoubler"}
+{"level":"warn","message":"Page.stopLoading failed: Protocol error (Page.stopLoading): Not attached to an active page"}
+{"level":"info","message":"🚫 Anti-cloaking: Stopped loading after reaching target URL https://www.kenamobile.it/?utm_source=Tradedoubler&utm_medium=display&utm_campaign=Acquisizione_Kena_Display_Tradedouble..."}
+{"level":"warn","message":"Could not capture content after navigation:"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 7\n  ├─ Total network clicks: 12\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.71x\n  └─ Duration: 21916ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 7 steps in 36382ms | 480.00 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=480B, avg_per_step=69B"}
+{"level":"info","message":"🌐 Proxy IP used: 154.160.1.136 | Location: Accra, Greater Accra Region, Ghana | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: 5gkr2l0m...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (iPad; CPU OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, lik..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=391x842, colorDepth=32, pixelRatio=2.5"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3D15248%26aff_sub%3D3CeYgpVUF3HfA40C2wm0pvitqWloNQRURowwWN1MGIhsuM%26aff_sub2%3D257896%26aff_sub4%3Dhttps%253A%252F%252Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 3.5s"}
+{"level":"info","message":"📄 Anti-cloaking document request #3: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CeYgpVUF3HfA40C2wm0pvitqWloNQRURowwWN1MGIhsuM&aff_sub2=257896&aff_sub4=https%3A%2F%2Fwww.thebusinessrule.com"}
+{"level":"warn","message":"Could not capture content after navigation:"}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 3\n  ├─ Total network clicks: 10\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 3.33x\n  └─ Duration: 13312ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 3 steps in 14575ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 152.59.61.74 | Location: Pune, Maharashtra, India | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: jvr0t13l...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=384x672, colorDepth=24, pixelRatio=2"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fsts.lttrk1.com%2Faff_c%3Foffer_id%3D6340%26aff_id%3D15248%26aff_sub%3D3CebmdS6V1O5yuE7CpIxKGXrL6oxTyQam1zCevz2fULbuA%26aff_sub2%3D257896%26aff_sub4%3Dhttps%253A%252F%252Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"info","message":"📄 Anti-cloaking document request #3: https://sts.lttrk1.com/aff_c?offer_id=6340&aff_id=15248&aff_sub=3CebmdS6V1O5yuE7CpIxKGXrL6oxTyQam1zCevz2fULbuA&aff_sub2=257896&aff_sub4=https%3A%2F%2Fwww.thebusinessrule.com"}
+{"level":"warn","message":"Could not capture content after navigation:"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 3.5s"}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 3\n  ├─ Total network clicks: 10\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 3.33x\n  └─ Duration: 13170ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 3 steps in 14492ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"interactive","url":"https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🎬 Using Interactive mode (anti-cloaking + session engagement)"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"✅ Trace completed (interactive): 2 steps in 10314ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"interactive","url":"https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🎬 Using Interactive mode (anti-cloaking + session engagement)"}
+{"level":"info","message":"✅ Trace completed (interactive): 3 steps in 15347ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 86.120.191.79 | Location: Alba Iulia, Alba County, Romania | Selected Geo: N/A"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"interactive","url":"https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🎬 Using Interactive mode (anti-cloaking + session engagement)"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"✅ Trace completed (interactive): 3 steps in 40958ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"interactive","url":"https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🎬 Using Interactive mode (anti-cloaking + session engagement)"}
+{"level":"info","message":"⚡ Trace request:","mode":"interactive","url":"https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🎬 Using Interactive mode (anti-cloaking + session engagement)"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"✅ Trace completed (interactive): 3 steps in 43378ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 5.29.144.37 | Location: Ramat Gan, Tel Aviv, Israel | Selected Geo: N/A"}
+{"level":"info","message":"✅ Trace completed (interactive): 1 steps in 58334ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"interactive","url":"https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🎬 Using Interactive mode (anti-cloaking + session engagement)"}
+{"level":"info","message":"✅ Trace completed (interactive): 3 steps in 40855ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 154.161.153.195 | Location: Accra, Greater Accra Region, Ghana | Selected Geo: N/A"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"interactive","url":"https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🎬 Using Interactive mode (anti-cloaking + session engagement)"}
+{"level":"info","message":"✅ Trace completed (interactive): 3 steps in 38980ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 24.139.254.43 | Location: Luquillo, Fajardo, Puerto Rico | Selected Geo: N/A"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"interactive","url":"https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🎬 Using Interactive mode (anti-cloaking + session engagement)"}
+{"level":"info","message":"✅ Trace completed (interactive): 3 steps in 38065ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 185.238.222.189 | Location: Tower Hamlets, England, United Kingdom | Selected Geo: N/A"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"interactive","url":"https://tatrck.com/h/0Hu30-ze0gfz?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🎬 Using Interactive mode (anti-cloaking + session engagement)"}
+{"level":"info","message":"✅ Trace completed (interactive): 3 steps in 40234ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 175.158.170.127 | Location: Noumea, South Province, New Caledonia | Selected Geo: N/A"}
+{"level":"info","message":"SIGTERM received, closing browser..."}

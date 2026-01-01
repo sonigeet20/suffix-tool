@@ -267,8 +267,6 @@ Deno.serve(async (req: Request) => {
             proxyUsername = settings.luna_proxy_username;
             proxyPassword = settings.luna_proxy_password;
             console.log("✅ Residential proxy configured:", proxyHost);
-          } else if (!awsProxyUrl) {
-            console.log("⚠️ No proxy credentials configured");
           }
         } else {
           console.log("⚠️ No settings found for user");
@@ -277,7 +275,16 @@ Deno.serve(async (req: Request) => {
         console.error("❌ Failed to fetch settings:", settingsErr);
       }
     } else {
-      console.log("⚠️ No user_id provided - proxy will not be used");
+      console.log("⚠️ No user_id provided");
+    }
+
+    // Use default AWS proxy URL if not configured in user settings
+    if (!awsProxyUrl) {
+      const defaultAwsUrl = Deno.env.get("DEFAULT_AWS_PROXY_URL");
+      if (defaultAwsUrl) {
+        awsProxyUrl = defaultAwsUrl;
+        console.log("ℹ️ Using default AWS Proxy Service URL:", awsProxyUrl);
+      }
     }
 
     let selectedProvider: any = null;

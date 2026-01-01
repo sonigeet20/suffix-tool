@@ -203,15 +203,30 @@ Deno.serve(async (req: Request) => {
       .eq('is_active', true)
       .maybeSingle();
 
-    if (offerError || !offer) {
+    console.log(`🔍 Searching for offer: ${offerName}`);
+    if (offerError) {
+      console.error('❌ Error fetching offer:', offerError);
       return new Response(
-        JSON.stringify({ error: 'Offer not found or inactive' }),
+        JSON.stringify({ error: 'Database error', details: offerError.message }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    if (!offer) {
+      console.warn(`⚠️ Offer not found: ${offerName}`);
+      return new Response(
+        JSON.stringify({ error: 'Offer not found or inactive', offer_name: offerName }),
         {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
+    
+    console.log(`✅ Found offer: ${offer.offer_name}, active: ${offer.is_active}, tracking_urls: ${offer.tracking_urls?.length || 0}`);
 
     let trackingUrlToUse: string | null = null;
     let trackingUrlLabel = '';
@@ -228,6 +243,8 @@ Deno.serve(async (req: Request) => {
     const referrers = offer.referrers || [];
     const trackingUrlRotationMode = offer.tracking_url_rotation_mode || 'sequential';
     const referrerRotationMode = offer.referrer_rotation_mode || 'sequential';
+
+    console.log(`📊 Offer configuration: tracking_urls=${trackingUrls.length}, referrers=${referrers.length}, tracking_template=${offer.tracking_template ? 'yes' : 'no'}`);
 
     if (trackingUrls.length > 0) {
       const trackingSelection = selectByMode(
@@ -282,10 +299,15 @@ Deno.serve(async (req: Request) => {
     let traceSuccessful = false;
     let attemptCount = 0;
     let proxyIp: string | null = null;
+    let lastTraceError: string | null = null;
+    let lastTraceStatus: number | null = null;
 
     if (trackingUrlToUse) {
       const retryLimit = offer.retry_limit || 3;
       const retryDelay = offer.retry_delay_ms || 2000;
+
+      console.log(`🚀 Starting trace attempts for tracking URL: ${trackingUrlToUse}`);
+      console.log(`   Referrer: ${referrerToUse || 'none'}, Retry limit: ${retryLimit}, Delay: ${retryDelay}ms`);
 
       for (let attempt = 0; attempt <= retryLimit; attempt++) {
         attemptCount = attempt + 1;
@@ -428,13 +450,17 @@ Deno.serve(async (req: Request) => {
             }
           } else {
             const errorText = await traceResponse.text();
-            console.error(`Trace attempt ${attemptCount} failed with status ${traceResponse.status}:`, errorText);
+            lastTraceError = errorText;
+            lastTraceStatus = traceResponse.status;
+            console.error(`❌ Trace attempt ${attemptCount} failed with status ${traceResponse.status}:`, errorText);
+            console.error(`   Request was: POST ${supabaseUrl}/functions/v1/trace-redirects`);
           }
 
           if (attempt === retryLimit) {
-            console.error('All retry attempts exhausted, no params extracted');
+            console.error(`❌ All retry attempts exhausted for ${trackingUrlToUse}, no trace completed`);
           }
         } catch (traceError: any) {
+          lastTraceError = traceError.message;
           console.error(`Trace attempt ${attemptCount} failed:`, traceError.message);
 
           if (attempt === retryLimit) {
@@ -456,10 +482,29 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // If no params extracted or trace failed, send no content so the campaign retains last suffix
+    // If no params extracted or trace failed, return what we have so frontend can debug
     if (!traceSuccessful || !finalSuffix) {
-      console.warn('No params extracted or trace failed; returning 204 to preserve existing campaign suffix');
-      return new Response('', { status: 204, headers: { ...corsHeaders } });
+      console.warn(`⚠️ No params extracted: traceSuccessful=${traceSuccessful}, finalSuffix=${finalSuffix ? finalSuffix.length + ' chars' : 'empty'}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          offer_name: offer.offer_name,
+          message: 'No params extracted from trace',
+          trace_attempted: !!trackingUrlToUse,
+          trace_successful: traceSuccessful,
+          tracking_url_used: trackingUrlToUse,
+          suffix: finalSuffix || null,
+          params_extracted: extractedParams,
+          attempts: attemptCount,
+          last_error: lastTraceError,
+          last_status: lastTraceStatus,
+          timestamp: new Date().toISOString(),
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
