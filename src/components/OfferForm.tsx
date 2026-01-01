@@ -223,6 +223,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
           use_proxy: useProxy,
           target_country: formData.target_geo || null,
           tracer_mode: tracerMode,
+          expected_final_url: formData.final_url || undefined,
           geo_pool: geoPool.length > 0 ? geoPool : undefined,
           geo_strategy: geoPool.length > 0 ? geoStrategy : undefined,
           geo_weights: geoPool.length > 0 && geoStrategy === 'weighted' ? geoWeights : undefined,
