@@ -378,6 +378,15 @@ const BLOCKED_DOMAINS = [
   'googletagmanager.com',
   'doubleclick.net',
   'facebook.com/tr',
+  'facebook.net',
+  'hotjar.com',
+  'clarity.ms',
+  'mouseflow.com',
+  'crazyegg.com',
+  'mixpanel.com',
+  'segment.com',
+  'amplitude.com',
+  'fullstory.com',
 ];
 
 // Unified resource types to block in browser-based modes to reduce bandwidth
@@ -391,6 +400,10 @@ const BLOCKED_RESOURCE_TYPES = [
   'websocket',
   'manifest',
   'other',
+  'xhr',      // Block AJAX requests (analytics, tracking)
+  'fetch',    // Block Fetch API requests
+  'eventsource', // Block Server-Sent Events
+  'ping',     // Block beacon/ping requests
 ];
 
 let browser = null;
@@ -915,6 +928,7 @@ async function traceRedirectsBrowser(url, options = {}) {
     userAgent = userAgentRotator.getNext(),
     targetCountry = selectedCountry || null,
     referrer = null,
+    expectedFinalUrl = null, // Expected final destination (offer's final_url)
   } = options;
 
   const chain = [];
@@ -1286,6 +1300,26 @@ async function traceRedirectsBrowser(url, options = {}) {
           redirectType = 'http';
         } else if (status >= 200 && status < 300) {
           redirectType = 'final';
+          
+          // ⚡ BANDWIDTH OPTIMIZATION: Stop loading final page body if we've reached expected destination
+          // Only stop if expectedFinalUrl is provided and current URL matches it (by domain)
+          if (expectedFinalUrl) {
+            try {
+              const currentDomain = new URL(url).hostname.replace(/^www\./, '');
+              const expectedDomain = new URL(expectedFinalUrl).hostname.replace(/^www\./, '');
+              
+              if (currentDomain === expectedDomain) {
+                logger.info(`⚡ Reached expected final URL: ${url} - stopping page load`);
+                // Stop loading to save bandwidth - we have the URL and params
+                await page.evaluate(() => {
+                  if (window.stop) window.stop();
+                  else if (document.execCommand) document.execCommand('Stop');
+                });
+              }
+            } catch (e) {
+              // Ignore URL parse errors
+            }
+          }
         } else {
           redirectType = 'error';
         }
@@ -1595,6 +1629,7 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     userAgent = userAgentRotator.getNext(),
     targetCountry = null,
     referrer = null,
+    expectedFinalUrl = null,
   } = options;
 
   const chain = [];
@@ -2188,6 +2223,7 @@ app.post('/trace', async (req, res) => {
       enable_interactions = false,
       interaction_count = 0,
       bandwidth_limit_kb = null,
+      expected_final_url = null, // Expected final destination URL from offer
     } = req.body;
 
     if (!url) {
@@ -2266,6 +2302,7 @@ app.post('/trace', async (req, res) => {
         userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: selectedCountry || null,
         referrer: referrer || null,
+        expectedFinalUrl: expected_final_url || null,
       });
     } else if (mode === 'interactive') {
       logger.info('🎬 Using Interactive mode (anti-cloaking + session engagement)');
@@ -2286,6 +2323,7 @@ app.post('/trace', async (req, res) => {
         userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: selectedCountry || null,
         referrer: referrer || null,
+        expectedFinalUrl: expected_final_url || null,
       });
     }
 
