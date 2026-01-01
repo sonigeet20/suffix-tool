@@ -2286,3 +2286,63 @@
 {"level":"info","message":"✅ Trace completed (http_only): 1 steps in 2729ms | 0 B transferred"}
 {"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
 {"level":"info","message":"🌐 Proxy IP used: 122.168.0.160 | Location: Barwa, Haryana, India | Selected Geo: IN"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"SIGINT received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: 7jt9d7ul...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=394x857, colorDepth=24, pixelRatio=2"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"info","message":"📄 Anti-cloaking document request #2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fi.gtxen.com%2Fclick%3Fcampaign_id%3D158190%26pub_id%3D2611%26source%3D257896%26p1%3D3CeZuHTPdiAzOLh6H0eL6WNxopsSXhI2QE8IIBf4t4p0CM%26p3%3Dhttps%3A%2F%2Fwww.thebusinessrule.com&p=047ZCB85KF"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 3\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 1.50x\n  └─ Duration: 5886ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 2 steps in 7162ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: mm7q15ls...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1372x767, colorDepth=32, pixelRatio=1.25"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 2s"}
+{"level":"warn","message":"⚠️ Anti-cloaking navigation failed (no retry): net::ERR_TIMED_OUT at https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 4\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 4.00x\n  └─ Duration: 31396ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 1 steps in 35590ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: 41.234.246.80 | Location: Cairo, Cairo Governorate, Egypt | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"browser","url":"https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Browser: Fresh Luna connection (session: dct4rxl5...)"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1374x761, colorDepth=32, pixelRatio=1.5"}
+{"level":"info","message":"📄 Browser document request #1: https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"warn","message":"⚠️ Browser navigation failed (no retry): net::ERR_TIMED_OUT at https://tatrck.com/h/0Hu30-ze0dki?model=cpa"}
+{"level":"info","message":"⚡ Browser: Early stop - no more redirects found"}
+{"level":"info","message":"📊 Browser Mode Network Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 1\n  ├─ Retry attempts detected: 0\n  ├─ JS redirects detected: 0\n  ├─ Form submissions: 0\n  ├─ Request ratio (clicks/docs): 1.00x\n  └─ Duration: 31389ms"}
+{"level":"info","message":"✅ Trace completed (browser): 1 steps in 37034ms | 0 B transferred"}
+{"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
