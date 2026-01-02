@@ -381,6 +381,7 @@ Deno.serve(async (req: Request) => {
 
     let selectedProvider: any = null;
     let providerId: string | null = null;
+    let useSettingsLuna = false;
 
     // Check for provider override from offer configuration
     if (effectiveUserId && offer_id) {
@@ -396,74 +397,81 @@ Deno.serve(async (req: Request) => {
         if (!offerError && offerData && offerData.provider_id) {
           console.log("✅ Found provider override:", offerData.provider_id);
           
-          // Fetch the specific provider
-          const { data: providerData, error: providerError } = await supabase
-            .from("proxy_providers")
-            .select("*")
-            .eq("id", offerData.provider_id)
-            .eq("user_id", effectiveUserId)
-            .eq("enabled", true)
-            .maybeSingle();
+          // Check for sentinel value for settings-based Luna
+          if (offerData.provider_id === "USE_SETTINGS_LUNA") {
+            useSettingsLuna = true;
+            console.log("🔧 Using Luna from settings (no rotation)");
+            // proxyHost, proxyPort, proxyUsername, proxyPassword already loaded from settings above
+          } else {
+            // Fetch the specific provider from proxy_providers table
+            const { data: providerData, error: providerError } = await supabase
+              .from("proxy_providers")
+              .select("*")
+              .eq("id", offerData.provider_id)
+              .eq("user_id", effectiveUserId)
+              .eq("enabled", true)
+              .maybeSingle();
 
-          if (!providerError && providerData) {
-            selectedProvider = providerData;
-            providerId = providerData.id;
-            console.log(
-              "✅ Using offer provider override:",
-              providerData.name,
-              "(",
-              providerData.provider_type,
-              ")",
-            );
+            if (!providerError && providerData) {
+              selectedProvider = providerData;
+              providerId = providerData.id;
+              console.log(
+                "✅ Using offer provider override:",
+                providerData.name,
+                "(",
+                providerData.provider_type,
+                ")",
+              );
 
-            // Check if this is a Bright Data Browser API provider
-            if (providerData.provider_type === "brightdata_browser") {
-              if (!providerData.api_key) {
-                console.error("❌ Bright Data Browser provider missing API key");
-              } else {
-                console.log("🌐 Routing to Bright Data Browser API");
-                const brightDataResult = await fetchThroughBrightDataBrowser(
-                  validatedUrl,
-                  providerData.api_key,
-                  target_country,
-                  referrer,
-                  userAgentStr,
-                  timeout_ms,
-                );
-
-                if (brightDataResult) {
-                  return new Response(
-                    JSON.stringify({ ...brightDataResult, user_agent: userAgentStr }),
-                    {
-                      headers: {
-                        ...corsHeaders,
-                        "Content-Type": "application/json",
-                      },
-                    },
-                  );
+              // Check if this is a Bright Data Browser API provider
+              if (providerData.provider_type === "brightdata_browser") {
+                if (!providerData.api_key) {
+                  console.error("❌ Bright Data Browser provider missing API key");
                 } else {
-                  console.error("❌ Bright Data Browser API failed");
-                  return new Response(
-                    JSON.stringify({
-                      success: false,
-                      error: "Bright Data Browser API request failed",
-                    }),
-                    {
-                      status: 400,
-                      headers: {
-                        ...corsHeaders,
-                        "Content-Type": "application/json",
-                      },
-                    },
+                  console.log("🌐 Routing to Bright Data Browser API");
+                  const brightDataResult = await fetchThroughBrightDataBrowser(
+                    validatedUrl,
+                    providerData.api_key,
+                    target_country,
+                    referrer,
+                    userAgentStr,
+                    timeout_ms,
                   );
+
+                  if (brightDataResult) {
+                    return new Response(
+                      JSON.stringify({ ...brightDataResult, user_agent: userAgentStr }),
+                      {
+                        headers: {
+                          ...corsHeaders,
+                          "Content-Type": "application/json",
+                        },
+                      },
+                    );
+                  } else {
+                    console.error("❌ Bright Data Browser API failed");
+                    return new Response(
+                      JSON.stringify({
+                        success: false,
+                        error: "Bright Data Browser API request failed",
+                      }),
+                      {
+                        status: 400,
+                        headers: {
+                          ...corsHeaders,
+                          "Content-Type": "application/json",
+                        },
+                      },
+                    );
+                  }
                 }
+              } else {
+                // Regular proxy provider
+                proxyHost = providerData.host;
+                proxyPort = providerData.port;
+                proxyUsername = providerData.username;
+                proxyPassword = providerData.password;
               }
-            } else {
-              // Regular proxy provider
-              proxyHost = providerData.host;
-              proxyPort = providerData.port;
-              proxyUsername = providerData.username;
-              proxyPassword = providerData.password;
             }
           }
         }
@@ -472,7 +480,8 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (effectiveUserId && !awsProxyUrl && !selectedProvider) {
+    // Only use provider rotation if no specific provider was selected
+    if (effectiveUserId && !awsProxyUrl && !selectedProvider && !useSettingsLuna) {
       try {
         console.log("🔍 Checking for additional proxy providers...");
         const { data: providers, error: providersError } = await supabase

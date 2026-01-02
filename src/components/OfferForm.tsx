@@ -82,6 +82,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
 
   const [providers, setProviders] = useState<Array<{ id: string; name: string; provider_type: string; enabled: boolean }>>([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
+  const [hasLunaSettings, setHasLunaSettings] = useState(false);
 
   useEffect(() => {
     fetchProviders();
@@ -95,6 +96,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
         return;
       }
 
+      // Fetch proxy providers
       const { data, error } = await supabase
         .from('proxy_providers')
         .select('id, name, provider_type, enabled')
@@ -103,6 +105,17 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
 
       if (!error && data) {
         setProviders(data);
+      }
+
+      // Check if Luna settings exist
+      const { data: settings } = await supabase
+        .from('settings')
+        .select('luna_proxy_host, luna_proxy_port, luna_proxy_username, luna_proxy_password')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (settings && settings.luna_proxy_host) {
+        setHasLunaSettings(true);
       }
     } catch (err) {
       console.error('Failed to fetch providers:', err);
@@ -846,18 +859,27 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                       onChange={(e) => setFormData({ ...formData, provider_id: e.target.value || null })}
                       className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-400/20 focus:border-purple-500 dark:focus:border-purple-400 outline-none transition-smooth"
                     >
-                      <option value="">Use Default Rotation</option>
-                      {providers.filter(p => p.enabled).map(provider => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.name} ({provider.provider_type})
-                        </option>
-                      ))}
+                      <option value="">None - Use Default Rotation</option>
+                      {hasLunaSettings && (
+                        <option value="USE_SETTINGS_LUNA">Luna Proxy (from Settings)</option>
+                      )}
+                      {providers.filter(p => p.enabled).length > 0 && (
+                        <optgroup label="Configured Providers">
+                          {providers.filter(p => p.enabled).map(provider => (
+                            <option key={provider.id} value={provider.id}>
+                              {provider.name} ({provider.provider_type})
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
                   )}
                   <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
-                    {formData.provider_id 
-                      ? '✓ This offer will use the selected provider exclusively'
-                      : 'ℹ️ Will use default provider rotation from Settings'
+                    {formData.provider_id === 'USE_SETTINGS_LUNA'
+                      ? '🔒 Using Luna proxy from Settings (single provider, no rotation)'
+                      : formData.provider_id
+                      ? '🔒 Using selected provider exclusively (no rotation)'
+                      : '🔄 Will use default provider rotation'
                     }
                   </p>
                 </div>
