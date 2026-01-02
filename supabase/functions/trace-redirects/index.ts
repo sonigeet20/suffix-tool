@@ -391,11 +391,10 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const authHeader = req.headers.get("Authorization");
 
-    // Use anon key for public access, fall back to service key if needed
-    const supabase = createClient(supabaseUrl, supabaseAnonKey || supabaseServiceKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const {
       url,
@@ -438,8 +437,21 @@ Deno.serve(async (req: Request) => {
     let proxyPassword: string | null = null;
     let effectiveUserId = user_id;
 
-    // Skip auth header validation - public endpoint
-    console.log("ℹ️ Public endpoint - auth optional");
+    if (!effectiveUserId && authHeader) {
+      try {
+        const token = authHeader.replace("Bearer ", "");
+        if (token && token !== "undefined" && token !== "null") {
+          const { data: { user }, error: authError } = await supabase.auth
+            .getUser(token);
+          if (!authError && user) {
+            effectiveUserId = user.id;
+            console.log("✅ User ID from auth token:", effectiveUserId);
+          }
+        }
+      } catch (err) {
+        console.log("⚠️ Could not get user from auth header:", err);
+      }
+    }
 
     if (effectiveUserId) {
       try {
