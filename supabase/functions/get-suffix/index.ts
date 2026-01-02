@@ -227,7 +227,7 @@ Deno.serve(async (req: Request) => {
       );
     }
     
-    console.log(`✅ Found offer: ${offer.offer_name}, active: ${offer.is_active}, tracking_urls: ${offer.tracking_urls?.length || 0}`);
+    console.log(`✅ Found offer: ${offer.offer_name}, active: ${offer.is_active}, tracking_urls: ${offer.tracking_urls?.length || 0}, tracer_mode: ${offer.tracer_mode || 'auto'}, redirect_chain_step: ${offer.redirect_chain_step || 0}`);
 
     let trackingUrlToUse: string | null = null;
     let trackingUrlLabel = '';
@@ -329,6 +329,8 @@ Deno.serve(async (req: Request) => {
             target_country: offer.target_country || null,
             tracer_mode: offer.tracer_mode || 'auto',
           };
+
+          console.log(`📡 Trace request - tracer_mode: ${traceRequestBody.tracer_mode}, url: ${trackingUrlToUse.substring(0, 80)}`);
 
           if (referrerToUse) {
             traceRequestBody.referrer = referrerToUse;
@@ -556,30 +558,36 @@ Deno.serve(async (req: Request) => {
       .from('offer_statistics')
       .upsert(newStats, { onConflict: 'offer_id' });
 
+    const responsePayload = {
+      success: true,
+      offer_name: offer.offer_name,
+      final_url: offer.final_url,
+      tracking_url_used: trackingUrlToUse,
+      tracking_url_label: trackingUrlLabel,
+      tracking_url_weight: trackingUrlWeight,
+      tracking_url_index: trackingUrlIndex,
+      referrer_used: referrerToUse,
+      referrer_label: referrerLabel,
+      referrer_weight: referrerWeight,
+      referrer_index: referrerIndex,
+      rotation_mode: {
+        tracking_url_mode: trackingUrlRotationMode,
+        referrer_mode: referrerRotationMode,
+      },
+      suffix: finalSuffix,
+      params_extracted: extractedParams,
+      params_filtered: filteredParams,
+      param_filter_mode: offer.param_filter_mode || 'all',
+      trace_successful: traceSuccessful,
+      attempts: attemptCount,
+      timestamp: new Date().toISOString(),
+    };
+    const bandwidth_kb = Math.round(JSON.stringify(responsePayload).length / 1024);
+
     return new Response(
       JSON.stringify({
-        success: true,
-        offer_name: offer.offer_name,
-        final_url: offer.final_url,
-        tracking_url_used: trackingUrlToUse,
-        tracking_url_label: trackingUrlLabel,
-        tracking_url_weight: trackingUrlWeight,
-        tracking_url_index: trackingUrlIndex,
-        referrer_used: referrerToUse,
-        referrer_label: referrerLabel,
-        referrer_weight: referrerWeight,
-        referrer_index: referrerIndex,
-        rotation_mode: {
-          tracking_url_mode: trackingUrlRotationMode,
-          referrer_mode: referrerRotationMode,
-        },
-        suffix: finalSuffix,
-        params_extracted: extractedParams,
-        params_filtered: filteredParams,
-        param_filter_mode: offer.param_filter_mode || 'all',
-        trace_successful: traceSuccessful,
-        attempts: attemptCount,
-        timestamp: new Date().toISOString(),
+        ...responsePayload,
+        bandwidth_kb: bandwidth_kb,
       }),
       {
         status: 200,

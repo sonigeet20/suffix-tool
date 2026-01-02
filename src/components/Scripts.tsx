@@ -583,7 +583,12 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium text-green-900">Success!</span>
-                    <span className="text-green-700">{traceResult.total_steps} steps in {traceResult.total_timing_ms}ms</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-green-700">{traceResult.total_steps} steps in {traceResult.total_timing_ms}ms</span>
+                      {traceResult.bandwidth_kb && (
+                        <span className="text-green-700 text-xs">📊 {traceResult.bandwidth_kb} KB</span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-sm">

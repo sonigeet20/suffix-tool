@@ -1461,6 +1461,11 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                       <span className="text-gray-600">
                         {traceResult.total_steps} steps
                       </span>
+                      {(traceResult as any).bandwidth_kb && (
+                        <span className="text-gray-600 text-xs font-medium">
+                          📊 {(traceResult as any).bandwidth_kb} KB
+                        </span>
+                      )}
                       {(traceResult as any).selected_geo && (
                         <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
                           🌍 {(traceResult as any).selected_geo.toUpperCase()}

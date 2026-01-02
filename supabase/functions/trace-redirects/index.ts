@@ -169,6 +169,73 @@ async function fetchThroughAWSProxy(
   }
 }
 
+function parseJsRedirectFromHtml(html: string): string | null {
+  try {
+    // Extract <script> tags and search for redirect patterns
+    const scriptMatch = html.match(/<script[^>]*>[\s\S]*?<\/script>/gi);
+    if (!scriptMatch) return null;
+
+    for (const scriptTag of scriptMatch) {
+      const scriptContent = scriptTag.replace(/<\/?script[^>]*>/gi, "");
+
+      // Pattern 1: location.href = "url"
+      const hrefMatch = scriptContent.match(/location\s*\.\s*href\s*=\s*["']([^"']+)["']/i);
+      if (hrefMatch && hrefMatch[1]) return hrefMatch[1].trim();
+
+      // Pattern 2: window.location = "url"
+      const windowMatch = scriptContent.match(/window\s*\.\s*location\s*=\s*["']([^"']+)["']/i);
+      if (windowMatch && windowMatch[1]) return windowMatch[1].trim();
+
+      // Pattern 3: window.location.href = "url"
+      const windowHrefMatch = scriptContent.match(/window\s*\.\s*location\s*\.\s*href\s*=\s*["']([^"']+)["']/i);
+      if (windowHrefMatch && windowHrefMatch[1]) return windowHrefMatch[1].trim();
+
+      // Pattern 4: Check for parameter-based redirects like deeplink, url, d, etc
+      const paramRedirectMatch = scriptContent.match(/(?:let|const|var)\s+(\w+)\s*=\s*(?:params\.searchParams\.get|urlParams\.get|getParam|.*?searchParams\.get)\s*\(\s*["']([^"']+)["']\s*\)/i);
+      if (paramRedirectMatch) {
+        const paramKey = paramRedirectMatch[2];
+        // Check if this parameter is later used in a redirect
+        const paramUsageMatch = scriptContent.match(new RegExp(`location\\s*\\.\\s*(?:href|replace)|window\\s*\\.\\s*location.*?${paramRedirectMatch[1]}`, 'i'));
+        if (paramUsageMatch || scriptContent.includes(paramRedirectMatch[1])) {
+          // This indicates the JS is redirecting based on a URL parameter
+          return `{param_redirect:${paramKey}}`;
+        }
+      }
+
+      // Pattern 5: Simple deeplink extraction - look for deeplink = searchParams.get("deeplink")
+      if (scriptContent.includes('deeplink') && scriptContent.match(/searchParams\.get\s*\(\s*["']deeplink["']\s*\)/i)) {
+        return `{param_redirect:deeplink}`;
+      }
+
+      // Pattern 6: Check for other common redirect params used in JS
+      const commonParams = ['deeplink', 'url', 'target', 'd', 'redirect', 'redir', 'dest', 'return', 'r'];
+      for (const param of commonParams) {
+        if (scriptContent.includes(`"${param}"`) || scriptContent.includes(`'${param}'`)) {
+          if (scriptContent.match(new RegExp(`searchParams\\.get\\s*\\(\\s*[\"']${param}[\"']\\s*\\)`, 'i'))) {
+            return `{param_redirect:${param}}`;
+          }
+        }
+      }
+    }
+
+    // Pattern: meta refresh
+    const metaMatch = html.match(/<meta\s+http-equiv\s*=\s*["']refresh["'][^>]*content\s*=\s*["']([^"']+)["']/i);
+    if (metaMatch && metaMatch[1]) {
+      const content = metaMatch[1];
+      const urlPart = content.split(";").find(p => p.toLowerCase().includes("url="));
+      if (urlPart) {
+        const url = urlPart.split("=")[1];
+        return url?.trim() || null;
+      }
+    }
+
+    return null;
+  } catch (error: any) {
+    console.error("Error parsing JS redirect:", error.message);
+    return null;
+  }
+}
+
 async function fetchThroughBrightDataBrowser(
   url: string,
   apiKey: string,
@@ -176,6 +243,7 @@ async function fetchThroughBrightDataBrowser(
   referrer?: string | null,
   userAgent?: string,
   timeout?: number,
+  maxRedirects?: number,
 ): Promise<
   | {
     success: boolean;
@@ -188,101 +256,207 @@ async function fetchThroughBrightDataBrowser(
   }
 > {
   try {
-    console.log(
-      "🌐 Calling Bright Data Browser API:",
-      "Country:",
-      targetCountry || "any",
-      "Referrer:",
-      referrer || "none",
-    );
-
-    const requestBody: any = {
-      zone: "scraping_browser1",
-      url,
-      format: "raw",
-    };
-
-    // Optional targeting and headers
-    if (targetCountry) {
-      requestBody.country = targetCountry;
-    }
-
-    if (referrer || userAgent) {
-      requestBody.headers = {} as Record<string, string>;
-      if (referrer) requestBody.headers["Referer"] = referrer;
-      if (userAgent) requestBody.headers["User-Agent"] = userAgent;
-    }
-
-    const response = await fetch("https://api.brightdata.com/request", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(timeout || 90000),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(
-        `Bright Data Browser API error: ${response.status} - ${errorText.substring(0, 500)}`,
-      );
-      return {
-        success: false,
-        error_status: response.status,
-        error_text: errorText.substring(0, 500),
-      };
-    }
-
-    const htmlContent = await response.text();
-    console.log(
-      "✅ Bright Data Browser API status:",
-      response.status,
-      "length:",
-      htmlContent.length,
-    );
-    
-    console.log("✅ Bright Data Browser API response received, length:", htmlContent.length);
-    
-    // Normalize Bright Data response to chain format
     const chain = [];
-    
-    // Add initial request
-    chain.push({
-      url: url,
-      status: 0,
-      redirect_type: "initial",
-      method: "GET",
-      timing_ms: 0,
-    });
+    const visitedUrls = new Set<string>();
+    let currentUrl = url;
+    let hopCount = 0;
+    const maxHops = maxRedirects || 10;
 
-    // Add final response with HTML content
-    chain.push({
-      url: url, // Bright Data returns HTML directly, not redirect info
-      status: 200,
-      redirect_type: "final",
-      method: "GET",
-      html_snippet: htmlContent.substring(0, 500),
-      timing_ms: 0,
-    });
+    while (hopCount < maxHops) {
+      hopCount++;
+
+      // Check for loops
+      if (visitedUrls.has(currentUrl)) {
+        console.log(`⚠️ Loop detected at hop ${hopCount}, stopping redirect chain`);
+        break;
+      }
+      visitedUrls.add(currentUrl);
+
+      console.log(`🌐 Bright Data Browser hop ${hopCount}: ${currentUrl}`);
+
+      const requestBody: any = {
+        zone: "scraping_browser1",
+        url: currentUrl,
+        format: "raw",
+      };
+
+      if (targetCountry) {
+        requestBody.country = targetCountry;
+      }
+
+      if (referrer || userAgent) {
+        requestBody.headers = {} as Record<string, string>;
+        if (referrer) requestBody.headers["Referer"] = referrer;
+        if (userAgent) requestBody.headers["User-Agent"] = userAgent;
+      }
+
+      try {
+        const response = await fetch("https://api.brightdata.com/request", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(requestBody),
+          signal: AbortSignal.timeout(timeout || 90000),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          const redirectedTo = response.headers.get("x-unblocker-redirected-to");
+          
+          // Even on error, check if we have a redirect header
+          if (redirectedTo) {
+            console.log(`✅ Found x-unblocker-redirected-to header despite error at hop ${hopCount}`);
+            chain.push({
+              url: currentUrl,
+              status: response.status,
+              redirect_type: "javascript",
+              method: "GET",
+              error: `API returned ${response.status} but has redirect header`,
+              timing_ms: 0,
+            });
+            currentUrl = redirectedTo;
+            continue;
+          }
+
+          console.error(
+            `Bright Data Browser API error at hop ${hopCount}: ${response.status}`,
+          );
+          chain.push({
+            url: currentUrl,
+            status: response.status,
+            redirect_type: "error",
+            method: "GET",
+            error: `API returned ${response.status}`,
+            timing_ms: 0,
+          });
+          break;
+        }
+
+        const htmlContent = await response.text();
+        console.log(`✅ Hop ${hopCount} received HTML, length: ${htmlContent.length}`);
+
+        // Extract query parameters from current URL
+        let urlParams: Record<string, string> = {};
+        try {
+          const urlObj = new URL(currentUrl);
+          urlObj.searchParams.forEach((value, key) => {
+            urlParams[key] = value;
+          });
+        } catch (e) {
+          // URL parsing failed, continue without params
+          console.log(`⚠️ Could not parse URL parameters from hop ${hopCount}`);
+        }
+
+        // Add response to chain with minimal HTML snippet for debugging only
+        chain.push({
+          url: currentUrl,
+          status: 200,
+          redirect_type: hopCount === 1 ? "javascript" : "javascript",
+          method: "GET",
+          html_snippet: htmlContent.substring(0, 100),  // Reduced from 500 to minimize bandwidth
+          params: Object.keys(urlParams).length > 0 ? urlParams : undefined,
+          timing_ms: 0,
+        });
+
+        // Check for Bright Data redirect headers first (highest priority)
+        const redirectedTo = response.headers.get("x-unblocker-redirected-to");
+        if (redirectedTo) {
+          console.log(`✅ Found x-unblocker-redirected-to header at hop ${hopCount}`);
+          currentUrl = redirectedTo;
+          continue;
+        }
+
+        // Check for JS redirect in HTML
+        const nextUrl = parseJsRedirectFromHtml(htmlContent);
+
+        if (!nextUrl) {
+          console.log(`✅ No redirect found in hop ${hopCount}, stopping chain`);
+          break;
+        }
+
+        // Check if redirect depends on URL parameters
+        if (nextUrl.startsWith("{param_redirect:")) {
+          const paramMatch = nextUrl.match(/\{param_redirect:(\w+)\}/);
+          const paramKey = paramMatch ? paramMatch[1] : null;
+          if (paramKey) {
+            console.log(`ℹ️ Detected parameter-based redirect on param: ${paramKey}`);
+            try {
+              const urlObj = new URL(currentUrl);
+              const paramValue = urlObj.searchParams.get(paramKey);
+              if (paramValue) {
+                // Try to decode the parameter value as it might be URL-encoded
+                try {
+                  currentUrl = decodeURIComponent(paramValue);
+                  if (!currentUrl.startsWith('http')) {
+                    console.log(`⚠️ Param value is not a URL: ${paramValue}`);
+                    break;
+                  }
+                  console.log(`✅ Extracted redirect URL from param '${paramKey}': ${currentUrl.substring(0, 100)}...`);
+                  continue;
+                } catch {
+                  currentUrl = paramValue;
+                  if (currentUrl.startsWith('http')) {
+                    console.log(`✅ Extracted redirect URL from param '${paramKey}': ${currentUrl.substring(0, 100)}...`);
+                    continue;
+                  }
+                }
+              } else {
+                console.log(`⚠️ Parameter '${paramKey}' not found in URL`);
+                break;
+              }
+            } catch (paramErr) {
+              console.error(`Error extracting parameter redirect: ${paramErr}`);
+              break;
+            }
+          }
+          break;
+        }
+
+        currentUrl = nextUrl;
+      } catch (hopError: any) {
+        console.error(`Error at hop ${hopCount}: ${hopError.message}`);
+        chain.push({
+          url: currentUrl,
+          status: 0,
+          redirect_type: "error",
+          method: "GET",
+          error: hopError.message,
+          timing_ms: 0,
+        });
+        break;
+      }
+    }
+
+    if (hopCount >= maxHops) {
+      console.log(`⚠️ Reached max hops (${maxHops}), stopping redirect chain`);
+    }
+
+    // Calculate bandwidth used by response
+    const responseSize = JSON.stringify({ chain, geo_location: { country: targetCountry } }).length;
+    const bandwidth_kb = Math.round(responseSize / 1024);
 
     return {
-      success: true,
-      chain,
-      proxy_ip: undefined, // Not provided in raw format
+      success: chain.length > 0,
+      chain: chain.length > 0 ? chain : undefined,
+      proxy_ip: undefined,
       geo_location: { country: targetCountry || "unknown" },
+      bandwidth_kb: bandwidth_kb,
     };
   } catch (error: any) {
     console.error("Bright Data Browser API fetch error:", error);
     return {
       success: false,
       error: error.message || "Unknown Bright Data Browser error",
+      bandwidth_kb: 0,
     };
   }
 }
 
 Deno.serve(async (req: Request) => {
+  const startTime = Date.now();
+  
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 200,
@@ -462,11 +636,23 @@ Deno.serve(async (req: Request) => {
                     referrer,
                     userAgentStr,
                     timeout_ms,
+                    max_redirects,
                   );
 
                   if (brightDataResult && brightDataResult.success) {
+                    const totalTiming = Date.now() - startTime;
+                    const responseBody = { 
+                      ...brightDataResult, 
+                      user_agent: userAgentStr,
+                      total_timing_ms: totalTiming,
+                      total_steps: brightDataResult.chain?.length || 0,
+                    };
+                    const responseSizeKb = Math.round(JSON.stringify(responseBody).length / 1024);
                     return new Response(
-                      JSON.stringify({ ...brightDataResult, user_agent: userAgentStr }),
+                      JSON.stringify({ 
+                        ...responseBody,
+                        bandwidth_kb: responseSizeKb,
+                      }),
                       {
                         headers: {
                           ...corsHeaders,
@@ -491,8 +677,12 @@ Deno.serve(async (req: Request) => {
                       errorPayload.error_detail = brightDataResult.error;
                     }
 
+                    const totalTiming = Date.now() - startTime;
                     return new Response(
-                      JSON.stringify(errorPayload),
+                      JSON.stringify({
+                        ...errorPayload,
+                        total_timing_ms: totalTiming,
+                      }),
                       {
                         status: 400,
                         headers: {
@@ -581,11 +771,18 @@ Deno.serve(async (req: Request) => {
         referrer,
         userAgentStr,
         timeout_ms,
+        max_redirects,
       );
 
       if (brightDataResult && brightDataResult.success) {
+        const totalTiming = Date.now() - startTime;
         return new Response(
-          JSON.stringify({ ...brightDataResult, user_agent: userAgentStr }),
+          JSON.stringify({ 
+            ...brightDataResult, 
+            user_agent: userAgentStr,
+            total_timing_ms: totalTiming,
+            total_steps: brightDataResult.chain?.length || 0,
+          }),
           {
             headers: {
               ...corsHeaders,
@@ -679,11 +876,23 @@ Deno.serve(async (req: Request) => {
           referrer,
           userAgentStr,
           timeout_ms,
+          max_redirects,
         );
 
         if (brightDataResult && brightDataResult.success) {
+          const totalTiming = Date.now() - startTime;
+          const responseBody = { 
+            ...brightDataResult, 
+            user_agent: userAgentStr,
+            total_timing_ms: totalTiming,
+            total_steps: brightDataResult.chain?.length || 0,
+          };
+          const responseSizeKb = Math.round(JSON.stringify(responseBody).length / 1024);
           return new Response(
-            JSON.stringify({ ...brightDataResult, user_agent: userAgentStr }),
+            JSON.stringify({ 
+              ...responseBody,
+              bandwidth_kb: responseSizeKb,
+            }),
             {
               headers: {
                 ...corsHeaders,
