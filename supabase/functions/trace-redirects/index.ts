@@ -176,7 +176,6 @@ async function fetchThroughBrightDataBrowser(
   referrer?: string | null,
   userAgent?: string,
   timeout?: number,
-  maxRedirects: number = 20,
 ): Promise<
   | {
     success: boolean;
@@ -190,186 +189,88 @@ async function fetchThroughBrightDataBrowser(
 > {
   try {
     console.log(
-      "🌐 Bright Data Browser Tracer:",
+      "🌐 Calling Bright Data Browser API:",
       "Country:",
       targetCountry || "any",
       "Referrer:",
       referrer || "none",
     );
 
-    const chain = [];
-    let currentUrl = url;
-    const seen = new Set();
-    const API_URL = "https://api.brightdata.com/request";
-
-    const buildPayload = (targetUrl: string) => {
-      const payload: any = {
-        zone: "scraping_browser1",
-        url: targetUrl,
-        format: "raw",
-      };
-
-      if (targetCountry && targetCountry.length === 2) {
-        payload.country = targetCountry.toLowerCase();
-      }
-
-      payload.headers = {
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Accept":
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-      };
-
-      if (userAgent) {
-        payload.headers["User-Agent"] = userAgent;
-      }
-
-      if (referrer) {
-        payload.headers["Referer"] = referrer;
-      }
-
-      return payload;
+    const requestBody: any = {
+      zone: "scraping_browser1",
+      url,
+      format: "raw",
     };
 
-    const parseParamRedirect = (currentUrl: string) => {
-      try {
-        const urlObj = new URL(currentUrl);
-        const keys = [
-          "deeplink",
-          "d",
-          "url",
-          "u",
-          "redir",
-          "redirect",
-          "target",
-          "dest",
-          "destination",
-          "next",
-          "return",
-          "r",
-        ];
-
-        for (const key of keys) {
-          const val = urlObj.searchParams.get(key);
-          if (val) {
-            try {
-              const decoded = decodeURIComponent(val);
-              if (decoded.startsWith("http")) return decoded;
-            } catch (e) {
-              if (val.startsWith("http")) return val;
-            }
-          }
-        }
-      } catch (_err) {
-        return null;
-      }
-      return null;
-    };
-
-    const cleanUrl = (url: string | null) => {
-      if (!url) return null;
-      return url.trim().replace(/^['"]+|['"]+ $/g, "");
-    };
-
-    // Follow redirect chain
-    for (let hop = 1; hop <= maxRedirects; hop++) {
-      if (seen.has(currentUrl)) {
-        console.log(`⚠️ Loop detected at ${currentUrl}`);
-        break;
-      }
-      seen.add(currentUrl);
-
-      const payload = buildPayload(currentUrl);
-      const startTime = Date.now();
-
-      console.log(`🔄 Hop ${hop}: ${currentUrl.substring(0, 100)}...`);
-
-      let response, html, bandwidth = 0;
-
-      try {
-        response = await fetch(API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(timeout || 90000),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(
-            `Bright Data error ${response.status}: ${errorText.substring(0, 200)}`,
-          );
-        }
-
-        html = await response.text();
-        bandwidth = new TextEncoder().encode(html).length;
-      } catch (err: any) {
-        console.error(`❌ Hop ${hop} failed: ${err.message}`);
-        chain.push({
-          url: currentUrl,
-          status: 0,
-          redirect_type: "error",
-          method: "GET",
-          error: err.message,
-          timing_ms: Date.now() - startTime,
-          bandwidth_bytes: 0,
-        });
-        break;
-      }
-
-      const timing = Date.now() - startTime;
-
-      chain.push({
-        url: currentUrl,
-        status: 200,
-        redirect_type: "brightdata_browser",
-        method: "GET",
-        html_snippet: html.substring(0, 500),
-        timing_ms: timing,
-        bandwidth_bytes: bandwidth,
-      });
-
-      // Extract next URL from param redirect
-      const paramRedirect = parseParamRedirect(currentUrl);
-      let nextUrl = cleanUrl(paramRedirect);
-
-      if (!nextUrl) {
-        console.log(`✅ No further redirects at hop ${hop}`);
-        break;
-      }
-
-      currentUrl = nextUrl;
-      console.log(`➡️ Following to ${nextUrl.substring(0, 100)}...`);
+    // Optional targeting and headers
+    if (targetCountry) {
+      requestBody.country = targetCountry;
     }
 
-    if (chain.length >= maxRedirects) {
-      chain.push({
-        url: "max_redirects_reached",
-        status: 0,
-        redirect_type: "error",
-        method: "limit",
-        error: `Max ${maxRedirects} redirects`,
-      });
+    if (referrer || userAgent) {
+      requestBody.headers = {} as Record<string, string>;
+      if (referrer) requestBody.headers["Referer"] = referrer;
+      if (userAgent) requestBody.headers["User-Agent"] = userAgent;
     }
 
-    const totalBandwidth = chain.reduce(
-      (sum, e) => sum + (e.bandwidth_bytes || 0),
-      0,
-    );
+    const response = await fetch("https://api.brightdata.com/request", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(timeout || 90000),
+    });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(
+        `Bright Data Browser API error: ${response.status} - ${errorText.substring(0, 500)}`,
+      );
+      return {
+        success: false,
+        error_status: response.status,
+        error_text: errorText.substring(0, 500),
+      };
+    }
+
+    const htmlContent = await response.text();
     console.log(
-      `✅ Bright Data trace complete: ${chain.length} steps, ${totalBandwidth} bytes`,
+      "✅ Bright Data Browser API status:",
+      response.status,
+      "length:",
+      htmlContent.length,
     );
+    
+    console.log("✅ Bright Data Browser API response received, length:", htmlContent.length);
+    
+    // Normalize Bright Data response to chain format
+    const chain = [];
+    
+    // Add initial request
+    chain.push({
+      url: url,
+      status: 0,
+      redirect_type: "initial",
+      method: "GET",
+      timing_ms: 0,
+    });
+
+    // Add final response with HTML content
+    chain.push({
+      url: url, // Bright Data returns HTML directly, not redirect info
+      status: 200,
+      redirect_type: "final",
+      method: "GET",
+      html_snippet: htmlContent.substring(0, 500),
+      timing_ms: 0,
+    });
 
     return {
-      success:
-        chain.length > 0 &&
-        chain[chain.length - 1].redirect_type !== "error",
+      success: true,
       chain,
-      proxy_ip: undefined,
+      proxy_ip: undefined, // Not provided in raw format
       geo_location: { country: targetCountry || "unknown" },
     };
   } catch (error: any) {
@@ -561,7 +462,6 @@ Deno.serve(async (req: Request) => {
                     referrer,
                     userAgentStr,
                     timeout_ms,
-                    max_redirects,
                   );
 
                   if (brightDataResult && brightDataResult.success) {
@@ -681,7 +581,6 @@ Deno.serve(async (req: Request) => {
         referrer,
         userAgentStr,
         timeout_ms,
-        max_redirects,
       );
 
       if (brightDataResult && brightDataResult.success) {
@@ -780,7 +679,6 @@ Deno.serve(async (req: Request) => {
           referrer,
           userAgentStr,
           timeout_ms,
-          max_redirects,
         );
 
         if (brightDataResult && brightDataResult.success) {
