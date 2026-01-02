@@ -179,21 +179,12 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Add a dummy auth header if missing to bypass Supabase JWT validation for public endpoint
-  const modifiedReq = new Request(req, {
-    headers: new Headers(req.headers),
-  });
-  
-  if (!modifiedReq.headers.has('Authorization')) {
-    modifiedReq.headers.set('Authorization', 'Bearer public');
-  }
-
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const url = new URL(modifiedReq.url);
+    const url = new URL(req.url);
     const offerName = url.searchParams.get('offer_name');
 
     if (!offerName) {

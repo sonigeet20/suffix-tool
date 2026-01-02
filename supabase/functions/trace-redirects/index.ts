@@ -389,19 +389,9 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Add a dummy auth header if missing to bypass Supabase JWT validation for public endpoint
-  const modifiedReq = new Request(req, {
-    headers: new Headers(req.headers),
-  });
-  
-  if (!modifiedReq.headers.has("Authorization")) {
-    modifiedReq.headers.set("Authorization", "Bearer public");
-  }
-
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const authHeader = modifiedReq.headers.get("Authorization");
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -446,29 +436,8 @@ Deno.serve(async (req: Request) => {
     let proxyPassword: string | null = null;
     let effectiveUserId = user_id;
 
-    // Extract user from auth header if present and user_id not in body
-    if (!effectiveUserId && authHeader) {
-      try {
-        const token = authHeader.replace("Bearer ", "");
-        if (token && token !== "undefined" && token !== "null") {
-          const { data: { user }, error: authError } = await supabase.auth
-            .getUser(token);
-          if (!authError && user) {
-            effectiveUserId = user.id;
-            console.log("✅ User ID from auth token:", effectiveUserId);
-          }
-        }
-      } catch (err) {
-        console.log("⚠️ Could not get user from auth header:", err);
-      }
-    }
-
-    // Log auth status - public endpoint, auth is optional
-    if (effectiveUserId) {
-      console.log("✅ Authenticated as user:", effectiveUserId);
-    } else {
-      console.log("ℹ️ Public/unauthenticated request - using default configuration");
-    }
+    // Skip auth header validation - public endpoint
+    console.log("ℹ️ Public endpoint - auth optional");
 
     if (effectiveUserId) {
       try {
