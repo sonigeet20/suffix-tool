@@ -859,27 +859,31 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                       onChange={(e) => setFormData({ ...formData, provider_id: e.target.value || null })}
                       className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-400/20 focus:border-purple-500 dark:focus:border-purple-400 outline-none transition-smooth"
                     >
-                      <option value="">None - Use Default Rotation</option>
-                      {hasLunaSettings && (
-                        <option value="USE_SETTINGS_LUNA">Luna Proxy (from Settings)</option>
+                      {hasLunaSettings ? (
+                        <option value="">Luna Proxy (from Settings) - Default</option>
+                      ) : (
+                        <option value="">No Default Provider Configured</option>
                       )}
                       {providers.filter(p => p.enabled).length > 0 && (
-                        <optgroup label="Configured Providers">
-                          {providers.filter(p => p.enabled).map(provider => (
-                            <option key={provider.id} value={provider.id}>
-                              {provider.name} ({provider.provider_type})
-                            </option>
-                          ))}
-                        </optgroup>
+                        <>
+                          <option value="USE_ROTATION">🔄 Use Provider Rotation</option>
+                          <optgroup label="Specific Providers">
+                            {providers.filter(p => p.enabled).map(provider => (
+                              <option key={provider.id} value={provider.id}>
+                                {provider.name} ({provider.provider_type})
+                              </option>
+                            ))}
+                          </optgroup>
+                        </>
                       )}
                     </select>
                   )}
                   <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
-                    {formData.provider_id === 'USE_SETTINGS_LUNA'
-                      ? '🔒 Using Luna proxy from Settings (single provider, no rotation)'
-                      : formData.provider_id
-                      ? '🔒 Using selected provider exclusively (no rotation)'
-                      : '🔄 Will use default provider rotation'
+                    {!formData.provider_id
+                      ? '🔒 Using Luna from Settings (default, single provider)'
+                      : formData.provider_id === 'USE_ROTATION'
+                      ? '🔄 Rotating between all enabled providers'
+                      : '🔒 Using selected provider exclusively (no rotation)'
                     }
                   </p>
                 </div>

@@ -381,7 +381,7 @@ Deno.serve(async (req: Request) => {
 
     let selectedProvider: any = null;
     let providerId: string | null = null;
-    let useSettingsLuna = false;
+    let useRotation = false;
 
     // Check for provider override from offer configuration
     if (effectiveUserId && offer_id) {
@@ -397,10 +397,13 @@ Deno.serve(async (req: Request) => {
         if (!offerError && offerData && offerData.provider_id) {
           console.log("✅ Found provider override:", offerData.provider_id);
           
-          // Check for sentinel value for settings-based Luna
-          if (offerData.provider_id === "USE_SETTINGS_LUNA") {
-            useSettingsLuna = true;
-            console.log("🔧 Using Luna from settings (no rotation)");
+          // Check for sentinel value for explicit rotation
+          if (offerData.provider_id === "USE_ROTATION") {
+            useRotation = true;
+            console.log("🔄 Using provider rotation (explicit opt-in)");
+          } else if (offerData.provider_id === "USE_SETTINGS_LUNA") {
+            // Legacy support for USE_SETTINGS_LUNA
+            console.log("🔧 Using Luna from settings (legacy value)");
             // proxyHost, proxyPort, proxyUsername, proxyPassword already loaded from settings above
           } else {
             // Fetch the specific provider from proxy_providers table
@@ -474,14 +477,20 @@ Deno.serve(async (req: Request) => {
               }
             }
           }
+        } else {
+          // No provider_id specified - default to Luna from settings
+          console.log("ℹ️ No provider override - using Luna from settings (default)");
         }
       } catch (offerErr) {
         console.error("❌ Failed to check offer provider override:", offerErr);
       }
+    } else {
+      // No offer_id provided - default to Luna from settings
+      console.log("ℹ️ No offer_id - using Luna from settings (default)");
     }
 
-    // Only use provider rotation if no specific provider was selected
-    if (effectiveUserId && !awsProxyUrl && !selectedProvider && !useSettingsLuna) {
+    // Only use provider rotation if explicitly requested via USE_ROTATION
+    if (effectiveUserId && !awsProxyUrl && !selectedProvider && useRotation) {
       try {
         console.log("🔍 Checking for additional proxy providers...");
         const { data: providers, error: providersError } = await supabase
