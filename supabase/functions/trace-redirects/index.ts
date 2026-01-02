@@ -34,6 +34,7 @@ interface TraceRequest {
   geo_pool?: string[];
   geo_strategy?: string;
   geo_weights?: Record<string, number>;
+  offer_id?: string;
 }
 
 async function fetchThroughResidentialProxy(
@@ -168,6 +169,96 @@ async function fetchThroughAWSProxy(
   }
 }
 
+async function fetchThroughBrightDataBrowser(
+  url: string,
+  apiKey: string,
+  targetCountry?: string | null,
+  referrer?: string | null,
+  userAgent?: string,
+  timeout?: number,
+): Promise<
+  | { success: boolean; chain: any[]; proxy_ip?: string; geo_location?: any }
+  | null
+> {
+  try {
+    console.log(
+      "🌐 Calling Bright Data Browser API:",
+      "Country:",
+      targetCountry || "any",
+      "Referrer:",
+      referrer || "none",
+    );
+
+    const requestBody: any = {
+      url,
+      format: "raw",
+      country: targetCountry || undefined,
+      headers: {} as Record<string, string>,
+    };
+
+    if (referrer) {
+      requestBody.headers["Referer"] = referrer;
+    }
+
+    if (userAgent) {
+      requestBody.headers["User-Agent"] = userAgent;
+    }
+
+    const response = await fetch("https://api.brightdata.com/v2/scrape", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(timeout || 90000),
+    });
+
+    if (!response.ok) {
+      console.error(`Bright Data Browser API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error("Error details:", errorText);
+      return null;
+    }
+
+    const result = await response.json();
+    
+    // Normalize Bright Data response to chain format
+    const chain = [];
+    
+    // Add initial request
+    chain.push({
+      url: url,
+      status: 0,
+      redirect_type: "initial",
+      method: "GET",
+      timing_ms: 0,
+    });
+
+    // Add final response
+    if (result.url || result.final_url) {
+      chain.push({
+        url: result.url || result.final_url || url,
+        status: result.status_code || 200,
+        redirect_type: "final",
+        method: "GET",
+        html_snippet: result.html ? result.html.substring(0, 500) : undefined,
+        timing_ms: result.time_ms || 0,
+      });
+    }
+
+    return {
+      success: true,
+      chain,
+      proxy_ip: result.proxy_ip,
+      geo_location: result.geo_location || { country: targetCountry },
+    };
+  } catch (error: any) {
+    console.error("Bright Data Browser API fetch error:", error);
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -197,6 +288,7 @@ Deno.serve(async (req: Request) => {
       geo_pool = null,
       geo_strategy = null,
       geo_weights = null,
+      offer_id = null,
     } = await req.json() as TraceRequest;
 
     if (!url) {
@@ -290,7 +382,97 @@ Deno.serve(async (req: Request) => {
     let selectedProvider: any = null;
     let providerId: string | null = null;
 
-    if (effectiveUserId && !awsProxyUrl) {
+    // Check for provider override from offer configuration
+    if (effectiveUserId && offer_id) {
+      try {
+        console.log("🔍 Checking for provider override from offer:", offer_id);
+        const { data: offerData, error: offerError } = await supabase
+          .from("offers")
+          .select("provider_id")
+          .eq("id", offer_id)
+          .eq("user_id", effectiveUserId)
+          .maybeSingle();
+
+        if (!offerError && offerData && offerData.provider_id) {
+          console.log("✅ Found provider override:", offerData.provider_id);
+          
+          // Fetch the specific provider
+          const { data: providerData, error: providerError } = await supabase
+            .from("proxy_providers")
+            .select("*")
+            .eq("id", offerData.provider_id)
+            .eq("user_id", effectiveUserId)
+            .eq("enabled", true)
+            .maybeSingle();
+
+          if (!providerError && providerData) {
+            selectedProvider = providerData;
+            providerId = providerData.id;
+            console.log(
+              "✅ Using offer provider override:",
+              providerData.name,
+              "(",
+              providerData.provider_type,
+              ")",
+            );
+
+            // Check if this is a Bright Data Browser API provider
+            if (providerData.provider_type === "brightdata_browser") {
+              if (!providerData.api_key) {
+                console.error("❌ Bright Data Browser provider missing API key");
+              } else {
+                console.log("🌐 Routing to Bright Data Browser API");
+                const brightDataResult = await fetchThroughBrightDataBrowser(
+                  validatedUrl,
+                  providerData.api_key,
+                  target_country,
+                  referrer,
+                  userAgentStr,
+                  timeout_ms,
+                );
+
+                if (brightDataResult) {
+                  return new Response(
+                    JSON.stringify({ ...brightDataResult, user_agent: userAgentStr }),
+                    {
+                      headers: {
+                        ...corsHeaders,
+                        "Content-Type": "application/json",
+                      },
+                    },
+                  );
+                } else {
+                  console.error("❌ Bright Data Browser API failed");
+                  return new Response(
+                    JSON.stringify({
+                      success: false,
+                      error: "Bright Data Browser API request failed",
+                    }),
+                    {
+                      status: 400,
+                      headers: {
+                        ...corsHeaders,
+                        "Content-Type": "application/json",
+                      },
+                    },
+                  );
+                }
+              }
+            } else {
+              // Regular proxy provider
+              proxyHost = providerData.host;
+              proxyPort = providerData.port;
+              proxyUsername = providerData.username;
+              proxyPassword = providerData.password;
+            }
+          }
+        }
+      } catch (offerErr) {
+        console.error("❌ Failed to check offer provider override:", offerErr);
+      }
+    }
+
+    if (effectiveUserId && !awsProxyUrl && !selectedProvider) {
       try {
         console.log("🔍 Checking for additional proxy providers...");
         const { data: providers, error: providersError } = await supabase

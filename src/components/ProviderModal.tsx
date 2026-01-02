@@ -10,6 +10,7 @@ interface Provider {
   port: number;
   username: string;
   password: string;
+  api_key?: string;
   api_endpoint_example?: string;
   curl_example?: string;
   priority: number;
@@ -30,6 +31,14 @@ const PROVIDER_TEMPLATES = {
     username: 'brd-customer-YOUR_ID-zone-ZONE_NAME',
     api_endpoint_example: 'https://brightdata.com/api/v2/zone/ips',
     curl_example: 'curl -x brd.superproxy.io:22225 -U "brd-customer-{id}-zone-{zone}-country-{country}:{pass}" https://lumtest.com/myip.json',
+  },
+  brightdata_browser: {
+    name: 'Bright Data Browser API',
+    host: 'api.brightdata.com',
+    port: 443,
+    username: '',
+    api_endpoint_example: 'https://api.brightdata.com/v2/scrape',
+    curl_example: 'curl -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" -d \'{"url":"https://example.com","format":"raw","country":"us"}\' https://api.brightdata.com/v2/scrape',
   },
   oxylabs: {
     name: 'Oxylabs',
@@ -73,6 +82,7 @@ export default function ProviderModal({ provider, onClose, onSuccess }: Provider
     port: 8080,
     username: '',
     password: '',
+    api_key: '',
     api_endpoint_example: '',
     curl_example: '',
     priority: 50,
@@ -85,6 +95,7 @@ export default function ProviderModal({ provider, onClose, onSuccess }: Provider
     if (provider) {
       setFormData({
         ...provider,
+        api_key: provider.api_key || '',
         api_endpoint_example: provider.api_endpoint_example || '',
         curl_example: provider.curl_example || '',
       });
@@ -180,7 +191,8 @@ export default function ProviderModal({ provider, onClose, onSuccess }: Provider
               required
             >
               <option value="custom">Custom</option>
-              <option value="brightdata">Bright Data</option>
+              <option value="brightdata">Bright Data (Residential Proxy)</option>
+              <option value="brightdata_browser">Bright Data Browser API</option>
               <option value="oxylabs">Oxylabs</option>
               <option value="smartproxy">Smartproxy</option>
               <option value="luna">Luna Proxy</option>
@@ -215,7 +227,7 @@ export default function ProviderModal({ provider, onClose, onSuccess }: Provider
                 onChange={(e) => setFormData({ ...formData, host: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-mono text-sm"
                 placeholder="proxy.example.com"
-                required
+                required={formData.provider_type !== 'brightdata_browser'}
               />
             </div>
             <div>
@@ -228,15 +240,34 @@ export default function ProviderModal({ provider, onClose, onSuccess }: Provider
                 onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 placeholder="8080"
-                required
+                required={formData.provider_type !== 'brightdata_browser'}
               />
             </div>
           </div>
 
+          {formData.provider_type === 'brightdata_browser' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bright Data Browser API Key
+              </label>
+              <input
+                type="password"
+                value={formData.api_key || ''}
+                onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-mono text-sm"
+                placeholder="Your Browser API Key"
+                required
+              />
+              <p className="mt-2 text-sm text-gray-600">
+                ℹ️ Browser API uses REST API instead of proxy. Get your API key from Bright Data dashboard.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Username
+                Username {formData.provider_type === 'brightdata_browser' && <span className="text-gray-500">(not required for Browser API)</span>}
               </label>
               <input
                 type="text"
@@ -244,12 +275,12 @@ export default function ProviderModal({ provider, onClose, onSuccess }: Provider
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-mono text-sm"
                 placeholder="username"
-                required
+                required={formData.provider_type !== 'brightdata_browser'}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+                Password {formData.provider_type === 'brightdata_browser' && <span className="text-gray-500">(not required for Browser API)</span>}
               </label>
               <input
                 type="password"
@@ -257,7 +288,7 @@ export default function ProviderModal({ provider, onClose, onSuccess }: Provider
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-mono text-sm"
                 placeholder="password"
-                required
+                required={formData.provider_type !== 'brightdata_browser'}
               />
             </div>
           </div>

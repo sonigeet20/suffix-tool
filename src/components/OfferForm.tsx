@@ -54,6 +54,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
     geo_pool: (offer as any)?.geo_pool || [],
     geo_strategy: (offer as any)?.geo_strategy || 'weighted',
     geo_weights: (offer as any)?.geo_weights || {},
+    provider_id: (offer as any)?.provider_id || null,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +79,37 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
   const [selectedStepForSave, setSelectedStepForSave] = useState<number | null>(null);
+
+  const [providers, setProviders] = useState<Array<{ id: string; name: string; provider_type: string; enabled: boolean }>>([]);
+  const [loadingProviders, setLoadingProviders] = useState(true);
+
+  useEffect(() => {
+    fetchProviders();
+  }, []);
+
+  const fetchProviders = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setLoadingProviders(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('proxy_providers')
+        .select('id, name, provider_type, enabled')
+        .eq('user_id', session.user.id)
+        .order('priority', { ascending: true });
+
+      if (!error && data) {
+        setProviders(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch providers:', err);
+    } finally {
+      setLoadingProviders(false);
+    }
+  };
 
   useEffect(() => {
     setFormData(prev => ({
@@ -789,6 +821,46 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                     </div>
                   </div>
                 )}
+              </div>
+
+              <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 bg-purple-600 dark:bg-purple-500 text-white rounded-full flex items-center justify-center font-bold">
+                    🔌
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-neutral-900 dark:text-neutral-50 mb-1">Provider Override</h4>
+                    <p className="text-sm text-neutral-700 dark:text-neutral-300">Select a specific provider for this offer (overrides default rotation)</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                    Proxy Provider
+                  </label>
+                  {loadingProviders ? (
+                    <div className="text-sm text-neutral-500 dark:text-neutral-400">Loading providers...</div>
+                  ) : (
+                    <select
+                      value={formData.provider_id || ''}
+                      onChange={(e) => setFormData({ ...formData, provider_id: e.target.value || null })}
+                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-400/20 focus:border-purple-500 dark:focus:border-purple-400 outline-none transition-smooth"
+                    >
+                      <option value="">Use Default Rotation</option>
+                      {providers.filter(p => p.enabled).map(provider => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.name} ({provider.provider_type})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
+                    {formData.provider_id 
+                      ? '✓ This offer will use the selected provider exclusively'
+                      : 'ℹ️ Will use default provider rotation from Settings'
+                    }
+                  </p>
+                </div>
               </div>
 
               <div>
