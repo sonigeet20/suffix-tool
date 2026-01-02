@@ -769,6 +769,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                     <option value="browser">Browser (Complex, 10-30s)</option>
                     <option value="anti_cloaking">Anti-Cloaking (Advanced, 15-60s)</option>
                     <option value="interactive">Interactive (Engagement, 20-40s)</option>
+                    <option value="brightdata_browser">Bright Data Browser (Premium, 5-15s)</option>
                   </select>
                   <div className="mt-2 space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
                     <p className="flex items-start gap-1">
@@ -790,6 +791,10 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                     <p className="flex items-start gap-1">
                       <span className="font-semibold text-purple-700 dark:text-purple-400">Interactive:</span>
                       <span>Anti-cloaking + realistic session engagement (scrolls, mouse moves, waits) on final URL for minimal bandwidth.</span>
+                    </p>
+                    <p className="flex items-start gap-1">
+                      <span className="font-semibold text-indigo-700 dark:text-indigo-400">Bright Data Browser:</span>
+                      <span>Premium residential proxy with full browser automation. Auto-loads API key from settings, minimal bandwidth usage.</span>
                     </p>
                   </div>
                 </div>
@@ -1307,12 +1312,24 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                     >
                       🎬 Interactive
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setTracerMode('brightdata_browser')}
+                      className={`px-3 py-2.5 rounded-lg font-medium transition-all border-2 text-sm ${
+                        tracerMode === 'brightdata_browser'
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-white dark:bg-dark-surface text-gray-700 dark:text-dark-text-primary border-gray-300 dark:border-dark-border hover:border-indigo-400'
+                      }`}
+                    >
+                      🌐 Bright Data
+                    </button>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-dark-text-muted mt-2">
                     {tracerMode === 'http_only' && '⚡ Fast HTTP requests only - No JS execution'}
                     {tracerMode === 'browser' && '🌐 Full browser rendering with JS execution & popup tracking'}
                     {tracerMode === 'anti_cloaking' && '🔍 Multi-engine: HTTP + Meta + JS + Form detection with proper headers'}
                     {tracerMode === 'interactive' && '🎬 Anti-cloaking + realistic session engagement (scrolls, mouse, waits)'}
+                    {tracerMode === 'brightdata_browser' && '🌐 Premium residential proxy with browser automation - minimal bandwidth'}
                   </p>
                 </div>
 
