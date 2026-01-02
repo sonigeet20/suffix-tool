@@ -2828,3 +2828,28 @@
 {"level":"info","message":"📊 Bandwidth details: total=0B, avg_per_step=0B"}
 {"level":"info","message":"🌐 Proxy IP used: 175.158.170.127 | Location: Noumea, South Province, New Caledonia | Selected Geo: N/A"}
 {"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","max_redirects":5,"message":"⚡ Trace request:","mode":"brightdata_browser","target_country":"us","timeout_ms":90000,"url":"https://tatrck.com/h/0Hu30-ze0PNP?model=cpa"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"us"}
+{"level":"info","message":"🌍 Geo-targeting: US"}
+{"level":"info","message":"🌐 Using Bright Data Browser API mode (cloud browser with geo-targeting)"}
+{"level":"info","message":"✅ Loaded Bright Data API key from offer provider override"}
+{"level":"info","message":"🌐 Bright Data Browser: Device=desktop, viewport=1926x1077"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🌍 Bright Data Browser: Geo-targeting US"}
+{"level":"info","message":"🔄 Bright Data hop 1: https://tatrck.com/h/0Hu30-ze0PNP?model=cpa..."}
+{"level":"info","message":"➡️ Bright Data: Following to https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fc.ga-net.com%2Fclick%3Fw%3D1003069%26c%3D4456%26t%3..."}
+{"level":"info","message":"🔄 Bright Data hop 2: https://tatrck.com/v1/go/?deeplink=https%3A%2F%2Fc.ga-net.com%2Fclick%3Fw%3D1003069%26c%3D4456%26t%3..."}
+{"level":"info","message":"➡️ Bright Data: Following to https://c.ga-net.com/click?w=1003069&c=4456&t=3CedSTpv3YgYg532nfvQMJw9n9W0BpFFcCZdUyEz0dkCWM&d=http:..."}
+{"level":"info","message":"🔄 Bright Data hop 3: https://c.ga-net.com/click?w=1003069&c=4456&t=3CedSTpv3YgYg532nfvQMJw9n9W0BpFFcCZdUyEz0dkCWM&d=http:..."}
+{"level":"info","message":"➡️ Bright Data: Following to https://cheapoair.pxf.io/c/1301558/666065/10298?subId1=1006369820013&sharedid=1006369820013&u=http%3..."}
+{"level":"info","message":"🔄 Bright Data hop 4: https://cheapoair.pxf.io/c/1301558/666065/10298?subId1=1006369820013&sharedid=1006369820013&u=http%3..."}
+{"level":"info","message":"➡️ Bright Data: Following to https://www.cheapoair.com/?irclickid=1LGQhpXCyxycUr4WfUyz1XTxUkpVfNy3WQlqV80&irgwc=1&afsrc=1&FpAffil..."}
+{"level":"info","message":"🔄 Bright Data hop 5: https://www.cheapoair.com/?irclickid=1LGQhpXCyxycUr4WfUyz1XTxUkpVfNy3WQlqV80&irgwc=1&afsrc=1&FpAffil..."}
+{"level":"info","message":"✅ Bright Data: No further redirects detected at hop 5"}
+{"level":"info","message":"✅ Bright Data Browser trace complete: 6 steps, 602.98 KB"}
+{"level":"info","message":"✅ Trace completed (brightdata_browser): 6 steps in 9942ms | 602.98 KB transferred"}

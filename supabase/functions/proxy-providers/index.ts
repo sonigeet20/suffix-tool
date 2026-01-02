@@ -16,26 +16,43 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: req.headers.get("Authorization")! },
-        },
-      }
-    );
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.replace("Bearer ", "");
 
-    const {
-      data: { user },
-    } = await supabaseClient.auth.getUser();
+    console.log("🔑 Auth header present:", !!authHeader);
+    console.log("🔑 Token length:", token?.length || 0);
 
-    if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    if (!authHeader || !token) {
+      return new Response(JSON.stringify({ error: "No authorization token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Create a separate client for auth validation (with user token). Passing token explicitly avoids header parsing issues.
+    const authClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    );
+
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser(token);
+
+    if (!user || authError) {
+      console.log("❌ Auth failed", { authError, hasUser: !!user });
+      return new Response(JSON.stringify({ error: "Unauthorized", details: authError?.message }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Create service role client for database operations (bypasses RLS)
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
 
     const url = new URL(req.url);
     const path = url.pathname.split("/").pop();

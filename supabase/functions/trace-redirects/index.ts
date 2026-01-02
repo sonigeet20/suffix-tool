@@ -177,8 +177,15 @@ async function fetchThroughBrightDataBrowser(
   userAgent?: string,
   timeout?: number,
 ): Promise<
-  | { success: boolean; chain: any[]; proxy_ip?: string; geo_location?: any }
-  | null
+  | {
+    success: boolean;
+    chain?: any[];
+    proxy_ip?: string;
+    geo_location?: any;
+    error_status?: number;
+    error_text?: string;
+    error?: string;
+  }
 > {
   try {
     console.log(
@@ -190,21 +197,23 @@ async function fetchThroughBrightDataBrowser(
     );
 
     const requestBody: any = {
+      zone: "scraping_browser1",
       url,
       format: "raw",
-      country: targetCountry || undefined,
-      headers: {} as Record<string, string>,
     };
 
-    if (referrer) {
-      requestBody.headers["Referer"] = referrer;
+    // Optional targeting and headers
+    if (targetCountry) {
+      requestBody.country = targetCountry;
     }
 
-    if (userAgent) {
-      requestBody.headers["User-Agent"] = userAgent;
+    if (referrer || userAgent) {
+      requestBody.headers = {} as Record<string, string>;
+      if (referrer) requestBody.headers["Referer"] = referrer;
+      if (userAgent) requestBody.headers["User-Agent"] = userAgent;
     }
 
-    const response = await fetch("https://api.brightdata.com/v2/scrape", {
+    const response = await fetch("https://api.brightdata.com/request", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -215,13 +224,26 @@ async function fetchThroughBrightDataBrowser(
     });
 
     if (!response.ok) {
-      console.error(`Bright Data Browser API error: ${response.status}`);
       const errorText = await response.text();
-      console.error("Error details:", errorText);
-      return null;
+      console.error(
+        `Bright Data Browser API error: ${response.status} - ${errorText.substring(0, 500)}`,
+      );
+      return {
+        success: false,
+        error_status: response.status,
+        error_text: errorText.substring(0, 500),
+      };
     }
 
-    const result = await response.json();
+    const htmlContent = await response.text();
+    console.log(
+      "✅ Bright Data Browser API status:",
+      response.status,
+      "length:",
+      htmlContent.length,
+    );
+    
+    console.log("✅ Bright Data Browser API response received, length:", htmlContent.length);
     
     // Normalize Bright Data response to chain format
     const chain = [];
@@ -235,27 +257,28 @@ async function fetchThroughBrightDataBrowser(
       timing_ms: 0,
     });
 
-    // Add final response
-    if (result.url || result.final_url) {
-      chain.push({
-        url: result.url || result.final_url || url,
-        status: result.status_code || 200,
-        redirect_type: "final",
-        method: "GET",
-        html_snippet: result.html ? result.html.substring(0, 500) : undefined,
-        timing_ms: result.time_ms || 0,
-      });
-    }
+    // Add final response with HTML content
+    chain.push({
+      url: url, // Bright Data returns HTML directly, not redirect info
+      status: 200,
+      redirect_type: "final",
+      method: "GET",
+      html_snippet: htmlContent.substring(0, 500),
+      timing_ms: 0,
+    });
 
     return {
       success: true,
       chain,
-      proxy_ip: result.proxy_ip,
-      geo_location: result.geo_location || { country: targetCountry },
+      proxy_ip: undefined, // Not provided in raw format
+      geo_location: { country: targetCountry || "unknown" },
     };
   } catch (error: any) {
     console.error("Bright Data Browser API fetch error:", error);
-    return null;
+    return {
+      success: false,
+      error: error.message || "Unknown Bright Data Browser error",
+    };
   }
 }
 
@@ -441,7 +464,7 @@ Deno.serve(async (req: Request) => {
                     timeout_ms,
                   );
 
-                  if (brightDataResult) {
+                  if (brightDataResult && brightDataResult.success) {
                     return new Response(
                       JSON.stringify({ ...brightDataResult, user_agent: userAgentStr }),
                       {
@@ -453,11 +476,23 @@ Deno.serve(async (req: Request) => {
                     );
                   } else {
                     console.error("❌ Bright Data Browser API failed");
+                    const errorPayload: Record<string, unknown> = {
+                      success: false,
+                      error: "Bright Data Browser API request failed",
+                    };
+
+                    if (brightDataResult?.error_status) {
+                      errorPayload.error_status = brightDataResult.error_status;
+                    }
+                    if (brightDataResult?.error_text) {
+                      errorPayload.error_text = brightDataResult.error_text;
+                    }
+                    if (brightDataResult?.error) {
+                      errorPayload.error_detail = brightDataResult.error;
+                    }
+
                     return new Response(
-                      JSON.stringify({
-                        success: false,
-                        error: "Bright Data Browser API request failed",
-                      }),
+                      JSON.stringify(errorPayload),
                       {
                         status: 400,
                         headers: {
@@ -519,6 +554,177 @@ Deno.serve(async (req: Request) => {
       } catch (providerErr) {
         console.error("❌ Failed to select provider:", providerErr);
         console.log("ℹ️ Falling back to Luna from settings");
+      }
+    }
+
+    // Handle Bright Data Browser provider if already selected (offer override or rotation)
+    if (selectedProvider && selectedProvider.provider_type === "brightdata_browser") {
+      if (!selectedProvider.api_key) {
+        console.error("❌ Bright Data Browser provider missing API key");
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Bright Data Browser provider missing API key",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      console.log("🌐 Routing to Bright Data Browser API (selected provider)");
+      const brightDataResult = await fetchThroughBrightDataBrowser(
+        validatedUrl,
+        selectedProvider.api_key,
+        target_country,
+        referrer,
+        userAgentStr,
+        timeout_ms,
+      );
+
+      if (brightDataResult && brightDataResult.success) {
+        return new Response(
+          JSON.stringify({ ...brightDataResult, user_agent: userAgentStr }),
+          {
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/json",
+            },
+          },
+        );
+      }
+
+      console.error("❌ Bright Data Browser API failed");
+      const errorPayload: Record<string, unknown> = {
+        success: false,
+        error: "Bright Data Browser API request failed",
+      };
+
+      if (brightDataResult?.error_status) {
+        errorPayload.error_status = brightDataResult.error_status;
+      }
+      if (brightDataResult?.error_text) {
+        errorPayload.error_text = brightDataResult.error_text;
+      }
+      if (brightDataResult?.error) {
+        errorPayload.error_detail = brightDataResult.error;
+      }
+
+      return new Response(JSON.stringify(errorPayload), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // If tracer_mode explicitly requests Bright Data Browser, try to find a provider and short-circuit AWS
+    if (tracer_mode === "brightdata_browser") {
+      if (!effectiveUserId) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Bright Data Browser tracer requires user context",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      try {
+        console.log("🔍 Looking up Bright Data Browser provider for user");
+        const { data: bdProvider, error: bdError } = await supabase
+          .from("proxy_providers")
+          .select("*")
+          .eq("user_id", effectiveUserId)
+          .eq("provider_type", "brightdata_browser")
+          .eq("enabled", true)
+          .limit(1)
+          .maybeSingle();
+
+        if (bdError || !bdProvider) {
+          console.error("❌ No Bright Data Browser provider found", bdError);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "No Bright Data Browser provider configured",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        if (!bdProvider.api_key) {
+          console.error("❌ Bright Data Browser provider missing API key");
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Bright Data Browser provider missing API key",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        console.log("🌐 Routing to Bright Data Browser API (forced mode)");
+        const brightDataResult = await fetchThroughBrightDataBrowser(
+          validatedUrl,
+          bdProvider.api_key,
+          target_country,
+          referrer,
+          userAgentStr,
+          timeout_ms,
+        );
+
+        if (brightDataResult && brightDataResult.success) {
+          return new Response(
+            JSON.stringify({ ...brightDataResult, user_agent: userAgentStr }),
+            {
+              headers: {
+                ...corsHeaders,
+                "Content-Type": "application/json",
+              },
+            },
+          );
+        }
+
+        console.error("❌ Bright Data Browser API failed");
+        const errorPayload: Record<string, unknown> = {
+          success: false,
+          error: "Bright Data Browser API request failed",
+        };
+
+        if (brightDataResult?.error_status) {
+          errorPayload.error_status = brightDataResult.error_status;
+        }
+        if (brightDataResult?.error_text) {
+          errorPayload.error_text = brightDataResult.error_text;
+        }
+        if (brightDataResult?.error) {
+          errorPayload.error_detail = brightDataResult.error;
+        }
+
+        return new Response(JSON.stringify(errorPayload), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (bdErr) {
+        console.error("❌ Failed to execute Bright Data Browser tracer:", bdErr);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Bright Data Browser tracer execution failed",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
     }
 

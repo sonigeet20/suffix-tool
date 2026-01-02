@@ -437,6 +437,59 @@ async function loadProxySettings() {
   }
 }
 
+async function loadBrightDataApiKey(userId, offerId = null) {
+  try {
+    // If offer_id is supplied, check for provider override
+    if (offerId && userId) {
+      const { data: offer, error: offerErr } = await supabase
+        .from('offers')
+        .select('provider_id')
+        .eq('id', offerId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!offerErr && offer && offer.provider_id) {
+        const { data: provider, error: provErr } = await supabase
+          .from('proxy_providers')
+          .select('api_key, provider_type, enabled')
+          .eq('id', offer.provider_id)
+          .eq('user_id', userId)
+          .eq('enabled', true)
+          .maybeSingle();
+
+        if (!provErr && provider && provider.provider_type === 'brightdata_browser') {
+          if (provider.api_key) {
+            logger.info('✅ Loaded Bright Data API key from offer provider override');
+            return provider.api_key;
+          }
+        }
+      }
+    }
+
+    // Otherwise pick first enabled brightdata_browser provider for the user
+    if (userId) {
+      const { data: provider, error } = await supabase
+        .from('proxy_providers')
+        .select('api_key')
+        .eq('user_id', userId)
+        .eq('provider_type', 'brightdata_browser')
+        .eq('enabled', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && provider && provider.api_key) {
+        logger.info('✅ Loaded Bright Data API key from user provider');
+        return provider.api_key;
+      }
+    }
+
+    throw new Error('No enabled Bright Data Browser provider found');
+  } catch (error) {
+    logger.error('Failed to load Bright Data API key:', error);
+    throw error;
+  }
+}
+
 async function initBrowser(forceNew = false) {
   // If forceNew=true (for traces), always launch fresh browser to get new IP
   // If forceNew=false (for health checks), reuse existing browser
@@ -906,6 +959,229 @@ async function traceRedirectsHttpOnly(url, options = {}) {
       execution_model: 'true_parallel_streaming',
     },
   };
+}
+
+// Bright Data Browser API tracer - follows all patterns (geo, UA rotation, fingerprint matching, bandwidth optimization)
+async function traceRedirectsBrightDataBrowser(url, options = {}) {
+  const {
+    maxRedirects = 20,
+    timeout = 90000,
+    userAgent = userAgentRotator.getNext(),
+    targetCountry = null,
+    referrer = null,
+    apiKey = null,
+  } = options;
+
+  if (!apiKey) {
+    throw new Error('Bright Data Browser API key is required');
+  }
+
+  const chain = [];
+  let currentUrl = url;
+  const seen = new Set();
+  const API_URL = 'https://api.brightdata.com/request';
+  
+  // Generate unique fingerprint per trace - synced with user agent device type
+  const fingerprint = generateBrowserFingerprint(userAgent);
+  logger.info(`🌐 Bright Data Browser: Device=${fingerprint.deviceType}, viewport=${fingerprint.viewport.width}x${fingerprint.viewport.height}`);
+  logger.info(`🎭 Using User Agent: ${userAgent.substring(0, 80)}...`);
+  
+  if (targetCountry) {
+    logger.info(`🌍 Bright Data Browser: Geo-targeting ${targetCountry.toUpperCase()}`);
+  }
+
+  const buildPayload = (targetUrl) => {
+    const payload = {
+      zone: 'scraping_browser1',
+      url: targetUrl,
+      format: 'raw',
+    };
+
+    if (targetCountry && targetCountry.length === 2) {
+      payload.country = targetCountry.toLowerCase();
+    }
+
+    // Apply fingerprint-matched headers
+    payload.headers = {
+      'Accept-Language': fingerprint.language,
+      'Accept-Encoding': fingerprint.encoding,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+    };
+
+    if (userAgent) {
+      payload.headers['User-Agent'] = userAgent;
+    }
+
+    if (referrer) {
+      payload.headers['Referer'] = referrer;
+    }
+
+    return payload;
+  };
+
+  const parseMetaRefresh = (html) => {
+    const match = html.match(/<meta[^>]+http-equiv=["']refresh["'][^>]+content=["'][^"']*url=([^"']+)["']/i);
+    if (match && match[1]) {
+      return match[1].trim().replace(/^['"]|['"]$/g, '');
+    }
+    return null;
+  };
+
+  const parseJsRedirect = (html) => {
+    const patterns = [
+      /location\s*\.\s*(?:href|replace)\s*=\s*["']([^"']+)["']/i,
+      /window\s*\.\s*location\s*=\s*["']([^"']+)["']/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+    return null;
+  };
+
+  const parseParamRedirect = (currentUrl) => {
+    try {
+      const urlObj = new URL(currentUrl);
+      const keys = ['deeplink', 'd', 'url', 'u', 'redir', 'redirect', 'target', 'dest', 'destination', 'next', 'return', 'r'];
+      
+      for (const key of keys) {
+        const val = urlObj.searchParams.get(key);
+        if (val) {
+          try {
+            const decoded = decodeURIComponent(val);
+            if (decoded.startsWith('http')) return decoded;
+          } catch (e) {
+            if (val.startsWith('http')) return val;
+          }
+        }
+      }
+    } catch (_err) {
+      return null;
+    }
+    return null;
+  };
+
+  const cleanUrl = (url) => {
+    if (!url) return null;
+    return url.trim().replace(/^['"]+|['"]+$/g, '');
+  };
+
+  try {
+    for (let hop = 1; hop <= maxRedirects; hop++) {
+      if (seen.has(currentUrl)) {
+        logger.info(`⚠️ Bright Data: Detected loop at ${currentUrl}`);
+        break;
+      }
+      seen.add(currentUrl);
+
+      const payload = buildPayload(currentUrl);
+      const startTime = Date.now();
+
+      logger.info(`🔄 Bright Data hop ${hop}: ${currentUrl.substring(0, 100)}...`);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      let response, html, bandwidth = 0;
+      
+      try {
+        response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Bright Data API error ${response.status}: ${errorText.substring(0, 200)}`);
+        }
+
+        html = await response.text();
+        bandwidth = Buffer.byteLength(html, 'utf8');
+        
+      } catch (err) {
+        clearTimeout(timeoutId);
+        logger.error(`❌ Bright Data hop ${hop} failed: ${err.message}`);
+        
+        chain.push({
+          url: currentUrl,
+          status: 0,
+          redirect_type: 'error',
+          method: 'GET',
+          error: err.message,
+          timing_ms: Date.now() - startTime,
+          bandwidth_bytes: 0,
+        });
+        break;
+      }
+
+      const timing = Date.now() - startTime;
+      
+      chain.push({
+        url: currentUrl,
+        status: 200,
+        redirect_type: 'brightdata_browser',
+        method: 'GET',
+        html_snippet: html.substring(0, 500),
+        timing_ms: timing,
+        bandwidth_bytes: bandwidth,
+      });
+
+      // Extract next URL from headers, meta refresh, JS, or params
+      const redirectedTo = response.headers.get('x-unblocker-redirected-to');
+      const metaRefresh = parseMetaRefresh(html);
+      const jsRedirect = parseJsRedirect(html);
+      const paramRedirect = parseParamRedirect(currentUrl);
+
+      let nextUrl = cleanUrl(redirectedTo || metaRefresh || jsRedirect || paramRedirect);
+
+      if (!nextUrl) {
+        logger.info(`✅ Bright Data: No further redirects detected at hop ${hop}`);
+        break;
+      }
+
+      currentUrl = nextUrl;
+      logger.info(`➡️ Bright Data: Following to ${nextUrl.substring(0, 100)}...`);
+    }
+
+    if (chain.length >= maxRedirects) {
+      chain.push({
+        url: 'max_redirects_reached',
+        status: 0,
+        redirect_type: 'error',
+        method: 'limit',
+        error: `Max ${maxRedirects} redirects`,
+      });
+    }
+
+    const totalBandwidth = chain.reduce((sum, e) => sum + (e.bandwidth_bytes || 0), 0);
+    const avgBandwidth = chain.length > 0 ? totalBandwidth / chain.length : 0;
+
+    logger.info(`✅ Bright Data Browser trace complete: ${chain.length} steps, ${formatBytes(totalBandwidth)}`);
+
+    return {
+      success: chain.length > 0 && chain[chain.length - 1].redirect_type !== 'error',
+      chain,
+      total_steps: chain.length,
+      final_url: chain.length > 0 ? chain[chain.length - 1].url : url,
+      user_agent: userAgent,
+      total_bandwidth_bytes: totalBandwidth,
+      bandwidth_per_step_bytes: Math.round(avgBandwidth),
+    };
+
+  } catch (error) {
+    logger.error(`❌ Bright Data Browser tracer failed: ${error.message}`);
+    throw error;
+  }
 }
 
 async function traceRedirectsBrowser(url, options = {}) {
@@ -2270,6 +2546,8 @@ app.post('/trace', async (req, res) => {
       interaction_count = 0,
       bandwidth_limit_kb = null,
       expected_final_url = null,
+      user_id = null,
+      offer_id = null,
     } = req.body;
 
     if (!url) {
@@ -2339,6 +2617,53 @@ app.post('/trace', async (req, res) => {
         referrer: referrer || null,
         proxyIp: proxy_ip || null,
         proxyPort: proxy_port || null,
+      });
+    } else if (mode === 'brightdata_browser') {
+      logger.info('🌐 Using Bright Data Browser API mode (cloud browser with geo-targeting)');
+      
+      // Load API key from database
+      let apiKey;
+      try {
+        apiKey = await loadBrightDataApiKey(user_id, offer_id);
+      } catch (err) {
+        logger.error('❌ Failed to load Bright Data API key:', err.message);
+        return res.status(400).json({ 
+          error: 'Bright Data Browser mode requires user_id and a configured provider',
+          details: err.message 
+        });
+      }
+
+      tracePromise = traceRedirectsBrightDataBrowser(url, {
+        maxRedirects: max_redirects || 20,
+        timeout: timeout_ms || 90000,
+        userAgent: user_agent || userAgentRotator.getNext(),
+        targetCountry: selectedCountry || null,
+        referrer: referrer || null,
+        apiKey: apiKey,
+      });
+
+      // Bright Data handles its own geo/IP, so skip Luna geo lookup
+      const [result] = await Promise.all([tracePromise]);
+
+      const totalTime = Date.now() - startTime;
+      const bandwidthFormatted = formatBytes(result.total_bandwidth_bytes);
+      logger.info(`✅ Trace completed (${mode}): ${result.total_steps} steps in ${totalTime}ms | ${bandwidthFormatted} transferred`);
+
+      return res.json({
+        ...result,
+        selected_geo: selectedCountry || null,
+        geo_strategy_used: geo_strategy || (geo_weights ? 'weighted' : 'round_robin'),
+        proxy_used: true,
+        proxy_type: 'brightdata_browser',
+        proxy_ip: null, // Bright Data doesn't expose individual IPs
+        geo_location: {
+          country: selectedCountry || 'unknown',
+          city: null,
+          region: null,
+        },
+        total_timing_ms: totalTime,
+        total_bandwidth_formatted: formatBytes(result.total_bandwidth_bytes),
+        mode_used: mode,
       });
     } else if (mode === 'anti_cloaking') {
       logger.info('🕵️ Using Anti-Cloaking mode (advanced stealth)');

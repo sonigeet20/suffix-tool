@@ -30,19 +30,32 @@ export default function Scripts() {
         return;
       }
 
+      // Determine timeout based on tracer mode
+      let timeout_ms = 60000;
+      if (tracerMode === 'anti_cloaking') timeout_ms = 90000;
+      else if (tracerMode === 'interactive') timeout_ms = 120000;
+      else if (tracerMode === 'brightdata_browser') timeout_ms = 90000;
+
+      const requestBody: any = {
+        url: testUrl,
+        max_redirects: 20,
+        timeout_ms,
+        user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        tracer_mode: tracerMode,
+      };
+
+      // For Bright Data Browser mode, include user_id to auto-load API key from settings
+      if (tracerMode === 'brightdata_browser') {
+        requestBody.user_id = user.id;
+      }
+
       const response = await fetch(`${supabaseUrl}/functions/v1/trace-redirects`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          url: testUrl,
-          max_redirects: 20,
-          timeout_ms: tracerMode === 'anti_cloaking' ? 90000 : tracerMode === 'interactive' ? 120000 : 60000,
-          user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          tracer_mode: tracerMode,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const result = await response.json();
@@ -508,6 +521,7 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
               <option value="browser">Browser (Complex, 10-30s) - Full JS + Popups</option>
               <option value="anti_cloaking">Anti-Cloaking (Advanced, 15-60s) - Stealth mode</option>
               <option value="interactive">Interactive (Engagement, 20-40s) - Session engagement</option>
+              <option value="brightdata_browser">Bright Data Browser (5-15s) - Premium proxy, minimal bandwidth</option>
             </select>
             <div className="mt-2 space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
               <p className="flex items-start gap-1">
@@ -521,6 +535,10 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
               <p className="flex items-start gap-1">
                 <span className="font-semibold text-brand-700 dark:text-brand-400">Anti-Cloaking:</span>
                 <span>Bypasses bot detection, decodes obfuscation, tracks popups.</span>
+              </p>
+              <p className="flex items-start gap-1">
+                <span className="font-semibold text-purple-700 dark:text-purple-400">Bright Data Browser:</span>
+                <span>Premium residential proxy with browser automation, minimal bandwidth usage.</span>
               </p>
             </div>
           </div>
