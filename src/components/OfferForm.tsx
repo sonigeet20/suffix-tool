@@ -119,10 +119,13 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      const normalizeEnabled = <T extends { enabled?: boolean }>(items: T[]) =>
+        items.map(item => ({ ...item, enabled: item.enabled !== false }));
+
       const dataToSave = {
         ...formData,
-        tracking_urls: trackingUrls,
-        referrers: referrers,
+        tracking_urls: normalizeEnabled(trackingUrls),
+        referrers: normalizeEnabled(referrers),
         param_filter: paramFilter,
         geo_pool: geoPool,
         geo_strategy: geoStrategy,
@@ -205,7 +208,34 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
         throw new Error('Not authenticated');
       }
 
-      const url = formData.tracking_template || formData.final_url;
+      // Prefer an enabled tracking URL from the rotation tab (even before saving)
+      // Assume missing enabled flag means enabled (back-compat with older records)
+      const enabledTracking = trackingUrls.filter(t => (t.enabled !== false) && t.url);
+      let selectedTrackingUrl = '';
+      if (enabledTracking.length > 0) {
+        if (formData.tracking_url_rotation_mode === 'random') {
+          const idx = Math.floor(Math.random() * enabledTracking.length);
+          selectedTrackingUrl = enabledTracking[idx].url;
+        } else if (formData.tracking_url_rotation_mode === 'weighted-random') {
+          const total = enabledTracking.reduce((sum, t) => sum + (t.weight || 1), 0);
+          let r = Math.random() * total;
+          for (const t of enabledTracking) {
+            r -= (t.weight || 1);
+            if (r <= 0) {
+              selectedTrackingUrl = t.url;
+              break;
+            }
+          }
+          if (!selectedTrackingUrl) {
+            selectedTrackingUrl = enabledTracking[0].url;
+          }
+        } else {
+          // sequential preview can't advance without persistence; use first enabled to avoid falling back to template
+          selectedTrackingUrl = enabledTracking[0].url;
+        }
+      }
+
+      const url = selectedTrackingUrl || formData.tracking_template || formData.final_url;
 
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trace-redirects`;
 

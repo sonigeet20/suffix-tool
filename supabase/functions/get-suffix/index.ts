@@ -25,7 +25,8 @@ function selectByMode(
   mode: string,
   currentIndex: number
 ): { selected: TrackingUrlEntry | ReferrerEntry; newIndex: number } | null {
-  const enabledItems = items.filter(item => item.enabled);
+  // Treat missing enabled flag as enabled for backward compatibility
+  const enabledItems = items.filter(item => item.enabled !== false);
 
   if (enabledItems.length === 0) {
     return null;
