@@ -181,8 +181,11 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Use anon key for public access, fall back to service key if needed
+    const supabase = createClient(supabaseUrl, supabaseAnonKey || supabaseKey);
 
     const url = new URL(req.url);
     const offerName = url.searchParams.get('offer_name');
