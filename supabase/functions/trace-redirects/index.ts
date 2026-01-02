@@ -437,6 +437,7 @@ Deno.serve(async (req: Request) => {
     let proxyPassword: string | null = null;
     let effectiveUserId = user_id;
 
+    // Extract user from auth header if present and user_id not in body
     if (!effectiveUserId && authHeader) {
       try {
         const token = authHeader.replace("Bearer ", "");
@@ -451,6 +452,13 @@ Deno.serve(async (req: Request) => {
       } catch (err) {
         console.log("⚠️ Could not get user from auth header:", err);
       }
+    }
+
+    // Log auth status - public endpoint, auth is optional
+    if (effectiveUserId) {
+      console.log("✅ Authenticated as user:", effectiveUserId);
+    } else {
+      console.log("ℹ️ Public/unauthenticated request - using default configuration");
     }
 
     if (effectiveUserId) {
