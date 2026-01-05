@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly User-Agent Package Update Timer
+Requires=user-agent-update.service
+
+[Timer]
+OnCalendar=Sun *-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

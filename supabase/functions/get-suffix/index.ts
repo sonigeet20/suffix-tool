@@ -186,6 +186,7 @@ Deno.serve(async (req: Request) => {
 
     const url = new URL(req.url);
     const offerName = url.searchParams.get('offer_name');
+    const debug = url.searchParams.get('debug') === 'true'; // NEW: Debug flag for bandwidth info
 
     if (!offerName) {
       return new Response(
@@ -293,7 +294,6 @@ Deno.serve(async (req: Request) => {
       })
       .eq('id', offer.id);
 
-    // Remove default suffix pattern fallback; only return suffix when extracted
     let finalSuffix = '';
     let extractedParams: Record<string, string> = {};
     let filteredParams: Record<string, string> = {};
@@ -302,6 +302,8 @@ Deno.serve(async (req: Request) => {
     let proxyIp: string | null = null;
     let lastTraceError: string | null = null;
     let lastTraceStatus: number | null = null;
+    let traceBandwidth_bytes = 0;  // Track trace bandwidth in bytes
+    let tracedFinalUrl: string | null = null;  // Actual final URL from trace
 
     if (trackingUrlToUse) {
       const retryLimit = offer.retry_limit || 3;
@@ -319,6 +321,18 @@ Deno.serve(async (req: Request) => {
         }
 
         try {
+          // Extract hostname from final_url if it's a full URL
+          let expectedFinalUrl = offer.expected_final_url || offer.final_url || null;
+          if (expectedFinalUrl) {
+            try {
+              const urlObj = new URL(expectedFinalUrl);
+              expectedFinalUrl = urlObj.hostname.replace(/^www\./, '');
+            } catch (e) {
+              // If it's already just a hostname, keep it as is
+              expectedFinalUrl = expectedFinalUrl.replace(/^www\./, '');
+            }
+          }
+
           const traceRequestBody: any = {
             url: trackingUrlToUse,
             max_redirects: 20,
@@ -328,6 +342,8 @@ Deno.serve(async (req: Request) => {
             use_proxy: true,
             target_country: offer.target_country || null,
             tracer_mode: offer.tracer_mode || 'auto',
+            suffix_step: offer.redirect_chain_step || null,
+            expected_final_url: expectedFinalUrl,
           };
 
           console.log(`📡 Trace request - tracer_mode: ${traceRequestBody.tracer_mode}, url: ${trackingUrlToUse.substring(0, 80)}`);
@@ -347,17 +363,24 @@ Deno.serve(async (req: Request) => {
 
           if (traceResponse.ok) {
             const traceResult = await traceResponse.json();
+            if (traceResult.bandwidth_bytes) {
+              traceBandwidth_bytes = Math.max(traceBandwidth_bytes, traceResult.bandwidth_bytes);  // Track peak bandwidth
+            }
             console.log('📦 Trace result:', JSON.stringify({
               success: traceResult.success,
               chain_length: traceResult.chain?.length,
               proxy_used: traceResult.proxy_used,
               proxy_ip: traceResult.proxy_ip,
+              bandwidth_bytes: traceResult.bandwidth_bytes,
               geo_location: traceResult.geo_location,
             }));
 
             if (traceResult.success && traceResult.chain && traceResult.chain.length > 0) {
               const chain = traceResult.chain;
               const stepIndex = offer.redirect_chain_step || 0;
+              
+              // Capture the actual final URL from the trace
+              tracedFinalUrl = chain[chain.length - 1].url;
 
               if (stepIndex < chain.length) {
                 const selectedStep = chain[stepIndex];
@@ -558,10 +581,10 @@ Deno.serve(async (req: Request) => {
       .from('offer_statistics')
       .upsert(newStats, { onConflict: 'offer_id' });
 
-    const responsePayload = {
+    const responsePayload: any = {
       success: true,
       offer_name: offer.offer_name,
-      final_url: offer.final_url,
+      final_url: tracedFinalUrl || offer.final_url,  // Use traced final URL if available
       tracking_url_used: trackingUrlToUse,
       tracking_url_label: trackingUrlLabel,
       tracking_url_weight: trackingUrlWeight,
@@ -582,13 +605,17 @@ Deno.serve(async (req: Request) => {
       attempts: attemptCount,
       timestamp: new Date().toISOString(),
     };
-    const bandwidth_kb = Math.round(JSON.stringify(responsePayload).length / 1024);
+
+    // Only include bandwidth info if debug=true (reduces response size and processing)
+    if (debug) {
+      responsePayload.trace_bandwidth_bytes = traceBandwidth_bytes;
+      const response_bandwidth_bytes = JSON.stringify(responsePayload).length;
+      responsePayload.bandwidth_bytes = response_bandwidth_bytes;
+      console.log(`📊 Debug mode: trace_bandwidth=${traceBandwidth_bytes}B, response_size=${response_bandwidth_bytes}B`);
+    }
 
     return new Response(
-      JSON.stringify({
-        ...responsePayload,
-        bandwidth_kb: bandwidth_kb,
-      }),
+      JSON.stringify(responsePayload),
       {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

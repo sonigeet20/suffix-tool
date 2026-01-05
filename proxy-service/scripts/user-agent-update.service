@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly User-Agent Package Update
+After=network.target
+
+[Service]
+Type=oneshot
+User=ec2-user
+WorkingDirectory=/home/ec2-user/proxy-service
+ExecStart=/home/ec2-user/proxy-service/scripts/update-user-agents.sh
+StandardOutput=append:/home/ec2-user/proxy-service/logs/user-agent-updates.log
+StandardError=append:/home/ec2-user/proxy-service/logs/user-agent-updates.log

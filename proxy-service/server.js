@@ -612,6 +612,9 @@ async function traceRedirectsHttpOnly(url, options = {}) {
     referrer = null,
     proxyIp = null,
     proxyPort = null,
+    expectedFinalUrl = null,
+    suffixStep = null,
+    debug = false, // Only calculate bandwidth when debug=true
   } = options;
 
   // Lightweight HTML sniff patterns to mimic browser-like meta/JS redirects without full rendering
@@ -625,6 +628,21 @@ async function traceRedirectsHttpOnly(url, options = {}) {
   // Generate unique fingerprint per trace - synced with user agent device type
   const fingerprint = generateBrowserFingerprint(userAgent);
   logger.info(`🖥️ Unique fingerprint: ${fingerprint.deviceType} | viewport=${fingerprint.viewport.width}x${fingerprint.viewport.height}, colorDepth=${fingerprint.colorDepth}, pixelRatio=${fingerprint.pixelRatio}`);
+
+  // Extract and normalize expected final hostname for early stopping
+  let expectedFinalHostname = null;
+  if (expectedFinalUrl) {
+    try {
+      const urlObj = new URL(expectedFinalUrl);
+      expectedFinalHostname = urlObj.hostname.replace(/^www\./, '');
+    } catch (e) {
+      // If it's already just a hostname
+      expectedFinalHostname = expectedFinalUrl.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+    }
+    if (expectedFinalHostname) {
+      logger.info(`🎯 HTTP-only: Will stop at hostname match: ${expectedFinalHostname}`);
+    }
+  }
 
   const chain = [];
   let currentUrl = url;
@@ -665,6 +683,11 @@ async function traceRedirectsHttpOnly(url, options = {}) {
 
   // Track hop timings for adaptive timeout allocation (EMA)
   const hopTimings = [];
+
+  // HTTP-only mode: HEADERS ONLY - no body download at all
+  const MAX_BODY_BYTES = 0; // Headers only, no body
+  const MAX_TOTAL_BANDWIDTH = 2048; // ~2 KB cap for entire trace
+  let totalBandwidthUsed = 0; // Track cumulative bandwidth across all hops
   
   // Wait for got module
   while (!gotModule) await new Promise(r => setTimeout(r, 10));
@@ -693,6 +716,26 @@ async function traceRedirectsHttpOnly(url, options = {}) {
     const hopStart = Date.now();
     
     const remainingBudget = budgetMs - (Date.now() - startBudget);
+    
+    // Check if overall bandwidth cap reached
+    if (totalBandwidthUsed >= MAX_TOTAL_BANDWIDTH) {
+      logger.info(`  🛑 Hop ${currentHopIndex + 1}: overall bandwidth cap (${formatBytes(MAX_TOTAL_BANDWIDTH)}) reached`);
+      const result = {
+        url,
+        status: 0,
+        redirect_type: 'error',
+        method: 'bandwidth_cap',
+        error: 'Total bandwidth cap reached',
+        timing_ms: 0,
+        bandwidth_bytes: 0,
+        hopIndex: currentHopIndex,
+      };
+      allResults.push(result);
+      finalHopResolved = true;
+      concurrentHops--;
+      return;
+    }
+    
     if (remainingBudget <= 0) {
       const result = {
         url,
@@ -715,10 +758,10 @@ async function traceRedirectsHttpOnly(url, options = {}) {
       : 3000; // Start at 3s, will adapt up if needed
     
     // Some affiliate domains (e.g., awin/doubleclick/elcorteingles) are consistently slower; raise the floor to avoid premature timeouts.
-    const slowAffiliatePatterns = [/awin1\.com/i, /doubleclick\.net/i, /elcorteingles\.es/i];
+    const slowAffiliatePatterns = [/awin1\.com/i, /doubleclick\.net/i, /elcorteingles\.es/i, /gomobupps\.com/i, /c3me6x\.net/i];
     const timeoutFloor = slowAffiliatePatterns.some((p) => p.test(url)) ? 8000 : 5000;
 
-    const budgetPerHop = Math.max(timeoutFloor, Math.min(remainingBudget * 0.7, avgHopTime * 1.2)); // Tighter multiplier
+    const budgetPerHop = Math.max(timeoutFloor, Math.min(remainingBudget * 0.7, avgHopTime * 1.2));
     
     logger.info(`  🚀 Hop ${currentHopIndex + 1} (parallel, concurrent=${concurrentHops}): ${url.substring(0, 60)}...`);
     
@@ -750,8 +793,21 @@ async function traceRedirectsHttpOnly(url, options = {}) {
         method: 'GET',
       });
       
+      // Track actual bandwidth: headers only (no body download)
+      let actualBandwidth = 0;
+      let responseReceived = false;
+      
+      // Abort immediately on any body data AFTER we get response headers
+      stream.on('data', (chunk) => {
+        if (responseReceived) {
+          // Kill stream immediately after headers - we don't want body data
+          abortController.abort();
+        }
+      });
+      
       // INSTANT ACTION: As soon as headers arrive, process and kill stream!
       stream.on('response', (response) => {
+        responseReceived = true;
         const timing = Date.now() - hopStart;
         hopTimings.push(timing);
         
@@ -759,11 +815,42 @@ async function traceRedirectsHttpOnly(url, options = {}) {
         const headers = response.headers || {};
         const location = headers['location'];
         
-        // Optimization #3: Check if this looks like a final URL
-        const looksLikeFinal = status >= 200 && status < 300 && 
-          FINAL_URL_PATTERNS.some(pattern => pattern.test(url));
+        // CRITICAL: If this is a final URL (200 status), kill immediately to save bandwidth
+        const isFinalUrl = status >= 200 && status < 300;
         
-        logger.info(`  ✅ Hop ${currentHopIndex + 1} (${status}) in ${timing}ms [parallel, concurrent=${concurrentHops}]`);
+        // Check if we've reached the expected final URL hostname (early stop optimization)
+        let reachedExpectedFinal = false;
+        if (expectedFinalHostname && isFinalUrl) {
+          try {
+            const currentHostname = new URL(url).hostname.replace(/^www\./, '');
+            reachedExpectedFinal = (currentHostname === expectedFinalHostname);
+            if (reachedExpectedFinal) {
+              logger.info(`  🪶 HTTP-only: Expected final URL reached - stopping early`);
+            }
+          } catch (e) {}
+        }
+        
+        // Track minimal bandwidth - only count Location header for redirects, null for final
+        // Skip calculation entirely when debug=false to save CPU
+        if (debug) {
+          if (isFinalUrl) {
+            // Final URL: no bandwidth counted (minimal mode like browser)
+            actualBandwidth = null;
+          } else if (location) {
+            // Redirect: only count status line + Location header (~200-400 bytes)
+            actualBandwidth = location.length + 100; // Location header + status line overhead
+            totalBandwidthUsed += actualBandwidth;
+          } else {
+            // No location but not 200: minimal overhead
+            actualBandwidth = 100;
+            totalBandwidthUsed += actualBandwidth;
+          }
+          const bandwidthDisplay = actualBandwidth === null ? 'minimal' : formatBytes(actualBandwidth);
+          logger.info(`  ✅ Hop ${currentHopIndex + 1} (${status}) in ${timing}ms, ~${bandwidthDisplay} ${isFinalUrl ? '🛑 FINAL' : ''} [parallel, concurrent=${concurrentHops}]`);
+        } else {
+          actualBandwidth = null; // Skip bandwidth calculation when debug=false
+          logger.info(`  ✅ Hop ${currentHopIndex + 1} (${status}) in ${timing}ms ${isFinalUrl ? '🛑 FINAL' : ''} [parallel, concurrent=${concurrentHops}]`);
+        }
         
         const result = {
           url,
@@ -771,7 +858,7 @@ async function traceRedirectsHttpOnly(url, options = {}) {
           redirect_type: status >= 300 && status < 400 ? 'http' : status >= 200 && status < 300 ? 'final' : 'error',
           method: 'parallel_stream',
           timing_ms: timing,
-          bandwidth_bytes: 0,
+          bandwidth_bytes: actualBandwidth,
           hopIndex: currentHopIndex,
         };
         
@@ -818,13 +905,30 @@ async function traceRedirectsHttpOnly(url, options = {}) {
             finalHopResolved = true;
           }
         } else if (status >= 200 && status < 300) {
-          // Final destination - trace ends here
-          if (looksLikeFinal) {
-            logger.info(`  🎯 Final URL detected (pattern match) at hop ${currentHopIndex + 1}`);
-          } else {
-            logger.info(`  🎯 Final URL reached at hop ${currentHopIndex + 1}`);
-          }
+          // FINAL URL - stop immediately, blocking body download
+          result.redirect_type = 'final';
           finalHopResolved = true;
+
+          // Extract params from final URL
+          const params = {};
+          try {
+            const urlObj = new URL(url);
+            urlObj.searchParams.forEach((value, key) => {
+              params[key] = value;
+            });
+            result.params = params;
+          } catch (e) {}
+
+          allResults.push(result);
+
+          // KILL CONNECTION IMMEDIATELY - don't wait for body
+          clearTimeout(timeoutId);
+          stream.destroy();
+          try { response.destroy(); } catch (e) {}
+
+          logger.info(`  🎯 Final URL reached at hop ${currentHopIndex + 1} - connection killed to save bandwidth`);
+          concurrentHops--;
+          return;
         } else {
           // Error status - trace ends here
           logger.info(`  ⚠️ Error status ${status} at hop ${currentHopIndex + 1}`);
@@ -915,11 +1019,30 @@ async function traceRedirectsHttpOnly(url, options = {}) {
   visitedUrls.add(currentUrl);
   launchHop(currentUrl);
   
-  // Wait for final hop to be reached or timeout
-  const startWait = Date.now();
-  while (!finalHopResolved && (Date.now() - startWait) < budgetMs) {
-    await new Promise(r => setTimeout(r, 100)); // Check every 100ms
-  }
+  // Wait for final hop to be reached or all hops complete
+  // Use event-driven completion instead of polling to reduce CPU usage
+  const maxWaitMs = budgetMs * 3; // Allow 3x the per-hop timeout for full chain
+  await new Promise(resolve => {
+    // Check if already complete
+    if (finalHopResolved || concurrentHops === 0) {
+      resolve();
+      return;
+    }
+    
+    // Set up completion checker that will be called by hop handlers
+    const completionChecker = setInterval(() => {
+      if (finalHopResolved || concurrentHops === 0) {
+        clearInterval(completionChecker);
+        resolve();
+      }
+    }, 300); // Check every 300ms (still 3x less frequent than before)
+    
+    // Timeout fallback
+    setTimeout(() => {
+      clearInterval(completionChecker);
+      resolve();
+    }, maxWaitMs);
+  });
   
   // Sort by hop index to maintain order
   allResults.sort((a, b) => a.hopIndex - b.hopIndex);
@@ -940,10 +1063,14 @@ async function traceRedirectsHttpOnly(url, options = {}) {
     });
   }
 
-  const totalBandwidth = chain.reduce((sum, e) => sum + (e.bandwidth_bytes || 0), 0);
-  const avgBandwidth = chain.length > 0 ? totalBandwidth / chain.length : 0;
+  const totalBandwidth = debug ? chain.reduce((sum, e) => sum + (e.bandwidth_bytes || 0), 0) : 0;
+  const avgBandwidth = debug && chain.length > 0 ? totalBandwidth / chain.length : 0;
 
-  logger.info(`✅ HTTP-only trace complete: ${chain.length} steps (${hopCount} hops launched, max concurrent=${maxConcurrentHops}), ${formatBytes(totalBandwidth)}`);
+  if (debug) {
+    logger.info(`✅ HTTP-only trace complete: ${chain.length} steps (${hopCount} hops launched, max concurrent=${maxConcurrentHops}), ${formatBytes(totalBandwidth)}`);
+  } else {
+    logger.info(`✅ HTTP-only trace complete: ${chain.length} steps (${hopCount} hops launched, max concurrent=${maxConcurrentHops})`);
+  }
 
   return {
     success: chain.length > 0 && chain[chain.length - 1].redirect_type !== 'error',
@@ -1191,6 +1318,8 @@ async function traceRedirectsBrowser(url, options = {}) {
     userAgent = userAgentRotator.getNext(),
     targetCountry = selectedCountry || null,
     referrer = null,
+    expectedFinalUrl = null,
+    suffixStep = null,
   } = options;
 
   const chain = [];
@@ -1474,6 +1603,18 @@ async function traceRedirectsBrowser(url, options = {}) {
       startTime: Date.now(),
     };
 
+    // Enable a minimal, low-bandwidth mode once we hit the expected final URL
+    let finalHopMinimalMode = false;
+    let pageClosed = false;  // Track if page was explicitly closed
+    let finalHopUrl = null;
+    const activateFinalHopMinimalMode = (triggerUrl, reason) => {
+      if (finalHopMinimalMode) return;
+      finalHopMinimalMode = true;
+      finalHopUrl = triggerUrl;
+      logger.info(`🪶 Browser: Final-hop minimal mode enabled (${reason}) for ${triggerUrl.substring(0, 80)}...`);
+      page.setJavaScriptEnabled(false).catch(err => logger.warn(`Final-hop JS disable failed: ${err.message}`));
+    };
+
     page.on('framenavigated', (frame) => {
       if (frame === page.mainFrame()) {
         lastUrlChange = Date.now();
@@ -1487,6 +1628,24 @@ async function traceRedirectsBrowser(url, options = {}) {
       requestLog.totalRequests++;
 
       if (resourceType === 'document') {
+        // Check if this document URL matches the expected final destination (by hostname)
+        if (expectedFinalUrl) {
+          try {
+            const urlHostname = new URL(requestUrl).hostname.replace(/^www\./, '');
+            const expectedHostname = expectedFinalUrl.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+            // Only match if both hostnames are non-empty to avoid false matches with about:blank
+            if (urlHostname && expectedHostname && 
+                (urlHostname === expectedHostname)) {
+              activateFinalHopMinimalMode(requestUrl, 'expected_final_url_match');
+            }
+          } catch (e) {
+            // If URL parsing fails, fall back to simple includes check
+            if (requestUrl.includes(expectedFinalUrl)) {
+              activateFinalHopMinimalMode(requestUrl, 'expected_final_url_match');
+            }
+          }
+        }
+
         const startTime = Date.now();
         const key = `${request.method()}-${requestUrl}`;
         
@@ -1516,7 +1675,8 @@ async function traceRedirectsBrowser(url, options = {}) {
       }
 
       const isBlockedDomain = BLOCKED_DOMAINS.some(domain => requestUrl.includes(domain));
-      const shouldBlock = BLOCKED_RESOURCE_TYPES.includes(resourceType) || (isBlockedDomain && resourceType !== 'document');
+      const finalHopSubresource = finalHopMinimalMode && resourceType !== 'document';
+      const shouldBlock = finalHopSubresource || BLOCKED_RESOURCE_TYPES.includes(resourceType) || (isBlockedDomain && resourceType !== 'document');
 
       if (shouldBlock) {
         request.abort();
@@ -1554,14 +1714,77 @@ async function traceRedirectsBrowser(url, options = {}) {
           });
         } catch (e) {}
 
-        const contentLength = headers['content-length'];
-        const bandwidthBytes = contentLength ? parseInt(contentLength) : null;
+        // Track actual response size
+        let bandwidthBytes = 0;
+        try {
+          const isFinalHopTarget = finalHopMinimalMode && finalHopUrl && url.includes(finalHopUrl);
+          
+          if (isFinalHopTarget) {
+            // Minimal mode: skip body download entirely
+            bandwidthBytes = 0;
+            logger.info(`📄 Browser final URL: ${url} - Minimal mode (skipping body)`);
+          } else {
+            // Normal mode: download body to extract params
+            const buffer = await response.buffer();
+            bandwidthBytes = buffer.length;
+            const type = status >= 300 && status < 400 ? 'redirect' : 'final URL';
+            logger.info(`📄 Browser ${type}: ${url} - Downloaded: ${bandwidthBytes} bytes`);
+          }
+        } catch (e) {
+          // Fallback to Content-Length if buffer fails
+          const contentLength = headers['content-length'];
+          bandwidthBytes = contentLength ? parseInt(contentLength) : 0;
+        }
 
         let redirectType = 'http';
+        const currentStepIndex = chain.length; // Current step number (0-indexed)
+        
         if (status >= 300 && status < 400) {
           redirectType = 'http';
+          
+          // Check if we've reached expected final URL or suffix step - STOP HERE
+          // Use hostname matching to avoid false positives from URLs in query params
+          let reachedExpectedUrl = false;
+          if (expectedFinalUrl) {
+            try {
+              const urlHostname = new URL(url).hostname.replace(/^www\./, '');
+              const expectedHostname = expectedFinalUrl.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+              reachedExpectedUrl = urlHostname && expectedHostname && 
+                                   (urlHostname === expectedHostname);
+            } catch (e) {
+              // Fallback to simple includes if URL parsing fails
+              reachedExpectedUrl = url.includes(expectedFinalUrl);
+            }
+          }
+          const reachedSuffixStep = suffixStep !== null && currentStepIndex >= suffixStep;
+          
+          if (reachedExpectedUrl || reachedSuffixStep) {
+            logger.info(`🛑 Browser: Stopping at step ${currentStepIndex} - ${reachedExpectedUrl ? 'reached expected final URL' : `reached suffix step ${suffixStep}`}`);
+            redirectType = 'final';
+            bandwidthBytes = 0; // Don't download the body
+            
+            // Close page immediately to prevent further loading
+              pageClosed = true;
+            setImmediate(async () => {
+              try {
+                await page.close();
+              } catch (e) {
+                logger.error(`Error closing page: ${e.message}`);
+              }
+            });
+          }
         } else if (status >= 200 && status < 300) {
           redirectType = 'final';
+          // CRITICAL: Close page immediately to prevent body download
+          pageClosed = true;
+          logger.info(`🛑 Browser: Detected final URL, closing page to save bandwidth`);
+          setImmediate(async () => {
+            try {
+              await page.close();
+            } catch (e) {
+              logger.error(`Error closing page: ${e.message}`);
+            }
+          });
         } else {
           redirectType = 'error';
         }
@@ -1710,7 +1933,7 @@ async function traceRedirectsBrowser(url, options = {}) {
                     await new Promise(r => setTimeout(r, 2000));
                     
                     // Reset idle detection to continue
-                    idleCheckInterval = setInterval(checkIdle, 200);
+                    idleCheckInterval = setInterval(checkIdle, 500);
                     return; // Don't resolve yet, continue monitoring
                   } catch (err) {
                     logger.warn(`⚠️ Navigation to hidden redirect failed: ${err.message}`);
@@ -1727,7 +1950,7 @@ async function traceRedirectsBrowser(url, options = {}) {
         }
       };
       
-      idleCheckInterval = setInterval(checkIdle, 200);
+      idleCheckInterval = setInterval(checkIdle, 500);
 
       setTimeout(() => {
         clearInterval(idleCheckInterval);
@@ -1762,7 +1985,7 @@ async function traceRedirectsBrowser(url, options = {}) {
       logger.warn(`⚠️ Could not retrieve JS redirect log: ${err.message}`);
     }
 
-    const finalUrl = page.url();
+    const finalUrl = pageClosed ? (chain.length > 0 ? chain[chain.length - 1].url : url) : page.url();
     if (chain.length === 0 || chain[chain.length - 1].url !== finalUrl) {
       const finalParams = {};
       try {
@@ -1872,6 +2095,7 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     targetCountry = null,
     referrer = null,
     expectedFinalUrl = null,
+    suffixStep = null,
   } = options;
 
   const chain = [];
@@ -2092,6 +2316,17 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       startTime: Date.now(),
     };
 
+    // Enable minimal mode once we are on the target/final URL to avoid heavy downloads
+    let finalHopMinimalMode = false;
+    let finalHopUrl = null;
+    const activateFinalHopMinimalMode = (triggerUrl, reason) => {
+      if (finalHopMinimalMode) return;
+      finalHopMinimalMode = true;
+      finalHopUrl = triggerUrl;
+      logger.info(`🪶 Anti-cloaking: Final-hop minimal mode enabled (${reason}) for ${triggerUrl.substring(0, 80)}...`);
+      page.setJavaScriptEnabled(false).catch(err => logger.warn(`Final-hop JS disable failed: ${err.message}`));
+    };
+
     // Capture content after each navigation to avoid context destruction
     page.on('framenavigated', async (frame) => {
       if (frame === page.mainFrame()) {
@@ -2126,6 +2361,26 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       requestLog.totalRequests++;
 
       if (resourceType === 'document') {
+        // Check if this matches expected final URL by hostname (not query params)
+        if (expectedFinalUrl) {
+          try {
+            const urlHostname = new URL(requestUrl).hostname.replace(/^www\./, '');
+            const expectedHostname = expectedFinalUrl.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+            // Only match if both hostnames are non-empty to avoid false matches with about:blank
+            if (urlHostname && expectedHostname && 
+                (urlHostname === expectedHostname)) {
+              activateFinalHopMinimalMode(requestUrl, 'expected_final_url_match');
+            }
+          } catch (e) {
+            // Fallback to shouldStopOnUrl if URL parsing fails
+            if (shouldStopOnUrl(requestUrl)) {
+              activateFinalHopMinimalMode(requestUrl, 'target_url_match');
+            }
+          }
+        } else if (shouldStopOnUrl(requestUrl)) {
+          activateFinalHopMinimalMode(requestUrl, 'target_url_match');
+        }
+
         const startTime = Date.now();
         const key = `${request.method()}-${requestUrl}`;
         
@@ -2155,7 +2410,8 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       }
 
       const isBlockedDomain = BLOCKED_DOMAINS.some(domain => requestUrl.includes(domain));
-      const shouldBlock = BLOCKED_RESOURCE_TYPES.includes(resourceType) || (isBlockedDomain && resourceType !== 'document');
+      const finalHopSubresource = finalHopMinimalMode && resourceType !== 'document';
+      const shouldBlock = finalHopSubresource || BLOCKED_RESOURCE_TYPES.includes(resourceType) || (isBlockedDomain && resourceType !== 'document');
 
       if (shouldBlock) {
         request.abort();
@@ -2193,19 +2449,73 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
           });
         } catch (e) {}
 
-        const contentLength = headers['content-length'];
-        let bandwidthBytes = contentLength ? parseInt(contentLength) : null;
-        if (shouldStopOnUrl(url)) {
-          bandwidthBytes = 0; // Do not count target page body
-        } else if (shouldStopOnUrl(url) && stoppedUrls.has(normalizeUrl(url))) {
-          bandwidthBytes = 0; // We stopped loading early; do not count full body size
+        // Track actual response size
+        let bandwidthBytes = 0;
+        try {
+          const isFinalTarget = shouldStopOnUrl(url) || (finalHopMinimalMode && finalHopUrl && url.includes(finalHopUrl));
+
+          if (isFinalTarget) {
+            bandwidthBytes = 0; // Skip body for target page
+            logger.info(`📄 Anti-cloaking final URL: ${url} - Minimal mode (skipping body)`);
+          } else {
+            // Normal mode: download body to extract params
+            const buffer = await response.buffer();
+            bandwidthBytes = buffer.length;
+            const type = status >= 300 && status < 400 ? 'redirect' : 'final URL';
+            logger.info(`📄 Anti-cloaking ${type}: ${url} - Downloaded: ${bandwidthBytes} bytes`);
+          }
+        } catch (e) {
+          // Fallback to Content-Length if buffer fails
+          const contentLength = headers['content-length'];
+          bandwidthBytes = contentLength ? parseInt(contentLength) : 0;
         }
 
         let redirectType = 'http';
+        const currentStepIndex = chain.length; // Current step number (0-indexed)
+        
         if (status >= 300 && status < 400) {
           redirectType = 'http';
+          
+          // Check if we've reached expected final URL or suffix step - STOP HERE
+          // Use hostname matching to avoid false positives from URLs in query params
+          let reachedExpectedUrl = false;
+          if (expectedFinalUrl) {
+            try {
+              const urlHostname = new URL(url).hostname.replace(/^www\./, '');
+              const expectedHostname = expectedFinalUrl.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+              reachedExpectedUrl = urlHostname && expectedHostname && 
+                                   (urlHostname === expectedHostname);
+            } catch (e) {
+              // Fallback to simple includes if URL parsing fails
+              reachedExpectedUrl = url.includes(expectedFinalUrl);
+            }
+          }
+          const reachedSuffixStep = suffixStep !== null && currentStepIndex >= suffixStep;
+          
+          if (reachedExpectedUrl || reachedSuffixStep) {
+            logger.info(`🛑 Anti-cloaking: Stopping at step ${currentStepIndex} - ${reachedExpectedUrl ? 'reached expected final URL' : `reached suffix step ${suffixStep}`}`);
+            redirectType = 'final';
+            bandwidthBytes = 0; // Don't download the body
+            
+            // Close page immediately to prevent further loading
+              pageClosed = true;
+            setTimeout(async () => {
+              try {
+                await page.close();
+                pageClosed = true;
+                logger.info(`🛑 Anti-cloaking: Closed page at suffix step`);
+              } catch (e) {}
+            }, 100);
+          }
         } else if (status >= 200 && status < 300) {
           redirectType = 'final';
+          // CRITICAL: Stop page loading immediately to save bandwidth
+          setTimeout(async () => {
+            try {
+              await page.evaluate(() => window.stop());
+              logger.info(`🛑 Anti-cloaking: Stopped loading final page to save bandwidth`);
+            } catch (e) {}
+          }, 100); // Small delay to ensure response is captured
         } else {
           redirectType = 'error';
         }
@@ -2276,7 +2586,7 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
           logger.info('⚡ Anti-cloaking: Early stop - no URL changes for 3.5s');
           resolve();
         }
-      }, 200);
+      }, 500);
 
       setTimeout(() => {
         clearInterval(checkIdle);
@@ -2284,8 +2594,9 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       }, timeout);
     });
 
-    if (stopOnUrls.size > 0) {
+    if (stopOnUrls.size > 0 && !finalHopMinimalMode) {
       // Wait for initial navigation, then specifically wait for the target host navigation (bounded)
+      // Skip this if minimal mode is already active (it stops page loading immediately)
       await navigationPromise;
       if (targetHost) {
         for (let i = 0; i < 5 && !targetReached; i++) {
@@ -2546,8 +2857,10 @@ app.post('/trace', async (req, res) => {
       interaction_count = 0,
       bandwidth_limit_kb = null,
       expected_final_url = null,
+      suffix_step = null,
       user_id = null,
       offer_id = null,
+      debug = false, // NEW: Enable detailed bandwidth calculation only when debug=true
     } = req.body;
 
     if (!url) {
@@ -2617,6 +2930,9 @@ app.post('/trace', async (req, res) => {
         referrer: referrer || null,
         proxyIp: proxy_ip || null,
         proxyPort: proxy_port || null,
+        expectedFinalUrl: expected_final_url || null,
+        suffixStep: suffix_step || null,
+        debug: debug, // Pass debug flag to tracer
       });
     } else if (mode === 'brightdata_browser') {
       logger.info('🌐 Using Bright Data Browser API mode (cloud browser with geo-targeting)');
@@ -2674,6 +2990,8 @@ app.post('/trace', async (req, res) => {
         targetCountry: selectedCountry || null,
         referrer: referrer || null,
         expectedFinalUrl: expected_final_url || null,
+        suffixStep: suffix_step || null,
+        debug, // Pass debug flag
       });
     } else if (mode === 'interactive') {
       logger.info('🎬 Using Interactive mode (anti-cloaking + session engagement)');
@@ -2694,18 +3012,28 @@ app.post('/trace', async (req, res) => {
         userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: selectedCountry || null,
         referrer: referrer || null,
+        expectedFinalUrl: expected_final_url || null,
+        suffixStep: suffix_step || null,
       });
     }
 
     const [result, geoData] = await Promise.all([tracePromise, geoPromise]);
 
     const totalTime = Date.now() - startTime;
-    const bandwidthFormatted = formatBytes(result.total_bandwidth_bytes);
-    logger.info(`✅ Trace completed (${mode}): ${result.total_steps} steps in ${totalTime}ms | ${bandwidthFormatted} transferred`);
-    logger.info(`📊 Bandwidth details: total=${result.total_bandwidth_bytes}B, avg_per_step=${result.bandwidth_per_step_bytes}B`);
+    
+    // Only include bandwidth info if debug=true (reduces response size and processing)
+    if (debug) {
+      const bandwidthFormatted = formatBytes(result.total_bandwidth_bytes);
+      logger.info(`✅ Trace completed (${mode}): ${result.total_steps} steps in ${totalTime}ms | ${bandwidthFormatted} transferred`);
+      logger.info(`📊 Bandwidth details: total=${result.total_bandwidth_bytes}B, avg_per_step=${result.bandwidth_per_step_bytes}B`);
+    } else {
+      logger.info(`✅ Trace completed (${mode}): ${result.total_steps} steps in ${totalTime}ms`);
+    }
+    
     logger.info(`🌐 Proxy IP used: ${geoData.ip} | Location: ${geoData.city}, ${geoData.region}, ${geoData.country} | Selected Geo: ${selectedCountry ? selectedCountry.toUpperCase() : 'N/A'}`);
 
-    res.json({
+    // Build response - only include bandwidth fields if debug=true
+    const response = {
       ...result,
       selected_geo: selectedCountry || null,
       geo_strategy_used: geo_strategy || (geo_weights ? 'weighted' : 'round_robin'),
@@ -2718,9 +3046,21 @@ app.post('/trace', async (req, res) => {
         region: geoData.region,
       },
       total_timing_ms: totalTime,
-      total_bandwidth_formatted: formatBytes(result.total_bandwidth_bytes),
       mode_used: mode,
-    });
+    };
+    
+    // Add bandwidth fields only in debug mode
+    if (debug) {
+      response.total_bandwidth_formatted = formatBytes(result.total_bandwidth_bytes);
+      response.total_bandwidth_bytes = result.total_bandwidth_bytes;
+      response.bandwidth_per_step_bytes = result.bandwidth_per_step_bytes;
+    } else {
+      // Remove bandwidth fields from result to reduce response size
+      delete response.total_bandwidth_bytes;
+      delete response.bandwidth_per_step_bytes;
+    }
+    
+    res.json(response);
 
   } catch (error) {
     logger.error('Request error:', error);

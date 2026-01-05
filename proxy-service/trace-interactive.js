@@ -189,6 +189,7 @@ async function traceRedirectsInteractive(
   let traceBrowser = null;
   let page = null;
   let latestPageContent = '';
+  let lastDocumentUrl = null; // Declare outside try block for catch access
 
   // Fallback Supabase-based loader if not provided
   async function defaultLoadProxySettings() {
@@ -361,7 +362,7 @@ async function traceRedirectsInteractive(
 
     const redirectChain = [];
     let lastUrlChange = Date.now();
-    let lastDocumentUrl = null;
+    // lastDocumentUrl already declared at function scope
     const idleThresholdMs = 5000;
     const minNavigationWindowMs = 12000;
     const requestLog = {
