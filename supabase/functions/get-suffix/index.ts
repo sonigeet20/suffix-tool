@@ -187,6 +187,7 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const offerName = url.searchParams.get('offer_name');
     const debug = url.searchParams.get('debug') === 'true'; // NEW: Debug flag for bandwidth info
+    const campaignCount = parseInt(url.searchParams.get('campaign_count') || '1', 10); // Number of unique suffixes needed
 
     if (!offerName) {
       return new Response(
@@ -307,13 +308,38 @@ Deno.serve(async (req: Request) => {
     let usedUserAgent: string | null = null;  // Track which user agent was used
     let selectedGeo: string | null = null;  // Track selected geo country
     let geoLocation: any = null;  // Track geo location details
+    
+    // For multiple campaigns: store all unique suffixes
+    const multipleSuffixes: Array<{
+      suffix: string;
+      params_extracted: Record<string, string>;
+      params_filtered: Record<string, string>;
+      proxy_ip: string | null;
+      user_agent: string | null;
+      selected_geo: string | null;
+      geo_location: any;
+    }> = [];
 
     if (trackingUrlToUse) {
       const retryLimit = offer.retry_limit || 3;
       const retryDelay = offer.retry_delay_ms || 2000;
 
       console.log(`🚀 Starting trace attempts for tracking URL: ${trackingUrlToUse}`);
-      console.log(`   Referrer: ${referrerToUse || 'none'}, Retry limit: ${retryLimit}, Delay: ${retryDelay}ms`);
+      console.log(`   Campaign count: ${campaignCount}, Referrer: ${referrerToUse || 'none'}, Retry limit: ${retryLimit}, Delay: ${retryDelay}ms`);
+
+      // Loop for each campaign that needs unique params
+      for (let campaignIndex = 0; campaignIndex < campaignCount; campaignIndex++) {
+        console.log(`\n📍 Generating unique suffix ${campaignIndex + 1}/${campaignCount}`);
+        
+        // Reset per-campaign variables
+        let campaignSuffix = '';
+        let campaignParams: Record<string, string> = {};
+        let campaignFiltered: Record<string, string> = {};
+        let campaignProxyIp: string | null = null;
+        let campaignUserAgent: string | null = null;
+        let campaignGeo: string | null = null;
+        let campaignGeoLocation: any = null;
+        let campaignTraceSuccess = false;
 
       for (let attempt = 0; attempt <= retryLimit; attempt++) {
         attemptCount = attempt + 1;
@@ -442,42 +468,52 @@ Deno.serve(async (req: Request) => {
                 }
 
                 if (Object.keys(paramsToUse).length > 0) {
-                  extractedParams = paramsToUse;
+                  campaignParams = paramsToUse;
 
                   const paramFilterMode = offer.param_filter_mode || 'all';
                   const paramFilter = offer.param_filter || [];
-                  filteredParams = filterParams(extractedParams, paramFilterMode, paramFilter);
+                  campaignFiltered = filterParams(campaignParams, paramFilterMode, paramFilter);
 
-                  const params = new URLSearchParams(filteredParams);
-                  finalSuffix = params.toString();
-                  traceSuccessful = true;
+                  const params = new URLSearchParams(campaignFiltered);
+                  campaignSuffix = params.toString();
+                  campaignTraceSuccess = true;
                   const status = selectedStep.error ? 'error' : `status ${selectedStep.status}`;
-                  console.log(`Extracted ${Object.keys(extractedParams).length} params, filtered to ${Object.keys(filteredParams).length} params from step ${stepIndex + 1}/${chain.length} (${status})`);
+                  console.log(`✅ Campaign ${campaignIndex + 1}: Extracted ${Object.keys(campaignParams).length} params, filtered to ${Object.keys(campaignFiltered).length} params from step ${stepIndex + 1}/${chain.length} (${status})`);
+                  
+                  // Store for first campaign (backward compatibility)
+                  if (campaignIndex === 0) {
+                    extractedParams = campaignParams;
+                    filteredParams = campaignFiltered;
+                    finalSuffix = campaignSuffix;
+                    traceSuccessful = true;
+                  }
                 }
               } else {
                 console.error(`Configured step ${stepIndex + 1} exceeds chain length ${chain.length}`);
               }
 
               if (traceResult.proxy_ip) {
-                proxyIp = traceResult.proxy_ip;
-                console.log('✅ Proxy IP captured:', proxyIp);
-              } else {
-                console.log('⚠️ No proxy_ip in trace result');
+                campaignProxyIp = traceResult.proxy_ip;
+                console.log('✅ Campaign proxy IP:', campaignProxyIp);
+                if (campaignIndex === 0) proxyIp = campaignProxyIp;
               }
 
               if (traceResult.user_agent) {
-                usedUserAgent = traceResult.user_agent;
-                console.log('✅ User agent captured:', usedUserAgent);
+                campaignUserAgent = traceResult.user_agent;
+                console.log('✅ Campaign user agent:', campaignUserAgent);
+                if (campaignIndex === 0) usedUserAgent = campaignUserAgent;
               }
 
               if (traceResult.selected_geo) {
-                selectedGeo = traceResult.selected_geo;
-                console.log('✅ Selected geo captured:', selectedGeo);
+                campaignGeo = traceResult.selected_geo;
+                console.log('✅ Campaign geo:', campaignGeo);
+                if (campaignIndex === 0) selectedGeo = campaignGeo;
               }
 
               if (traceResult.geo_location) {
-                geoLocation = traceResult.geo_location;
-                console.log('✅ Geo location captured:', geoLocation);
+                campaignGeoLocation = traceResult.geo_location;
+                console.log('✅ Campaign geo location:', campaignGeoLocation);
+                if (campaignIndex === 0) geoLocation = campaignGeoLocation;
               }
 
               if (traceSuccessful && traceResult.proxy_ip) {
@@ -499,10 +535,13 @@ Deno.serve(async (req: Request) => {
                 });
               }
 
-              await supabase.from('offers').update({
-                last_traced_chain: chain,
-                last_trace_date: new Date().toISOString(),
-              }).eq('id', offer.id);
+              // Only update offer chain for first campaign
+              if (campaignIndex === 0) {
+                await supabase.from('offers').update({
+                  last_traced_chain: chain,
+                  last_trace_date: new Date().toISOString(),
+                }).eq('id', offer.id);
+              }
 
               break;
             } else {
@@ -524,10 +563,34 @@ Deno.serve(async (req: Request) => {
           console.error(`Trace attempt ${attemptCount} failed:`, traceError.message);
 
           if (attempt === retryLimit) {
-            console.error('All retry attempts exhausted, no params extracted');
+            console.error(`Campaign ${campaignIndex + 1}: All retry attempts exhausted, no params extracted`);
           }
         }
       }
+      
+      // Store this campaign's result
+      if (campaignTraceSuccess && campaignSuffix) {
+        multipleSuffixes.push({
+          suffix: campaignSuffix,
+          params_extracted: campaignParams,
+          params_filtered: campaignFiltered,
+          proxy_ip: campaignProxyIp,
+          user_agent: campaignUserAgent,
+          selected_geo: campaignGeo,
+          geo_location: campaignGeoLocation,
+        });
+        console.log(`✅ Campaign ${campaignIndex + 1}: Suffix stored (${campaignSuffix.substring(0, 50)}...)`);
+      } else {
+        console.error(`❌ Campaign ${campaignIndex + 1}: Failed to generate suffix`);
+      }
+      
+      // Add delay between campaigns to avoid rate limits (except after last one)
+      if (campaignIndex < campaignCount - 1) {
+        const delayCampaigns = 1000; // 1 second between campaigns
+        console.log(`⏳ Waiting ${delayCampaigns}ms before next campaign...`);
+        await new Promise(resolve => setTimeout(resolve, delayCampaigns));
+      }
+    }
 
       if (trackingUrlToUse) {
         await updateUsageStats(
@@ -642,6 +705,14 @@ Deno.serve(async (req: Request) => {
       geo_location: geoLocation,  // Include geo location details
       timestamp: new Date().toISOString(),
     };
+    
+    // If multiple campaigns requested, include array of all suffixes
+    if (campaignCount > 1) {
+      responsePayload.campaign_count = campaignCount;
+      responsePayload.suffixes = multipleSuffixes;
+      responsePayload.suffixes_generated = multipleSuffixes.length;
+      console.log(`📦 Returning ${multipleSuffixes.length}/${campaignCount} unique suffixes`);
+    }
 
     // Only include bandwidth info if debug=true (reduces response size and processing)
     if (debug) {

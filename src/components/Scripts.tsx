@@ -186,10 +186,17 @@ var executionState = {
 // ============================================
 // API CALL FUNCTION
 // ============================================
-function callGetSuffixAPI() {
+function callGetSuffixAPI(campaignCount) {
   executionState.totalApiCalls++;
-
+  
+  campaignCount = campaignCount || 1;
   var url = '${supabaseUrl}/functions/v1/get-suffix?offer_name=' + encodeURIComponent(OFFER_NAME);
+  
+  // Add campaign_count parameter for batch requests
+  if (campaignCount > 1) {
+    url += '&campaign_count=' + campaignCount;
+    Logger.log('[API] Requesting ' + campaignCount + ' unique suffixes');
+  }
 
   var options = {
     'method': 'get',
@@ -206,11 +213,12 @@ function callGetSuffixAPI() {
       var callEnd = new Date().getTime();
       var json = JSON.parse(response.getContentText());
 
-      if (json.success && json.suffix) {
+      if (json.success) {
         Logger.log('[API SUCCESS] Response time: ' + (callEnd - callStart) + 'ms');
         return {
           success: true,
-          suffix: json.suffix,
+          suffix: json.suffix || '',
+          suffixes: json.suffixes || [],
           finalUrl: json.final_url,
           changed: json.suffix !== executionState.lastSuffix,
           timestamp: new Date()
@@ -275,44 +283,100 @@ function updateCampaigns() {
       .withCondition('Status = ENABLED');
   }
 
+  // First, count campaigns
   var campaigns = campaignSelector.get();
+  var campaignList = [];
+  while (campaigns.hasNext()) {
+    campaignList.push(campaigns.next());
+  }
+  
+  var campaignCount = campaignList.length;
+  Logger.log('[INFO] Found ' + campaignCount + ' campaigns to update');
+  
+  if (campaignCount === 0) {
+    return {
+      updated: 0,
+      failed: 0,
+      skipped: 0,
+      apiCalls: 0
+    };
+  }
+
   var updatedCount = 0;
   var failedCount = 0;
   var skippedCount = 0;
-  var apiCallsThisCycle = 0;
 
-  while (campaigns.hasNext()) {
-    var campaign = campaigns.next();
+  if (DRY_RUN_MODE) {
+    Logger.log('[DRY RUN] Would call API once for ' + campaignCount + ' campaigns');
+    for (var i = 0; i < campaignList.length; i++) {
+      Logger.log('[DRY RUN] Would update: ' + campaignList[i].getName() + ' (ID: ' + campaignList[i].getId() + ')');
+      skippedCount++;
+    }
+    return {
+      updated: 0,
+      failed: 0,
+      skipped: skippedCount,
+      apiCalls: 0
+    };
+  }
 
+  // Make SINGLE API call requesting multiple unique suffixes
+  Logger.log('[API] Calling API once with campaign_count=' + campaignCount);
+  var apiResult = callGetSuffixAPI(campaignCount);
+  
+  if (!apiResult.success) {
+    Logger.log('[API ERROR] Failed to get suffixes: ' + (apiResult.error || 'Unknown error'));
+    executionState.errors.push({
+      type: 'api_error',
+      message: apiResult.error || 'Failed to get suffixes from API',
+      timestamp: new Date()
+    });
+    return {
+      updated: 0,
+      failed: campaignCount,
+      skipped: 0,
+      apiCalls: 1
+    };
+  }
+  
+  // Get suffixes array (or single suffix for backward compatibility)
+  var suffixes = [];
+  if (apiResult.suffixes && apiResult.suffixes.length > 0) {
+    suffixes = apiResult.suffixes;
+    Logger.log('[API] Received ' + suffixes.length + ' unique suffixes');
+  } else if (apiResult.suffix) {
+    // Backward compatibility: single suffix
+    suffixes = [{ suffix: apiResult.suffix }];
+    Logger.log('[API] Received single suffix (backward compatibility mode)');
+  }
+  
+  if (suffixes.length === 0) {
+    Logger.log('[ERROR] No suffixes received from API');
+    return {
+      updated: 0,
+      failed: campaignCount,
+      skipped: 0,
+      apiCalls: 1
+    };
+  }
+
+  // Distribute unique suffixes to campaigns
+  for (var i = 0; i < campaignList.length; i++) {
+    var campaign = campaignList[i];
+    
+    // Use suffix from array, or reuse last if we run out
+    var suffixIndex = Math.min(i, suffixes.length - 1);
+    var suffixData = suffixes[suffixIndex];
+    var suffix = suffixData.suffix || suffixData;
+    
     try {
-      if (DRY_RUN_MODE) {
-        Logger.log('[DRY RUN] Would call API and update campaign: ' + campaign.getName() + ' (ID: ' + campaign.getId() + ')');
-        skippedCount++;
-      } else {
-        // Call API to get UNIQUE suffix for THIS campaign
-        var apiResult = callGetSuffixAPI();
-        apiCallsThisCycle++;
-        
-        if (apiResult.success) {
-          campaign.urls().setFinalUrlSuffix(apiResult.suffix);
-          Logger.log('[UPDATED] ' + campaign.getName() + ' (ID: ' + campaign.getId() + ') with unique suffix: ' + apiResult.suffix.substring(0, 50) + '...');
-          updatedCount++;
-          
-          // Add small delay between API calls to avoid rate limits
-          if (DELAY_MS > 0) {
-            Utilities.sleep(DELAY_MS);
-          }
-        } else {
-          failedCount++;
-          Logger.log('[API ERROR] Failed to get suffix for ' + campaign.getName() + ' (ID: ' + campaign.getId() + '): ' + (apiResult.error || 'Unknown error'));
-          executionState.errors.push({
-            type: 'api_error',
-            campaign: campaign.getName(),
-            campaignId: campaign.getId(),
-            message: apiResult.error || 'Failed to get suffix from API',
-            timestamp: new Date()
-          });
-        }
+      campaign.urls().setFinalUrlSuffix(suffix);
+      Logger.log('[UPDATED] ' + campaign.getName() + ' (ID: ' + campaign.getId() + ') with unique suffix #' + (suffixIndex + 1));
+      updatedCount++;
+      
+      // Add small delay between updates
+      if (DELAY_MS > 0 && i < campaignList.length - 1) {
+        Utilities.sleep(DELAY_MS);
       }
     } catch (e) {
       failedCount++;
@@ -333,7 +397,7 @@ function updateCampaigns() {
     updated: updatedCount,
     failed: failedCount,
     skipped: skippedCount,
-    apiCalls: apiCallsThisCycle
+    apiCalls: 1
   };
 }
 
