@@ -585,8 +585,8 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
                     <span className="font-medium text-green-900">Success!</span>
                     <div className="flex items-center gap-4">
                       <span className="text-green-700">{traceResult.total_steps} steps in {traceResult.total_timing_ms}ms</span>
-                      {traceResult.bandwidth_kb && (
-                        <span className="text-green-700 text-xs">📊 {traceResult.bandwidth_kb} KB</span>
+                      {(traceResult as any).bandwidth_bytes && (
+                        <span className="text-green-700 text-xs">📊 {((traceResult as any).bandwidth_bytes).toLocaleString()} B</span>
                       )}
                     </div>
                   </div>

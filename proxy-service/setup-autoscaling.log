@@ -1,0 +1,76 @@
+🚀 Starting Auto-Scaling Setup
+Instance ID: i-03ea38b1268e76630
+Region: us-east-1
+
+📌 Step 1: Enabling termination protection...
+
+🔍 Getting instance configuration...
+Instance Type: t3.large
+Security Group: sg-086e54c5d9448aa01
+Subnet: subnet-055bffceee73f3522
+VPC: vpc-0526c9da5a05585c5
+AZ: us-east-1a
+Key: suffix-server
+
+🌐 Getting VPC subnets...
+Subnets for ALB: subnet-05a445f4f9f839e5c subnet-055bffceee73f3522 
+
+📸 Step 2: Creating AMI (this may take 5-10 minutes)...
+AMI ID: ami-00295032accc9e0bd
+Waiting for AMI to be available...
+✅ AMI created successfully!
+
+🚀 Step 3: Creating Launch Template...
+Launch Template ID: lt-0d0c3ed5e9a25c190
+✅ Launch Template created!
+
+🎯 Step 4: Creating Target Group...
+Target Group ARN: arn:aws:elasticloadbalancing:us-east-1:179406869795:targetgroup/url-tracker-proxy-tg/82b5151d453f0b1f
+Registering existing instance to target group...
+✅ Target Group created and instance registered!
+
+⚖️  Step 5: Creating Application Load Balancer...
+ALB ARN: arn:aws:elasticloadbalancing:us-east-1:179406869795:loadbalancer/app/url-tracker-proxy-alb/ffa90c859dfe9143
+ALB DNS: url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com
+Creating HTTP listener on port 80...
+Listener ARN: arn:aws:elasticloadbalancing:us-east-1:179406869795:listener/app/url-tracker-proxy-alb/ffa90c859dfe9143/d2f919535d56dc76
+✅ Load Balancer created!
+Waiting for Load Balancer to become active...
+✅ Load Balancer is active!
+
+📈 Step 6: Creating Auto Scaling Group...
+✅ Auto Scaling Group created!
+
+📊 Step 7: Creating CPU-based scaling policies...
+Scale-up Policy ARN: arn:aws:autoscaling:us-east-1:179406869795:scalingPolicy:4c384f04-d0b1-476f-a3d4-a14307f9f73e:autoScalingGroupName/url-tracker-proxy-asg:policyName/url-tracker-proxy-scale-up
+✅ Scaling policies created!
+
+═══════════════════════════════════════════════════════
+✅ AUTO-SCALING SETUP COMPLETE!
+═══════════════════════════════════════════════════════
+
+📋 INFRASTRUCTURE DETAILS:
+─────────────────────────────────────────────────────
+Original Instance: i-03ea38b1268e76630 (protected)
+AMI ID: ami-00295032accc9e0bd
+Launch Template: lt-0d0c3ed5e9a25c190
+Load Balancer: url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com
+Target Group: arn:aws:elasticloadbalancing:us-east-1:179406869795:targetgroup/url-tracker-proxy-tg/82b5151d453f0b1f
+Auto Scaling Group: url-tracker-proxy-asg
+Min Instances: 2
+Max Instances: 5
+Scale Target: 50% CPU
+
+🌐 LOAD BALANCER ENDPOINT:
+   http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com
+
+📝 NEXT STEPS:
+1. Wait 2-3 minutes for new instances to launch and pass health checks
+2. Update Supabase settings table:
+   aws_proxy_url = 'http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com'
+3. Test the endpoint:
+   curl http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com/health
+4. Monitor Auto Scaling Group:
+   aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names url-tracker-proxy-asg
+
+═══════════════════════════════════════════════════════

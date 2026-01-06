@@ -1,0 +1,37 @@
+# Supabase Configuration
+
+[functions.get-geolocation]
+verify_jwt = false
+
+[functions.get-suffix]
+verify_jwt = false
+
+[functions.intelligent-tracer]
+verify_jwt = false
+
+[functions.ip-pool-maintenance]
+verify_jwt = false
+
+[functions.pool-monitor]
+verify_jwt = false
+
+[functions.process-trace-parallel]
+verify_jwt = false
+
+[functions.proxy-providers]
+verify_jwt = false
+
+[functions.test-proxy]
+verify_jwt = false
+
+[functions.trace-redirects]
+verify_jwt = false
+
+[functions.trace-worker]
+verify_jwt = false
+
+[functions.track-hit]
+verify_jwt = false
+
+[functions.track-hit-instant]
+verify_jwt = false

@@ -118,15 +118,25 @@ class UserAgentRotator {
     this.requestCount = 0;
 
     this.deviceCategories = [
-      { deviceCategory: 'desktop', weight: 60 },
-      { deviceCategory: 'mobile', weight: 30 },
+      { deviceCategory: 'mobile', weight: 60 },
+      { deviceCategory: 'desktop', weight: 30 },
       { deviceCategory: 'tablet', weight: 10 }
     ];
 
     logger.info(`UserAgentRotator initialized in '${this.mode}' mode with pool size: ${this.poolSize}`);
+    logger.info(`Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing`);
+    logger.info(`Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%`);
 
     if (this.mode === 'pool' || this.mode === 'hybrid') {
       this.refreshPool();
+    }
+  }
+
+  // Allow dynamic override of device distribution
+  setDeviceDistribution(distribution) {
+    if (distribution && Array.isArray(distribution) && distribution.length > 0) {
+      this.deviceCategories = distribution;
+      logger.info(`Device distribution updated: ${JSON.stringify(distribution)}`);
     }
   }
 
@@ -144,6 +154,12 @@ class UserAgentRotator {
   }
 
   generateUserAgent() {
+    // Use 100% dynamic generation for maximum variety
+    // The user-agents package generates unique combinations of:
+    // - Browser versions (Chrome 120-131, Firefox 120-122, Safari 17-18, Edge 120-131)
+    // - OS versions (Windows 10/11, macOS 14.x, iOS 17.x, Android 13-14)
+    // - Device models (1000+ combinations)
+    // This provides 10,000+ unique combinations suitable for 100k+ daily traces
     const category = this.generateRandomCategory();
     const userAgent = new UserAgent({ deviceCategory: category });
     const uaString = userAgent.toString();
@@ -263,6 +279,10 @@ class UserAgentRotator {
 }
 
 const userAgentRotator = new UserAgentRotator();
+logger.info(`UserAgentRotator initialized in '${userAgentRotator.mode}' mode with pool size: ${userAgentRotator.poolSize}`);
+
+// Global geo rotators cache (key: pool+strategy+weights hash)
+const geoRotators = new Map();
 
 // Detect device type from user agent string
 function detectDeviceType(userAgent) {
@@ -2538,7 +2558,15 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       const popupIndex = popupChains.length + 1;
       logger.info(`🪟 Popup #${popupIndex} detected!`);
 
-      const openerUrl = page.url();
+      let openerUrl = url; // Fallback to initial URL
+      try {
+        if (!page.isClosed()) {
+          openerUrl = page.url();
+        }
+      } catch (err) {
+        logger.warn(`Could not get opener URL: ${err.message}`);
+      }
+      
       const popupChain = [];
 
       try {
@@ -2619,27 +2647,37 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     }
 
     // Single mouse movement for lightweight human simulation
-    await page.mouse.move(150 + Math.random() * 100, 150 + Math.random() * 100);
+    try {
+      if (!page.isClosed()) {
+        await page.mouse.move(150 + Math.random() * 100, 150 + Math.random() * 100);
+      }
+    } catch (err) {
+      logger.warn(`Mouse movement skipped: ${err.message}`);
+    }
 
     // Handle pages that set target_url and redirect via programmatic click
     try {
-      const scriptRedirect = await page.evaluate(() => {
-        try {
-          const t = typeof target_url !== 'undefined' ? target_url : null;
-          return t && t.trim() ? t.trim() : null;
-        } catch (e) {
-          return null;
-        }
-      });
+      if (!page.isClosed()) {
+        const scriptRedirect = await page.evaluate(() => {
+          try {
+            const t = typeof target_url !== 'undefined' ? target_url : null;
+            return t && t.trim() ? t.trim() : null;
+          } catch (e) {
+            return null;
+          }
+        });
 
-      if (scriptRedirect && !visitedScriptUrls.has(scriptRedirect)) {
-        visitedScriptUrls.add(scriptRedirect);
-        addStopUrl(scriptRedirect);
-        logger.info(`🔀 Anti-cloaking: Following script-defined target_url -> ${scriptRedirect.substring(0, 120)}...`);
-        try {
-          await page.goto(scriptRedirect, { waitUntil: 'domcontentloaded', timeout: Math.min(10000, timeout) });
-        } catch (err) {
-          logger.warn(`Script redirect navigation failed: ${err.message}`);
+        if (scriptRedirect && !visitedScriptUrls.has(scriptRedirect)) {
+          visitedScriptUrls.add(scriptRedirect);
+          addStopUrl(scriptRedirect);
+          logger.info(`🔀 Anti-cloaking: Following script-defined target_url -> ${scriptRedirect.substring(0, 120)}...`);
+          try {
+            if (!page.isClosed()) {
+              await page.goto(scriptRedirect, { waitUntil: 'domcontentloaded', timeout: Math.min(10000, timeout) });
+            }
+          } catch (err) {
+            logger.warn(`Script redirect navigation failed: ${err.message}`);
+          }
         }
       }
     } catch (err) {
@@ -2648,29 +2686,33 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
 
     // Handle form auto-submit patterns (single follow)
     try {
-      const formRedirect = await page.evaluate(() => {
-        try {
-          const forms = Array.from(document.forms || []);
-          for (const f of forms) {
-            const action = f.getAttribute('action') || f.action;
-            if (action && action.trim()) {
-              const url = new URL(action, document.baseURI).toString();
-              return url;
+      if (!page.isClosed()) {
+        const formRedirect = await page.evaluate(() => {
+          try {
+            const forms = Array.from(document.forms || []);
+            for (const f of forms) {
+              const action = f.getAttribute('action') || f.action;
+              if (action && action.trim()) {
+                const url = new URL(action, document.baseURI).toString();
+                return url;
+              }
             }
+            return null;
+          } catch (e) {
+            return null;
           }
-          return null;
-        } catch (e) {
-          return null;
-        }
-      });
+        });
 
-      if (formRedirect && !visitedScriptUrls.has(formRedirect)) {
-        visitedScriptUrls.add(formRedirect);
-        logger.info(`📝 Anti-cloaking: Following form action -> ${formRedirect.substring(0, 120)}...`);
-        try {
-          await page.goto(formRedirect, { waitUntil: 'domcontentloaded', timeout: Math.min(10000, timeout) });
-        } catch (err) {
-          logger.warn(`Form redirect navigation failed: ${err.message}`);
+        if (formRedirect && !visitedScriptUrls.has(formRedirect)) {
+          visitedScriptUrls.add(formRedirect);
+          logger.info(`📝 Anti-cloaking: Following form action -> ${formRedirect.substring(0, 120)}...`);
+          try {
+            if (!page.isClosed()) {
+              await page.goto(formRedirect, { waitUntil: 'domcontentloaded', timeout: Math.min(10000, timeout) });
+            }
+          } catch (err) {
+            logger.warn(`Form redirect navigation failed: ${err.message}`);
+          }
         }
       }
     } catch (err) {
@@ -2679,17 +2721,21 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
 
     // Follow captured parent/top navigation attempts
     try {
-      const forcedNav = await page.evaluate(() => {
-        try { return window.__forcedNavTarget || null; } catch (e) { return null; }
-      });
+      if (!page.isClosed()) {
+        const forcedNav = await page.evaluate(() => {
+          try { return window.__forcedNavTarget || null; } catch (e) { return null; }
+        });
 
-      if (forcedNav && !visitedScriptUrls.has(forcedNav)) {
-        visitedScriptUrls.add(forcedNav);
-        logger.info(`⬆️ Anti-cloaking: Following top/parent redirect -> ${forcedNav.substring(0, 120)}...`);
-        try {
-          await page.goto(forcedNav, { waitUntil: 'domcontentloaded', timeout: Math.min(10000, timeout) });
-        } catch (err) {
-          logger.warn(`Top/parent redirect navigation failed: ${err.message}`);
+        if (forcedNav && !visitedScriptUrls.has(forcedNav)) {
+          visitedScriptUrls.add(forcedNav);
+          logger.info(`⬆️ Anti-cloaking: Following top/parent redirect -> ${forcedNav.substring(0, 120)}...`);
+          try {
+            if (!page.isClosed()) {
+              await page.goto(forcedNav, { waitUntil: 'domcontentloaded', timeout: Math.min(10000, timeout) });
+            }
+          } catch (err) {
+            logger.warn(`Top/parent redirect navigation failed: ${err.message}`);
+          }
         }
       }
     } catch (err) {
@@ -2700,7 +2746,11 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     let pageContent = latestPageContent;
     if (!pageContent) {
       try {
-        pageContent = await page.content();
+        if (!page.isClosed()) {
+          pageContent = await page.content();
+        } else {
+          pageContent = '';
+        }
       } catch (err) {
         logger.warn('Could not get final page content (context destroyed):', err.message);
         pageContent = '';
@@ -2732,7 +2782,20 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       aggressivenessLevel = 'medium';
     }
 
-    const finalUrl = page.url();
+    let finalUrl = url; // Fallback to initial URL
+    try {
+      if (!page.isClosed()) {
+        finalUrl = page.url();
+      } else if (chain.length > 0) {
+        finalUrl = chain[chain.length - 1].url;
+      }
+    } catch (err) {
+      logger.warn(`Could not get final URL: ${err.message}`);
+      if (chain.length > 0) {
+        finalUrl = chain[chain.length - 1].url;
+      }
+    }
+    
     if (chain.length === 0 || chain[chain.length - 1].url !== finalUrl) {
       const finalParams = {};
       try {
@@ -2861,7 +2924,14 @@ app.post('/trace', async (req, res) => {
       user_id = null,
       offer_id = null,
       debug = false, // NEW: Enable detailed bandwidth calculation only when debug=true
+      device_distribution = null, // NEW: Custom device distribution [{ deviceCategory: 'mobile', weight: 60 }, ...]
     } = req.body;
+
+    // Apply custom device distribution if provided
+    if (device_distribution && Array.isArray(device_distribution) && device_distribution.length > 0) {
+      userAgentRotator.setDeviceDistribution(device_distribution);
+      logger.info(`📱 Custom device distribution applied for this request: ${JSON.stringify(device_distribution)}`);
+    }
 
     if (!url) {
       return res.status(400).json({ error: 'URL is required' });
@@ -2896,15 +2966,22 @@ app.post('/trace', async (req, res) => {
       ? geo_pool.map(normalizeCountry).filter(Boolean)
       : [];
 
-    const rotator = new GeoRotator({
-      pool: sanitizedPool,
-      strategy: geo_strategy || (geo_weights ? 'weighted' : 'round_robin'),
-      weights: geo_weights || {},
-    });
+    // Get or create rotator with this configuration
+    const rotatorKey = JSON.stringify({ pool: sanitizedPool, strategy: geo_strategy || 'round_robin', weights: geo_weights || {} });
+    let rotator = geoRotators.get(rotatorKey);
+    if (!rotator && sanitizedPool.length > 0) {
+      rotator = new GeoRotator({
+        pool: sanitizedPool,
+        strategy: geo_strategy || (geo_weights ? 'weighted' : 'round_robin'),
+        weights: geo_weights || {},
+      });
+      geoRotators.set(rotatorKey, rotator);
+      logger.info(`🔄 Created new GeoRotator: pool=${sanitizedPool.join(',')}, strategy=${geo_strategy || 'round_robin'}`);
+    }
 
     const forcedCountry = normalizeCountry(force_country);
     const requestCountry = normalizeCountry(target_country);
-    const selectedCountry = forcedCountry || requestCountry || rotator.next();
+    const selectedCountry = forcedCountry || requestCountry || (rotator ? rotator.next() : null);
 
     logger.info('🌍 Geo selection', {
       selected_geo: selectedCountry || null,

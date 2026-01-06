@@ -55,6 +55,11 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
     geo_strategy: (offer as any)?.geo_strategy || 'weighted',
     geo_weights: (offer as any)?.geo_weights || {},
     provider_id: (offer as any)?.provider_id || null,
+    device_distribution: (offer as any)?.device_distribution || [
+      { deviceCategory: 'mobile', weight: 60 },
+      { deviceCategory: 'desktop', weight: 30 },
+      { deviceCategory: 'tablet', weight: 10 }
+    ],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +72,13 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
   const [geoStrategy, setGeoStrategy] = useState<string>(formData.geo_strategy || 'weighted');
   const [geoWeights, setGeoWeights] = useState<Record<string, number>>(formData.geo_weights || {});
   const [newGeoCountry, setNewGeoCountry] = useState('');
+  const [deviceDistribution, setDeviceDistribution] = useState<Array<{ deviceCategory: string; weight: number }>>(
+    formData.device_distribution || [
+      { deviceCategory: 'mobile', weight: 60 },
+      { deviceCategory: 'desktop', weight: 30 },
+      { deviceCategory: 'tablet', weight: 10 }
+    ]
+  );
 
   const [maxRedirects, setMaxRedirects] = useState<number>(20);
   const [timeout, setTimeout] = useState<number>(60000);
@@ -133,8 +145,9 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
       geo_pool: geoPool,
       geo_strategy: geoStrategy,
       geo_weights: geoWeights,
+      device_distribution: deviceDistribution,
     }));
-  }, [trackingUrls, referrers, paramFilter, geoPool, geoStrategy, geoWeights]);
+  }, [trackingUrls, referrers, paramFilter, geoPool, geoStrategy, geoWeights, deviceDistribution]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,6 +173,14 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
       return;
     }
 
+    // Validate device distribution totals 100%
+    const totalWeight = deviceDistribution.reduce((sum, d) => sum + d.weight, 0);
+    if (totalWeight !== 100) {
+      setError(`Device distribution must total 100% (currently ${totalWeight}%)`);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
@@ -175,6 +196,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
         geo_pool: geoPool,
         geo_strategy: geoStrategy,
         geo_weights: geoWeights,
+        device_distribution: deviceDistribution,
       };
 
       if (offer) {
@@ -675,6 +697,85 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">Higher weight = more frequent selection</p>
                   </div>
                 )}
+              </div>
+
+              <div className="bg-info-50 dark:bg-info-900/20 border border-info-200 dark:border-info-800 rounded-lg p-4 space-y-4">
+                <h4 className="font-semibold text-neutral-900 dark:text-neutral-50 mb-3">Device Distribution</h4>
+                <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-4">Configure the percentage distribution of device types for User Agent rotation. Total must equal 100%.</p>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Mobile %
+                    </label>
+                    <input
+                      type="number"
+                      value={deviceDistribution.find(d => d.deviceCategory === 'mobile')?.weight || 60}
+                      onChange={(e) => {
+                        const weight = parseInt(e.target.value) || 0;
+                        setDeviceDistribution(prev => 
+                          prev.map(d => d.deviceCategory === 'mobile' ? { ...d, weight } : d)
+                        );
+                      }}
+                      min="0"
+                      max="100"
+                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Desktop %
+                    </label>
+                    <input
+                      type="number"
+                      value={deviceDistribution.find(d => d.deviceCategory === 'desktop')?.weight || 30}
+                      onChange={(e) => {
+                        const weight = parseInt(e.target.value) || 0;
+                        setDeviceDistribution(prev => 
+                          prev.map(d => d.deviceCategory === 'desktop' ? { ...d, weight } : d)
+                        );
+                      }}
+                      min="0"
+                      max="100"
+                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Tablet %
+                    </label>
+                    <input
+                      type="number"
+                      value={deviceDistribution.find(d => d.deviceCategory === 'tablet')?.weight || 10}
+                      onChange={(e) => {
+                        const weight = parseInt(e.target.value) || 0;
+                        setDeviceDistribution(prev => 
+                          prev.map(d => d.deviceCategory === 'tablet' ? { ...d, weight } : d)
+                        );
+                      }}
+                      min="0"
+                      max="100"
+                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    Total: {deviceDistribution.reduce((sum, d) => sum + d.weight, 0)}%
+                  </span>
+                  {deviceDistribution.reduce((sum, d) => sum + d.weight, 0) !== 100 && (
+                    <span className="text-sm text-warning-600 dark:text-warning-400">
+                      (Must equal 100%)
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  Default: Mobile 60%, Desktop 30%, Tablet 10%. Adjust for campaign-specific targeting.
+                </p>
               </div>
 
               <div>
@@ -1461,9 +1562,9 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                       <span className="text-gray-600">
                         {traceResult.total_steps} steps
                       </span>
-                      {(traceResult as any).bandwidth_kb && (
+                      {(traceResult as any).bandwidth_bytes && (
                         <span className="text-gray-600 text-xs font-medium">
-                          📊 {(traceResult as any).bandwidth_kb} KB
+                          📊 {((traceResult as any).bandwidth_bytes).toLocaleString()} B
                         </span>
                       )}
                       {(traceResult as any).selected_geo && (

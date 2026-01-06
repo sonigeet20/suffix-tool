@@ -31,10 +31,12 @@ interface TraceRequest {
   referrer?: string;
   tracer_mode?: string;
   expected_final_url?: string;
+  suffix_step?: number;
   geo_pool?: string[];
   geo_strategy?: string;
   geo_weights?: Record<string, number>;
   offer_id?: string;
+  device_distribution?: Array<{ deviceCategory: string; weight: number }>;
 }
 
 async function fetchThroughResidentialProxy(
@@ -94,9 +96,11 @@ async function fetchThroughAWSProxy(
   referrer?: string | null,
   tracerMode?: string,
   expectedFinalUrl?: string | null,
+  suffixStep?: number | null,
   geoPool?: string[] | null,
   geoStrategy?: string | null,
   geoWeights?: Record<string, number> | null,
+  deviceDistribution?: Array<{ deviceCategory: string; weight: number }> | null,
 ): Promise<
   | { success: boolean; chain: any[]; proxy_ip?: string; geo_location?: any }
   | null
@@ -135,6 +139,10 @@ async function fetchThroughAWSProxy(
       requestBody.expected_final_url = expectedFinalUrl;
     }
 
+    if (suffixStep !== null && suffixStep !== undefined) {
+      requestBody.suffix_step = suffixStep;
+    }
+
     if (geoPool && geoPool.length > 0) {
       requestBody.geo_pool = geoPool;
     }
@@ -145,6 +153,10 @@ async function fetchThroughAWSProxy(
 
     if (geoWeights && Object.keys(geoWeights).length > 0) {
       requestBody.geo_weights = geoWeights;
+    }
+
+    if (deviceDistribution && deviceDistribution.length > 0) {
+      requestBody.device_distribution = deviceDistribution;
     }
 
     const response = await fetch(`${awsProxyUrl}/trace`, {
@@ -260,6 +272,7 @@ async function fetchThroughBrightDataBrowser(
     const visitedUrls = new Set<string>();
     let currentUrl = url;
     let hopCount = 0;
+    let totalBandwidth = 0;  // Track total bandwidth in bytes
     const maxHops = maxRedirects || 10;
 
     while (hopCount < maxHops) {
@@ -335,7 +348,9 @@ async function fetchThroughBrightDataBrowser(
         }
 
         const htmlContent = await response.text();
-        console.log(`✅ Hop ${hopCount} received HTML, length: ${htmlContent.length}`);
+        const htmlSizeBytes = new TextEncoder().encode(htmlContent).length;
+        totalBandwidth += htmlSizeBytes;  // Track bandwidth
+        console.log(`✅ Hop ${hopCount} received HTML, length: ${htmlContent.length} (${htmlSizeBytes.toLocaleString()} B), total bandwidth: ${totalBandwidth.toLocaleString()} B`);
 
         // Extract query parameters from current URL
         let urlParams: Record<string, string> = {};
@@ -433,23 +448,20 @@ async function fetchThroughBrightDataBrowser(
       console.log(`⚠️ Reached max hops (${maxHops}), stopping redirect chain`);
     }
 
-    // Calculate bandwidth used by response
-    const responseSize = JSON.stringify({ chain, geo_location: { country: targetCountry } }).length;
-    const bandwidth_kb = Math.round(responseSize / 1024);
-
+    // Return total bandwidth in bytes
     return {
       success: chain.length > 0,
       chain: chain.length > 0 ? chain : undefined,
       proxy_ip: undefined,
       geo_location: { country: targetCountry || "unknown" },
-      bandwidth_kb: bandwidth_kb,
+      bandwidth_bytes: totalBandwidth,
     };
   } catch (error: any) {
     console.error("Bright Data Browser API fetch error:", error);
     return {
       success: false,
       error: error.message || "Unknown Bright Data Browser error",
-      bandwidth_kb: 0,
+      bandwidth_bytes: 0,
     };
   }
 }
@@ -482,19 +494,20 @@ Deno.serve(async (req: Request) => {
       referrer,
       tracer_mode = "auto",
       expected_final_url = null,
+      suffix_step = null,
       geo_pool = null,
       geo_strategy = null,
       geo_weights = null,
       offer_id = null,
+      device_distribution = null,
     } = await req.json() as TraceRequest;
 
     if (!url) {
       throw new Error("URL is required");
     }
 
-    // Pin a single UA for this trace and reuse everywhere
-    const userAgentStr = user_agent ||
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    // Let proxy service handle user agent rotation - don't provide a default
+    const userAgentStr = user_agent || null;
 
     let validatedUrl: string;
     try {
@@ -528,46 +541,60 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (effectiveUserId) {
-      try {
+    // PUBLIC ACCESS: Try to fetch settings from database
+    // First try with user_id if provided, otherwise get any settings record
+    try {
+      let settings = null;
+      let settingsError = null;
+
+      if (effectiveUserId) {
         console.log("🔑 Fetching proxy settings for user:", effectiveUserId);
-        const { data: settings, error: settingsError } = await supabase
+        const result = await supabase
           .from("settings")
           .select("*")
           .eq("user_id", effectiveUserId)
           .maybeSingle();
-
-        if (settingsError) {
-          console.error("❌ Settings query error:", settingsError);
-        }
-
-        if (!settingsError && settings) {
-          if (settings.aws_proxy_url) {
-            awsProxyUrl = settings.aws_proxy_url;
-            console.log("✅ AWS Proxy Service configured:", awsProxyUrl);
-          }
-
-          if (
-            settings.luna_proxy_host && settings.luna_proxy_port &&
-            settings.luna_proxy_username && settings.luna_proxy_password
-          ) {
-            proxyHost = settings.luna_proxy_host;
-            proxyPort = settings.luna_proxy_port;
-            proxyUsername = settings.luna_proxy_username;
-            proxyPassword = settings.luna_proxy_password;
-            console.log("✅ Residential proxy configured:", proxyHost);
-          }
-        } else {
-          console.log("⚠️ No settings found for user");
-        }
-      } catch (settingsErr) {
-        console.error("❌ Failed to fetch settings:", settingsErr);
+        settings = result.data;
+        settingsError = result.error;
+      } else {
+        console.log("🌐 No user_id provided - fetching any available settings for public access");
+        const result = await supabase
+          .from("settings")
+          .select("*")
+          .limit(1)
+          .maybeSingle();
+        settings = result.data;
+        settingsError = result.error;
       }
-    } else {
-      console.log("⚠️ No user_id provided");
+
+      if (settingsError) {
+        console.error("❌ Settings query error:", settingsError);
+      }
+
+      if (settings) {
+        if (settings.aws_proxy_url) {
+          awsProxyUrl = settings.aws_proxy_url;
+          console.log("✅ AWS Proxy Service configured:", awsProxyUrl);
+        }
+
+        if (
+          settings.luna_proxy_host && settings.luna_proxy_port &&
+          settings.luna_proxy_username && settings.luna_proxy_password
+        ) {
+          proxyHost = settings.luna_proxy_host;
+          proxyPort = settings.luna_proxy_port;
+          proxyUsername = settings.luna_proxy_username;
+          proxyPassword = settings.luna_proxy_password;
+          console.log("✅ Residential proxy configured:", proxyHost);
+        }
+      } else {
+        console.log("⚠️ No settings found in database");
+      }
+    } catch (settingsErr) {
+      console.error("❌ Failed to fetch settings:", settingsErr);
     }
 
-    // Use default AWS proxy URL if not configured in user settings
+    // Use default AWS proxy URL if not configured in database
     if (!awsProxyUrl) {
       const defaultAwsUrl = Deno.env.get("DEFAULT_AWS_PROXY_URL");
       if (defaultAwsUrl) {
@@ -642,8 +669,9 @@ Deno.serve(async (req: Request) => {
                   if (brightDataResult && brightDataResult.success) {
                     const totalTiming = Date.now() - startTime;
                     const responseBody = { 
-                      ...brightDataResult, 
-                      user_agent: userAgentStr,
+                      ...brightDataResult,
+                      // Keep user_agent from result if available, otherwise use provided one
+                      user_agent: brightDataResult.user_agent || userAgentStr,
                       total_timing_ms: totalTiming,
                       total_steps: brightDataResult.chain?.length || 0,
                     };
@@ -949,14 +977,22 @@ Deno.serve(async (req: Request) => {
         referrer,
         tracer_mode,
         expected_final_url,
+        suffix_step,
         geo_pool,
         geo_strategy,
         geo_weights,
+        device_distribution,
       );
 
       if (awsResult) {
         return new Response(
-          JSON.stringify({ ...awsResult, user_agent: userAgentStr }),
+          JSON.stringify({ 
+            ...awsResult,
+            // Keep user_agent from awsResult (proxy-generated), only override if explicitly provided
+            user_agent: awsResult.user_agent || userAgentStr,
+            // Map total_bandwidth_bytes to bandwidth_bytes for consistency
+            bandwidth_bytes: awsResult.total_bandwidth_bytes || 0,
+          }),
           {
             headers: {
               ...corsHeaders,

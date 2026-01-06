@@ -408,11 +408,18 @@ export default function Analytics() {
                                       <Calendar size={12} />
                                       {formatDate(request.requested_at)}
                                     </div>
-                                    <div className="flex items-center gap-1 text-xs">
-                                      <Globe size={12} className={request.proxy_ip ? 'text-brand-500 dark:text-brand-400' : 'text-neutral-400 dark:text-neutral-500'} />
-                                      <span className={request.proxy_ip ? 'text-brand-700 dark:text-brand-300 font-semibold' : 'text-neutral-500 dark:text-neutral-400'}>
-                                        {request.proxy_ip || request.ip_address || 'N/A'}
-                                      </span>
+                                    <div className="flex items-center gap-3 text-xs">
+                                      <div className="flex items-center gap-1">
+                                        <Globe size={12} className={request.proxy_ip ? 'text-brand-500 dark:text-brand-400' : 'text-neutral-400 dark:text-neutral-500'} />
+                                        <span className={request.proxy_ip ? 'text-brand-700 dark:text-brand-300 font-semibold' : 'text-neutral-500 dark:text-neutral-400'}>
+                                          {request.proxy_ip || request.ip_address || 'N/A'}
+                                        </span>
+                                      </div>
+                                      {(request as any).bandwidth_bytes && (
+                                        <span className="text-neutral-600 dark:text-neutral-400 font-medium">
+                                          📊 {((request as any).bandwidth_bytes).toLocaleString()} B
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
 

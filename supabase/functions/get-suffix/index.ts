@@ -304,6 +304,9 @@ Deno.serve(async (req: Request) => {
     let lastTraceStatus: number | null = null;
     let traceBandwidth_bytes = 0;  // Track trace bandwidth in bytes
     let tracedFinalUrl: string | null = null;  // Actual final URL from trace
+    let usedUserAgent: string | null = null;  // Track which user agent was used
+    let selectedGeo: string | null = null;  // Track selected geo country
+    let geoLocation: any = null;  // Track geo location details
 
     if (trackingUrlToUse) {
       const retryLimit = offer.retry_limit || 3;
@@ -337,7 +340,7 @@ Deno.serve(async (req: Request) => {
             url: trackingUrlToUse,
             max_redirects: 20,
             timeout_ms: 45000,
-            user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            // user_agent removed - let proxy service handle rotation
             user_id: offer.user_id,
             use_proxy: true,
             target_country: offer.target_country || null,
@@ -345,6 +348,22 @@ Deno.serve(async (req: Request) => {
             suffix_step: offer.redirect_chain_step || null,
             expected_final_url: expectedFinalUrl,
           };
+
+          // Add geo rotation parameters if configured
+          if (offer.geo_pool && offer.geo_pool.length > 0) {
+            traceRequestBody.geo_pool = offer.geo_pool;
+            traceRequestBody.geo_strategy = offer.geo_strategy || 'round_robin';
+            if (offer.geo_weights) {
+              traceRequestBody.geo_weights = offer.geo_weights;
+            }
+            console.log(`🌍 Geo rotation: pool=${offer.geo_pool.join(',')}, strategy=${traceRequestBody.geo_strategy}`);
+          }
+
+          // Add device distribution if configured (for user agent generation)
+          if (offer.device_distribution && Array.isArray(offer.device_distribution) && offer.device_distribution.length > 0) {
+            traceRequestBody.device_distribution = offer.device_distribution;
+            console.log(`📱 Device distribution: ${JSON.stringify(offer.device_distribution)}`);
+          }
 
           console.log(`📡 Trace request - tracer_mode: ${traceRequestBody.tracer_mode}, url: ${trackingUrlToUse.substring(0, 80)}`);
 
@@ -444,6 +463,21 @@ Deno.serve(async (req: Request) => {
                 console.log('✅ Proxy IP captured:', proxyIp);
               } else {
                 console.log('⚠️ No proxy_ip in trace result');
+              }
+
+              if (traceResult.user_agent) {
+                usedUserAgent = traceResult.user_agent;
+                console.log('✅ User agent captured:', usedUserAgent);
+              }
+
+              if (traceResult.selected_geo) {
+                selectedGeo = traceResult.selected_geo;
+                console.log('✅ Selected geo captured:', selectedGeo);
+              }
+
+              if (traceResult.geo_location) {
+                geoLocation = traceResult.geo_location;
+                console.log('✅ Geo location captured:', geoLocation);
               }
 
               if (traceSuccessful && traceResult.proxy_ip) {
@@ -603,6 +637,9 @@ Deno.serve(async (req: Request) => {
       param_filter_mode: offer.param_filter_mode || 'all',
       trace_successful: traceSuccessful,
       attempts: attemptCount,
+      user_agent: usedUserAgent,  // Include user agent that was used
+      selected_geo: selectedGeo,  // Include selected geo country
+      geo_location: geoLocation,  // Include geo location details
       timestamp: new Date().toISOString(),
     };
 

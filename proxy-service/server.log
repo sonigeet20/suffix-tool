@@ -1,0 +1,255 @@
+info: UserAgentRotator initialized in 'dynamic' mode with pool size: 10000
+info: Proxy service running on 0.0.0.0:3000
+info: Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)
+info: Proxy settings loaded from database: {"host":"na.lunaproxy.com","port":12233}
+info: Luna Proxy configured from database: {"host":"na.lunaproxy.com","port":12233}
+info: ⚡ Trace request: {"mode":"browser","url":"https://www.awin1.com/cread.php?awinmid=13075&awinaffid=885207&clickref=test111&ued=https%3A%2F%2Fwww.elcorteingles.es%2F"}
+info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":null}
+info: 🌐 Using Browser mode (full rendering)
+info: Launching fresh browser for new IP
+info: Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+info: 🔄 Browser: Fresh Luna connection (session: 1m2xumqy...)
+info: 🎭 Using User Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ...
+info: 🖥️ Unique fingerprint: desktop | viewport=1280x720, colorDepth=32, pixelRatio=1.5
+info: 📄 Browser document request #1: https://www.awin1.com/cread.php?awinmid=13075&awinaffid=885207&clickref=test111&ued=https%3A%2F%2Fwww.elcorteingles.es%2F
+info: 📄 Browser document request #2: https://ad.doubleclick.net/ddm/clk/444125285;247787737;w?https://www.elcorteingles.es?aw_affid=885207&awc=13075_1767546728_318888d1c7c96c31edc76b0293d329b7&aff_id=2118094&utm_source=awin&utm_medium=cpm&utm_campaign=eci_fv_fuerzadeventas_cm360_affiliate_afiliacion_20190901-20300228_na_purch_af319&utm_content=text&utm_term=afiliacion-generico_1x1_ccd_02-06-2016
+info: 🪶 Browser: Final-hop minimal mode enabled (expected_final_url_match) for https://www.elcorteingles.es/?aw_affid=885207&awc=13075_1767546728_318888d1c7c96...
+info: 📄 Browser document request #3: https://www.elcorteingles.es/?aw_affid=885207&awc=13075_1767546728_318888d1c7c96c31edc76b0293d329b7&aff_id=2118094&utm_source=awin&utm_medium=cpm&utm_campaign=eci_fv_fuerzadeventas_cm360_affiliate_afiliacion_20190901-20300228_na_purch_af319&utm_content=text&utm_term=afiliacion-generico_1x1_ccd_02-06-2016&gad_source=7&dclid=COmn29ew8pEDFcf0AgcdqsUBug
+info: 📄 Browser final URL: https://www.elcorteingles.es/?aw_affid=885207&awc=13075_1767546728_318888d1c7c96c31edc76b0293d329b7&aff_id=2118094&utm_source=awin&utm_medium=cpm&utm_campaign=eci_fv_fuerzadeventas_cm360_affiliate_afiliacion_20190901-20300228_na_purch_af319&utm_content=text&utm_term=afiliacion-generico_1x1_ccd_02-06-2016&gad_source=7&dclid=COmn29ew8pEDFcf0AgcdqsUBug - Minimal mode (skipping body)
+info: 🛑 Browser: Detected final URL, closing page to save bandwidth
+warn: ⚠️ Error searching for hidden redirects: Protocol error (Runtime.callFunctionOn): Target closed
+info: ⚡ Browser: Early stop - no more redirects found
+warn: ⚠️ Could not retrieve JS redirect log: Protocol error (Runtime.callFunctionOn): Session closed. Most likely the page has been closed.
+info: 📊 Browser Mode Network Summary:
+  ├─ Document requests: 3
+  ├─ Total network clicks: 3
+  ├─ Retry attempts detected: 0
+  ├─ JS redirects detected: 0
+  ├─ Form submissions: 0
+  ├─ Request ratio (clicks/docs): 1.00x
+  └─ Duration: 7311ms
+error: Failed to close page: Protocol error: Connection closed. Most likely the page has been closed. {"stack":"Error: Protocol error: Connection closed. Most likely the page has been closed.\n    at assert (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/util/assert.js:18:15)\n    at CdpPage.close (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Page.js:848:32)\n    at traceRedirectsBrowser (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:1993:18)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async Promise.all (index 0)\n    at async /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:2926:31"}
+info: ✅ Trace completed (browser): 4 steps in 8373ms | 0 B transferred
+info: 📊 Bandwidth details: total=0B, avg_per_step=0B
+info: 🌐 Proxy IP used: 77.28.116.188 | Location: Kumanovo, Kumanovo, North Macedonia | Selected Geo: N/A
+warn: ⚠️ Browser navigation failed (no retry): Navigating frame was detached
+info: ⚡ Trace request: {"mode":"browser","url":"https://zouton.com/tracking/greyhoundlinet/greyhoundlinets"}
+info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":null}
+info: 🌐 Using Browser mode (full rendering)
+info: Launching fresh browser for new IP
+info: Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+info: 🔄 Browser: Fresh Luna connection (session: 1vrpuhx8...)
+info: 🎭 Using User Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ...
+info: 🖥️ Unique fingerprint: desktop | viewport=1449x890, colorDepth=32, pixelRatio=1
+info: 📄 Browser document request #1: https://zouton.com/tracking/greyhoundlinet/greyhoundlinets
+info: 📄 Browser final URL: https://zouton.com/tracking/greyhoundlinet/greyhoundlinets - Downloaded: 468 bytes
+info: 🛑 Browser: Detected final URL, closing page to save bandwidth
+warn: ⚠️ Could not retrieve JS redirect log: Protocol error (Runtime.callFunctionOn): Target closed
+info: 📊 Browser Mode Network Summary:
+  ├─ Document requests: 1
+  ├─ Total network clicks: 2
+  ├─ Retry attempts detected: 0
+  ├─ JS redirects detected: 0
+  ├─ Form submissions: 0
+  ├─ Request ratio (clicks/docs): 2.00x
+  └─ Duration: 3137ms
+error: Failed to close page: Protocol error: Connection closed. Most likely the page has been closed. {"stack":"Error: Protocol error: Connection closed. Most likely the page has been closed.\n    at assert (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/util/assert.js:18:15)\n    at CdpPage.close (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Page.js:848:32)\n    at traceRedirectsBrowser (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:1993:18)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async Promise.all (index 0)\n    at async /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:2926:31"}
+info: ✅ Trace completed (browser): 1 steps in 4368ms | 468.00 B transferred
+info: 📊 Bandwidth details: total=468B, avg_per_step=468B
+info: 🌐 Proxy IP used: 41.184.245.37 | Location: Lagos, Lagos, Nigeria | Selected Geo: N/A
+warn: ⚠️ Error searching for hidden redirects: Requesting main frame too early!
+info: ⚡ Browser: Early stop - no more redirects found
+info: ⚡ Trace request: {"mode":"anti_cloaking","url":"https://zouton.com/tracking/greyhoundlinet/greyhoundlinets"}
+info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":null}
+info: 🕵️ Using Anti-Cloaking mode (advanced stealth)
+info: Launching fresh browser for new IP
+info: Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+info: 🔄 Anti-cloaking: Fresh Luna connection (session: hx87guxp...)
+info: 🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, lik...
+info: 🖥️ Unique fingerprint: desktop | viewport=1368x764, colorDepth=24, pixelRatio=1.25
+info: 📄 Anti-cloaking document request #1: https://zouton.com/tracking/greyhoundlinet/greyhoundlinets
+info: 📄 Anti-cloaking final URL: https://zouton.com/tracking/greyhoundlinet/greyhoundlinets - Downloaded: 468 bytes
+info: 📄 Anti-cloaking document request #2: https://zouton.com/tracking/greyhoundlineb/greyhoundlinecom
+warn: Script redirect detection error: Execution context was destroyed, most likely because of a navigation.
+info: 📄 Anti-cloaking final URL: https://zouton.com/tracking/greyhoundlineb/greyhoundlinecom - Downloaded: 472 bytes
+info: 📄 Anti-cloaking document request #3: https://www.awin1.com/cread.php?awinmid=40028&awinaffid=885207
+info: 📄 Anti-cloaking document request #4: https://www.greyhound.com/?utm_source=awus.Discount+Code&utm_medium=aff&utm_campaign=885207-AW.0-AW&utm_content=us.greyhound&sv1=affiliate&sv_campaign_id=885207&awc=40028_1767546803_c855b3f2cbe992f4efb639cbdf7258b6
+info: ⚡ Anti-cloaking: Early stop - no URL changes for 3.5s
+warn: Top/parent redirect detection error: Execution context was destroyed, most likely because of a navigation.
+info: 📊 Anti-Cloaking Mode Network Summary:
+  ├─ Document requests: 4
+  ├─ Total network clicks: 17
+  ├─ Retry attempts detected: 0
+  ├─ Request ratio (clicks/docs): 4.25x
+  └─ Duration: 8047ms
+info: ✅ Trace completed (anti_cloaking): 4 steps in 8870ms | 940.00 B transferred
+info: 📊 Bandwidth details: total=940B, avg_per_step=235B
+info: 🌐 Proxy IP used: 45.228.136.247 | Location: Ciudad del Este, Alto Paraná Department, Paraguay | Selected Geo: N/A
+info: ⚡ Trace request: {"mode":"browser","url":"https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921"}
+info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":null}
+info: 🌐 Using Browser mode (full rendering)
+info: Launching fresh browser for new IP
+info: Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+info: 🔄 Browser: Fresh Luna connection (session: wzc3qm00...)
+info: 🎭 Using User Agent: Mozilla/5.0 (iPad; CPU OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, lik...
+info: 🖥️ Unique fingerprint: mobile | viewport=414x901, colorDepth=32, pixelRatio=3
+info: 📄 Browser document request #1: https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921
+warn: Geolocation fetch error (non-critical):
+info: 📄 Browser document request #2: https://visit.nordvpn.com/?offer_id=42&aff_id=136822&aff_transaction_id=1026e6ec770118472fc03cb2d3c48b&source=&aff_sub=723921&url_id=533
+warn: ⚠️ Browser navigation failed (no retry): net::ERR_CONNECTION_CLOSED at https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921
+info: ⚡ Browser: Early stop - no more redirects found
+info: 📊 Browser Mode Network Summary:
+  ├─ Document requests: 2
+  ├─ Total network clicks: 5
+  ├─ Retry attempts detected: 0
+  ├─ JS redirects detected: 0
+  ├─ Form submissions: 0
+  ├─ Request ratio (clicks/docs): 2.50x
+  └─ Duration: 57877ms
+info: ✅ Trace completed (browser): 2 steps in 59356ms | 340.00 B transferred
+info: 📊 Bandwidth details: total=340B, avg_per_step=170B
+info: 🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A
+info: ⚡ Trace request: {"mode":"anti_cloaking","url":"https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921"}
+info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":null}
+info: 🕵️ Using Anti-Cloaking mode (advanced stealth)
+info: Launching fresh browser for new IP
+info: Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+info: 🔄 Anti-cloaking: Fresh Luna connection (session: rop6eqrv...)
+info: 🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ...
+info: 🖥️ Unique fingerprint: desktop | viewport=1542x864, colorDepth=24, pixelRatio=1.25
+info: 📄 Anti-cloaking document request #1: https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921
+info: ⚡ Anti-cloaking: Early stop - no URL changes for 3.5s
+warn: Script redirect detection error: Execution context was destroyed, most likely because of a navigation.
+info: 📄 Anti-cloaking final URL: https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921 - Downloaded: 0 bytes
+info: 📊 Anti-Cloaking Mode Network Summary:
+  ├─ Document requests: 1
+  ├─ Total network clicks: 2
+  ├─ Retry attempts detected: 0
+  ├─ Request ratio (clicks/docs): 2.00x
+  └─ Duration: 5391ms
+info: ✅ Trace completed (anti_cloaking): 1 steps in 6605ms | 0 B transferred
+info: 📊 Bandwidth details: total=0B, avg_per_step=0B
+info: 🌐 Proxy IP used: 105.172.201.142 | Location: Luanda, Luanda Province, Angola | Selected Geo: N/A
+info: ⚡ Trace request: {"mode":"http_only","url":"https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921"}
+info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":null}
+info: ⚡ Using HTTP-only mode (fast)
+info: ⚡ HTTP-only INSTANT (GET + stream headers): https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921... | maxRedirects: 20
+info: 📱 User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)...
+info: 🖥️ Unique fingerprint: desktop | viewport=1919x1082, colorDepth=24, pixelRatio=1
+info: 🔄 HTTP-only: Using Luna proxy (new connection = new IP)
+info:   🚀 Hop 1 (parallel, concurrent=1): https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_s...
+info:   ✅ Hop 1 (302) in 3001ms, ~1.60 KB  [parallel, concurrent=1]
+info:   🚀 Hop 2 (parallel, concurrent=2): https://visit.nordvpn.com/?offer_id=42&aff_id=136822&aff_tra...
+info:   ❌ Hop 2 error: ECONNRESET
+info: ✅ HTTP-only trace complete: 2 steps (2 hops launched, max concurrent=2), 1.60 KB
+info: ✅ Trace completed (http_only): 2 steps in 3950ms | 1.60 KB transferred
+info: 📊 Bandwidth details: total=1637B, avg_per_step=819B
+info: 🌐 Proxy IP used: 58.153.160.136 | Location: Central, Central and Western District, Hong Kong | Selected Geo: N/A
+info: ⚡ Trace request: {"mode":"http_only","url":"https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921"}
+info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":null}
+info: ⚡ Using HTTP-only mode (fast)
+info: ⚡ HTTP-only INSTANT (GET + stream headers): https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921... | maxRedirects: 20
+info: 📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K...
+info: 🖥️ Unique fingerprint: mobile | viewport=419x886, colorDepth=32, pixelRatio=3
+info: 🔄 HTTP-only: Using Luna proxy (new connection = new IP)
+info:   🚀 Hop 1 (parallel, concurrent=1): https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_s...
+info:   ⏱️ Hop 1 timeout after 5002ms
+info: ✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1), 0 B
+info: ✅ Trace completed (http_only): 1 steps in 5065ms | 0 B transferred
+info: 📊 Bandwidth details: total=0B, avg_per_step=0B
+info: 🌐 Proxy IP used: 92.53.14.52 | Location: Skopje, Grad Skopje, North Macedonia | Selected Geo: N/A
+info: ⚡ Trace request: {"mode":"anti_cloaking","url":"https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921"}
+info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":null}
+info: 🕵️ Using Anti-Cloaking mode (advanced stealth)
+info: Launching fresh browser for new IP
+info: Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+info: 🔄 Anti-cloaking: Fresh Luna connection (session: flt2aa27...)
+info: 🕵️ Anti-cloaking User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K...
+info: 🖥️ Unique fingerprint: mobile | viewport=389x858, colorDepth=24, pixelRatio=3
+info: 📄 Anti-cloaking document request #1: https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921
+warn: Geolocation fetch error (non-critical):
+info: 📄 Anti-cloaking document request #2: https://visit.nordvpn.com/?offer_id=42&aff_id=136822&aff_transaction_id=1029abbb8f0d210ec06970ba4e4c44&source=&aff_sub=723921&url_id=533
+info: ⚡ Anti-cloaking: Early stop - no URL changes for 3.5s
+warn: ⚠️ Anti-cloaking navigation failed (no retry): net::ERR_CONNECTION_CLOSED at https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921
+info: 📊 Anti-Cloaking Mode Network Summary:
+  ├─ Document requests: 2
+  ├─ Total network clicks: 5
+  ├─ Retry attempts detected: 0
+  ├─ Request ratio (clicks/docs): 2.50x
+  └─ Duration: 55337ms
+info: ✅ Trace completed (anti_cloaking): 2 steps in 57640ms | 340.00 B transferred
+info: 📊 Bandwidth details: total=340B, avg_per_step=170B
+info: 🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A
+info: ⚡ Trace request: {"max_redirects":10,"mode":"anti_cloaking","timeout_ms":30000,"url":"https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921"}
+info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":null}
+info: 🕵️ Using Anti-Cloaking mode (advanced stealth)
+info: Launching fresh browser for new IP
+info: Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+info: 🔄 Anti-cloaking: Fresh Luna connection (session: tjfqinry...)
+info: 🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome...
+info: 🖥️ Unique fingerprint: mobile | viewport=398x848, colorDepth=24, pixelRatio=2
+info: 📄 Anti-cloaking document request #1: https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921
+info: ⚡ Anti-cloaking: Early stop - no URL changes for 3.5s
+info: 📄 Anti-cloaking document request #2: https://visit.nordvpn.com/?offer_id=42&aff_id=136822&aff_transaction_id=102793694fe769cddc750756967b2c&source=&aff_sub=723921&url_id=533
+info: 📄 Anti-cloaking document request #3: https://nordvpn.com/special/?utm_medium=affiliate&utm_term=&utm_content=723921&utm_source=aff136822&utm_campaign=off42
+warn: Script redirect detection error: Execution context was destroyed, most likely because of a navigation.
+info: 📊 Anti-Cloaking Mode Network Summary:
+  ├─ Document requests: 3
+  ├─ Total network clicks: 13
+  ├─ Retry attempts detected: 0
+  ├─ Request ratio (clicks/docs): 4.33x
+  └─ Duration: 13417ms
+info: ✅ Trace completed (anti_cloaking): 3 steps in 14495ms | 340.00 B transferred
+info: 📊 Bandwidth details: total=340B, avg_per_step=113B
+info: 🌐 Proxy IP used: 129.45.93.218 | Location: Mostaganem, Mostaganem, Algeria | Selected Geo: N/A
+info: ⚡ Trace request: {"max_redirects":10,"mode":"anti_cloaking","timeout_ms":30000,"url":"https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921"}
+info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":null}
+info: 🕵️ Using Anti-Cloaking mode (advanced stealth)
+info: Launching fresh browser for new IP
+info: Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+info: 🔄 Anti-cloaking: Fresh Luna connection (session: ku2maqec...)
+info: 🕵️ Anti-cloaking User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K...
+info: 🖥️ Unique fingerprint: mobile | viewport=418x919, colorDepth=32, pixelRatio=3
+info: 📄 Anti-cloaking document request #1: https://go.nordvpn.net/aff_c?offer_id=42&aff_id=136822&aff_sub=723921
+warn: Geolocation fetch error (non-critical):
+info: 📄 Anti-cloaking document request #2: https://visit.nordvpn.com/?offer_id=42&aff_id=136822&aff_transaction_id=10268a45d71f9ab5d73adfbe824c3c&source=&aff_sub=723921&url_id=533
+info: ⚡ Anti-cloaking: Early stop - no URL changes for 3.5s
+info: 📄 Anti-cloaking document request #3: https://nordvpn.com/special/?utm_medium=affiliate&utm_term=&utm_content=723921&utm_source=aff136822&utm_campaign=off42
+warn: Script redirect detection error: Execution context was destroyed, most likely because of a navigation.
+info: 📊 Anti-Cloaking Mode Network Summary:
+  ├─ Document requests: 3
+  ├─ Total network clicks: 15
+  ├─ Retry attempts detected: 0
+  ├─ Request ratio (clicks/docs): 5.00x
+  └─ Duration: 8659ms
+info: ✅ Trace completed (anti_cloaking): 3 steps in 9948ms | 340.00 B transferred
+info: 📊 Bandwidth details: total=340B, avg_per_step=113B
+info: 🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A
+info: ⚡ Trace request: {"max_redirects":10,"mode":"anti_cloaking","target_country":"US","timeout_ms":45000,"url":"https://zouton.com/tracking/greyhoundlinet/greyhoundlinets"}
+info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":"us"}
+info: 🌍 Geo-targeting: US
+info: 🕵️ Using Anti-Cloaking mode (advanced stealth)
+info: Launching fresh browser for new IP
+info: Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+info: 🕵️ Anti-cloaking: Geo-targeting US (session: 682epasi...)
+info: 🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)...
+info: 🖥️ Unique fingerprint: desktop | viewport=1925x1206, colorDepth=24, pixelRatio=1
+info: 📄 Anti-cloaking document request #1: https://zouton.com/tracking/greyhoundlinet/greyhoundlinets
+info: 📄 Anti-cloaking final URL: https://zouton.com/tracking/greyhoundlinet/greyhoundlinets - Downloaded: 468 bytes
+info: 📄 Anti-cloaking document request #2: https://zouton.com/tracking/greyhoundlineb/greyhoundlinecom
+warn: Script redirect detection error: Execution context was destroyed, most likely because of a navigation.
+info: 📄 Anti-cloaking final URL: https://zouton.com/tracking/greyhoundlineb/greyhoundlinecom - Downloaded: 472 bytes
+info: 📄 Anti-cloaking document request #3: https://www.awin1.com/cread.php?awinmid=40028&awinaffid=885207
+info: 📄 Anti-cloaking document request #4: https://www.greyhound.com/?utm_source=awus.Discount+Code&utm_medium=aff&utm_campaign=885207-AW.0-AW&utm_content=us.greyhound&sv1=affiliate&sv_campaign_id=885207&awc=40028_1767547606_9656b119c488371c3fd28459b5492b7d
+info: ⚡ Anti-cloaking: Early stop - no URL changes for 3.5s
+warn: Top/parent redirect detection error: Execution context was destroyed, most likely because of a navigation.
+info: 📊 Anti-Cloaking Mode Network Summary:
+  ├─ Document requests: 4
+  ├─ Total network clicks: 17
+  ├─ Retry attempts detected: 0
+  ├─ Request ratio (clicks/docs): 4.25x
+  └─ Duration: 6510ms
+info: 📄 Anti-cloaking final URL: https://www.greyhound.com/?utm_source=awus.Discount+Code&utm_medium=aff&utm_campaign=885207-AW.0-AW&utm_content=us.greyhound&sv1=affiliate&sv_campaign_id=885207&awc=40028_1767547606_9656b119c488371c3fd28459b5492b7d - Downloaded: 118185 bytes
+info: ✅ Trace completed (anti_cloaking): 4 steps in 7466ms | 940.00 B transferred
+info: 📊 Bandwidth details: total=940B, avg_per_step=235B
+info: 🌐 Proxy IP used: 209.20.244.129 | Location: El Segundo, California, United States | Selected Geo: US
