@@ -4,5 +4,6 @@
   },
   "tasks": {
     "dev": "deno run --allow-all --allow-env --allow-net --allow-read ./index.ts"
-  }
+  },
+  "verify_jwt": false
 }
