@@ -152,7 +152,19 @@ var DELAY_MS = 1000;
 // - "on_change": Only update campaigns when suffix changes
 var UPDATE_MODE = 'on_change';
 
-// Optional: Filter campaigns by label (empty string = all campaigns)
+// ============================================
+// CAMPAIGN FILTERING OPTIONS (Choose ONE)
+// ============================================
+
+// Option 1: Filter by Campaign IDs (recommended - most precise)
+// Array of campaign IDs to update. Leave empty [] to disable.
+// Example: ['12345678', '87654321', '11223344']
+// To find campaign IDs: Go to Campaigns tab, click on campaign, check URL for campaignId=XXXXXXXXXX
+var CAMPAIGN_IDS = [];
+
+// Option 2: Filter by Label (fallback if no IDs specified)
+// Empty string = all enabled campaigns
+// Example: 'auto-update' or 'offer-campaigns'
 var CAMPAIGN_LABEL_FILTER = '';
 
 // Dry run mode: Set to true to test without actually updating campaigns
@@ -231,14 +243,34 @@ function callGetSuffixAPI() {
 // ============================================
 // CAMPAIGN UPDATE FUNCTION
 // ============================================
-function updateCampaigns(suffix, finalUrl) {
+function updateCampaigns() {
   var campaignSelector;
 
-  if (CAMPAIGN_LABEL_FILTER && CAMPAIGN_LABEL_FILTER !== '') {
+  // Priority 1: Filter by Campaign IDs if provided
+  if (CAMPAIGN_IDS && CAMPAIGN_IDS.length > 0) {
+    Logger.log('[FILTER] Using Campaign IDs: ' + CAMPAIGN_IDS.join(', '));
+    
+    // Build ID filter condition
+    var idConditions = [];
+    for (var i = 0; i < CAMPAIGN_IDS.length; i++) {
+      idConditions.push('Id = ' + CAMPAIGN_IDS[i]);
+    }
+    var idFilter = '(' + idConditions.join(' OR ') + ')';
+    
+    campaignSelector = AdsApp.campaigns()
+      .withCondition('Status = ENABLED')
+      .withCondition(idFilter);
+  }
+  // Priority 2: Filter by Label if no IDs specified
+  else if (CAMPAIGN_LABEL_FILTER && CAMPAIGN_LABEL_FILTER !== '') {
+    Logger.log('[FILTER] Using Label: ' + CAMPAIGN_LABEL_FILTER);
     campaignSelector = AdsApp.campaigns()
       .withCondition('Status = ENABLED')
       .withCondition('LabelNames CONTAINS_ANY ["' + CAMPAIGN_LABEL_FILTER + '"]');
-  } else {
+  }
+  // Priority 3: All enabled campaigns
+  else {
+    Logger.log('[FILTER] Using all enabled campaigns');
     campaignSelector = AdsApp.campaigns()
       .withCondition('Status = ENABLED');
   }
@@ -247,24 +279,48 @@ function updateCampaigns(suffix, finalUrl) {
   var updatedCount = 0;
   var failedCount = 0;
   var skippedCount = 0;
+  var apiCallsThisCycle = 0;
 
   while (campaigns.hasNext()) {
     var campaign = campaigns.next();
 
     try {
       if (DRY_RUN_MODE) {
-        Logger.log('[DRY RUN] Would update campaign: ' + campaign.getName());
+        Logger.log('[DRY RUN] Would call API and update campaign: ' + campaign.getName() + ' (ID: ' + campaign.getId() + ')');
         skippedCount++;
       } else {
-        campaign.urls().setFinalUrlSuffix(suffix);
-        updatedCount++;
+        // Call API to get UNIQUE suffix for THIS campaign
+        var apiResult = callGetSuffixAPI();
+        apiCallsThisCycle++;
+        
+        if (apiResult.success) {
+          campaign.urls().setFinalUrlSuffix(apiResult.suffix);
+          Logger.log('[UPDATED] ' + campaign.getName() + ' (ID: ' + campaign.getId() + ') with unique suffix: ' + apiResult.suffix.substring(0, 50) + '...');
+          updatedCount++;
+          
+          // Add small delay between API calls to avoid rate limits
+          if (DELAY_MS > 0) {
+            Utilities.sleep(DELAY_MS);
+          }
+        } else {
+          failedCount++;
+          Logger.log('[API ERROR] Failed to get suffix for ' + campaign.getName() + ' (ID: ' + campaign.getId() + '): ' + (apiResult.error || 'Unknown error'));
+          executionState.errors.push({
+            type: 'api_error',
+            campaign: campaign.getName(),
+            campaignId: campaign.getId(),
+            message: apiResult.error || 'Failed to get suffix from API',
+            timestamp: new Date()
+          });
+        }
       }
     } catch (e) {
       failedCount++;
-      Logger.log('[CAMPAIGN ERROR] Failed to update ' + campaign.getName() + ': ' + e.toString());
+      Logger.log('[CAMPAIGN ERROR] Failed to update ' + campaign.getName() + ' (ID: ' + campaign.getId() + '): ' + e.toString());
       executionState.errors.push({
         type: 'campaign_update_error',
         campaign: campaign.getName(),
+        campaignId: campaign.getId(),
         message: e.toString(),
         timestamp: new Date()
       });
@@ -276,7 +332,8 @@ function updateCampaigns(suffix, finalUrl) {
   return {
     updated: updatedCount,
     failed: failedCount,
-    skipped: skippedCount
+    skipped: skippedCount,
+    apiCalls: apiCallsThisCycle
   };
 }
 
@@ -314,7 +371,18 @@ function logScriptStart() {
   Logger.log('  Run Interval: ' + formatMs(RUN_INTERVAL_MS));
   Logger.log('  Max Runtime: ' + formatMs(MAX_RUNTIME_MS));
   Logger.log('  Update Mode: ' + UPDATE_MODE);
-  Logger.log('  Campaign Filter: ' + (CAMPAIGN_LABEL_FILTER || 'All enabled campaigns'));
+  
+  // Show filter method
+  if (CAMPAIGN_IDS && CAMPAIGN_IDS.length > 0) {
+    Logger.log('  Filter Method: Campaign IDs');
+    Logger.log('  Campaign IDs: ' + CAMPAIGN_IDS.join(', '));
+  } else if (CAMPAIGN_LABEL_FILTER && CAMPAIGN_LABEL_FILTER !== '') {
+    Logger.log('  Filter Method: Campaign Label');
+    Logger.log('  Campaign Label: ' + CAMPAIGN_LABEL_FILTER);
+  } else {
+    Logger.log('  Filter Method: All enabled campaigns');
+  }
+  
   Logger.log('  Dry Run: ' + (DRY_RUN_MODE ? 'YES' : 'NO'));
   Logger.log('  Delay Between Calls: ' + DELAY_MS + 'ms');
   Logger.log('====================================');
@@ -327,22 +395,6 @@ function logCycleStart() {
   Logger.log('Time: ' + new Date().toLocaleString());
   Logger.log('Elapsed: ' + formatMs(getElapsedMs()) + ' / ' + formatMs(MAX_RUNTIME_MS));
   Logger.log('Remaining: ' + formatMs(getRemainingMs()));
-}
-
-function logCycleEnd(apiResult, updateResult) {
-  if (apiResult.success) {
-    Logger.log('[CYCLE COMPLETE]');
-    Logger.log('  API Calls: ' + executionState.totalApiCalls);
-    Logger.log('  Suffix Changed: ' + (apiResult.changed ? 'YES' : 'NO'));
-
-    if (updateResult) {
-      Logger.log('  Campaigns Updated: ' + updateResult.updated);
-      Logger.log('  Campaigns Failed: ' + updateResult.failed);
-      Logger.log('  Campaigns Skipped: ' + updateResult.skipped);
-    }
-  } else {
-    Logger.log('[CYCLE FAILED] ' + (apiResult.error || 'Unknown error'));
-  }
 }
 
 function logFinalSummary() {
@@ -385,39 +437,22 @@ function main() {
         Utilities.sleep(DELAY_MS);
       }
 
-      // Call API to get fresh suffix
-      var apiResult = callGetSuffixAPI();
-
-      if (apiResult.success) {
-        var shouldUpdate = false;
-
-        if (UPDATE_MODE === 'always') {
-          shouldUpdate = true;
-          Logger.log('[UPDATE MODE] Always update mode - updating campaigns');
-        } else if (UPDATE_MODE === 'on_change') {
-          if (apiResult.changed) {
-            shouldUpdate = true;
-            Logger.log('[UPDATE MODE] Suffix changed - updating campaigns');
-            Logger.log('  Old: ' + executionState.lastSuffix);
-            Logger.log('  New: ' + apiResult.suffix);
-          } else {
-            Logger.log('[UPDATE MODE] Suffix unchanged - skipping campaign updates');
-          }
-        }
-
-        var updateResult = null;
-
-        if (shouldUpdate) {
-          updateResult = updateCampaigns(apiResult.suffix, apiResult.finalUrl);
-        }
-
-        // Update last known suffix
-        executionState.lastSuffix = apiResult.suffix;
-
-        logCycleEnd(apiResult, updateResult);
-      } else {
-        logCycleEnd(apiResult, null);
+      // Update campaigns - each campaign gets a unique suffix from API
+      Logger.log('[UPDATE MODE] Calling API once per campaign for unique parameters');
+      var updateResult = updateCampaigns();
+      
+      // Log cycle results
+      Logger.log('[CYCLE COMPLETE]');
+      Logger.log('  API Calls This Cycle: ' + updateResult.apiCalls);
+      Logger.log('  Campaigns Updated: ' + updateResult.updated);
+      Logger.log('  Campaigns Failed: ' + updateResult.failed);
+      Logger.log('  Campaigns Skipped: ' + updateResult.skipped);
+      
+      if (CAMPAIGN_IDS && CAMPAIGN_IDS.length > 0) {
+        Logger.log('  Targeted Campaign IDs: ' + CAMPAIGN_IDS.join(', '));
       }
+      
+      executionState.totalApiCalls += updateResult.apiCalls;
 
       // Calculate sleep time until next cycle
       var sleepTime = RUN_INTERVAL_MS - DELAY_MS;
@@ -441,6 +476,38 @@ function main() {
   }
 
   logFinalSummary();
+}
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * List all enabled campaigns with their IDs
+ * Run this once to find Campaign IDs for the CAMPAIGN_IDS array
+ */
+function listCampaignIds() {
+  Logger.log('\\n' + '='.repeat(60));
+  Logger.log('CAMPAIGN ID FINDER');
+  Logger.log('='.repeat(60));
+  
+  var campaigns = AdsApp.campaigns()
+    .withCondition('Status = ENABLED')
+    .get();
+  
+  var count = 0;
+  while (campaigns.hasNext()) {
+    var campaign = campaigns.next();
+    count++;
+    Logger.log(count + '. ' + campaign.getName());
+    Logger.log('   ID: ' + campaign.getId());
+    Logger.log('   Status: ' + campaign.getStatsFor('LAST_30_DAYS').getClicks() + ' clicks (30d)');
+    Logger.log('');
+  }
+  
+  Logger.log('='.repeat(60));
+  Logger.log('Total: ' + count + ' enabled campaigns');
+  Logger.log('='.repeat(60));
 }`;
 
   const trackingTemplate = `${supabaseUrl}/functions/v1/get-suffix?offer_name=OFFER_NAME&redirect=true`;
