@@ -500,6 +500,8 @@ Deno.serve(async (req: Request) => {
       geo_weights = null,
       offer_id = null,
       device_distribution = null,
+      interval_used_ms = null,
+      account_id = null,
     } = await req.json() as TraceRequest;
 
     if (!url) {
@@ -985,6 +987,8 @@ Deno.serve(async (req: Request) => {
       );
 
       if (awsResult) {
+        // Note: No longer incrementing trace counts - using Google Ads landing page data directly
+        
         return new Response(
           JSON.stringify({ 
             ...awsResult,

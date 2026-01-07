@@ -122,11 +122,178 @@ function main() {
 }`;
 
   const googleAdsScheduledScript = `// ============================================
+// ADAPTIVE INTERVAL CONFIGURATION (V2)
+// ============================================
+// Dynamic delay based on yesterday's landing page frequency
+// Automatically fetched from API endpoint
+// V2: Script collects and sends its own landing page data
+var CURRENT_INTERVAL_MS = 5000; // Default fallback (will be overridden by API)
+var ACCOUNT_ID = ''; // Will be set at startup
+
+// Configuration for interval calculation
+var SUPABASE_URL = '${supabaseUrl}';
+var OFFER_NAME = 'OFFER_NAME';
+var DEFAULT_INTERVAL_MS = 5000;
+var MIN_INTERVAL_MS = 1000;     // Minimum speed (never go below)
+var MAX_INTERVAL_MS = 30000;    // Maximum speed (never go above)
+
+// ============================================
+// ACCOUNT ID HELPER
+// ============================================
+function getAccountId() {
+  try {
+    return AdsApp.currentAccount().getCustomerId();
+  } catch (error) {
+    Logger.log('⚠️ [ACCOUNT] Failed to get account ID: ' + error);
+    return 'unknown';
+  }
+}
+
+// ============================================
+// GET YESTERDAY'S LANDING PAGES WITH CLICKS (NO REPORTS)
+// ============================================
+// Collects yesterday's landing page data using FINAL_URL_REPORT (working approach)
+// Returns {url: clicks} for API calculation
+function getYesterdayLandingPages() {
+  try {
+    Logger.log('[GOOGLE ADS] Collecting yesterday landing pages via FINAL_URL_REPORT...');
+    
+    var query = 'SELECT EffectiveFinalUrl, Clicks ' +
+                'FROM FINAL_URL_REPORT ' +
+                'DURING YESTERDAY';
+    
+    var report = AdsApp.report(query);
+    var rows = report.rows();
+    
+    var landingPages = {};
+    var totalClicks = 0;
+    var processedRows = 0;
+    
+    while (rows.hasNext()) {
+      var row = rows.next();
+      var url = row['EffectiveFinalUrl'] || '';
+      var clicks = parseInt(row['Clicks'], 10) || 0;
+      
+      if (url && clicks > 0) {
+        landingPages[url] = (landingPages[url] || 0) + clicks;
+        totalClicks += clicks;
+        processedRows++;
+      }
+    }
+    
+    var uniquePages = Object.keys(landingPages).length;
+    Logger.log('[REPORT] Yesterday results:');
+    Logger.log('  Rows processed: ' + processedRows);
+    Logger.log('  Unique landing pages: ' + uniquePages);
+    Logger.log('  Total clicks: ' + totalClicks);
+    
+    // Log each landing page and its click count
+    for (var url in landingPages) {
+      Logger.log('  [LP] URL: ' + url + ' -> ' + landingPages[url] + ' clicks');
+    }
+
+    if (uniquePages > 0 && totalClicks > 0) {
+      Logger.log('  Sending landing_page_counts to API');
+      return landingPages;
+    }
+    return null;
+  } catch (error) {
+    Logger.log('⚠️ [REPORT] Failed to collect yesterday data: ' + error);
+    return null;
+  }
+}
+
+// ============================================
+// FETCH RECOMMENDED INTERVAL (STARTUP)
+// ============================================
+function fetchRecommendedInterval() {
+  Logger.log('[ADAPTIVE] Fetching recommended interval for offer: ' + OFFER_NAME);
+  Logger.log('[ADAPTIVE] Account ID: ' + ACCOUNT_ID);
+  
+  try {
+    // Get yesterday's landing page data (for click count)
+    var yesterdayData = getYesterdayLandingPages();
+    
+    // Get account timezone for proper yesterday calculation
+    var accountTimezone = '';
+    try {
+      accountTimezone = AdsApp.currentAccount().getTimeZone();
+      Logger.log('[ADAPTIVE] Account Timezone: ' + accountTimezone);
+    } catch (e) {
+      Logger.log('⚠️ [ADAPTIVE] Could not get timezone, API will use UTC');
+    }
+    
+    var url = SUPABASE_URL + '/functions/v1/get-recommended-interval?offer_name=' + encodeURIComponent(OFFER_NAME);
+    url += '&account_id=' + encodeURIComponent(ACCOUNT_ID);
+    
+    var options = { 
+      muteHttpExceptions: true,
+      method: 'post',
+      contentType: 'application/json'
+    };
+    
+    // If we have yesterday's data, send click count and timezone
+    if (yesterdayData && Object.keys(yesterdayData).length > 0) {
+      var totalClicks = 0;
+      for (var url_key in yesterdayData) {
+        totalClicks += yesterdayData[url_key];
+      }
+      var uniqueLandingPages = Object.keys(yesterdayData).length;
+      
+      Logger.log('[ADAPTIVE] Sending: ' + totalClicks + ' clicks, ' + uniqueLandingPages + ' unique landing pages + timezone to API');
+      options.payload = JSON.stringify({
+        yesterday_total_clicks: totalClicks,
+        yesterday_unique_landing_pages: uniqueLandingPages,
+        account_timezone: accountTimezone
+      });
+    } else {
+      Logger.log('[ADAPTIVE] No yesterday data available, using database fallback');
+      options.payload = JSON.stringify({
+        yesterday_total_clicks: 0,
+        yesterday_unique_landing_pages: 0,
+        account_timezone: accountTimezone
+      });
+    }
+    
+    var response = UrlFetchApp.fetch(url, options);
+    var responseCode = response.getResponseCode();
+    var responseText = response.getContentText();
+    
+    Logger.log('[DEBUG] API Response Code: ' + responseCode);
+    Logger.log('[DEBUG] API Response: ' + responseText.substring(0, 500));
+    
+    if (responseCode === 200) {
+      var data = JSON.parse(responseText);
+      Logger.log('[DEBUG] Parsed data - interval: ' + data.recommended_interval_ms);
+      if (data.recommended_interval_ms) {
+        CURRENT_INTERVAL_MS = data.recommended_interval_ms;
+        Logger.log('✅ [ADAPTIVE] Using interval: ' + CURRENT_INTERVAL_MS + 'ms');
+        Logger.log('   Data source: ' + (data.data_source || 'database'));
+        Logger.log('   Yesterday interval: ' + (data.yesterday_interval_ms || 'none') + 'ms');
+        Logger.log('   Yesterday clicks: ' + data.yesterday_clicks);
+        Logger.log('   Yesterday landing pages: ' + data.yesterday_landing_pages);
+        Logger.log('   Average repeats per page: ' + data.average_repeats);
+        Logger.log('   Used fallback: ' + data.used_default_fallback);
+        return true;
+      } else {
+        Logger.log('⚠️ [ADAPTIVE] API returned 200 but no recommended_interval_ms in response');
+        Logger.log('[DEBUG] Full response: ' + responseText);
+      }
+    } else {
+      Logger.log('⚠️ [ADAPTIVE] Failed to fetch interval (status ' + responseCode + '), using default');
+      Logger.log('[DEBUG] Response: ' + responseText);
+    }
+  } catch (error) {
+    Logger.log('⚠️ [ADAPTIVE] Error fetching interval: ' + error + ', using default');
+  }
+  
+  CURRENT_INTERVAL_MS = DEFAULT_INTERVAL_MS;
+  return false;
+}
+
+// ============================================
 // CONTINUOUS CAMPAIGN UPDATE CONFIGURATION
 // ============================================
-
-// REQUIRED: Your offer name
-var OFFER_NAME = 'OFFER_NAME';
 
 // How often to call API and update campaigns (in milliseconds)
 // Examples:
@@ -144,8 +311,8 @@ var RUN_INTERVAL_MS = 300000;
 // - 300000 = 5 minutes (for testing)
 var MAX_RUNTIME_MS = 1500000;
 
-// Delay between API calls (milliseconds)
-var DELAY_MS = 1000;
+// NOTE: Delay between individual campaign updates is now fetched dynamically
+// from the endpoint via getCurrentIntervalFromAPI() - no hardcoded delay
 
 // Update mode: "always" or "on_change"
 // - "always": Update campaigns every cycle regardless of suffix changes
@@ -183,19 +350,90 @@ var executionState = {
   errors: []
 };
 
+// Yesterday's data - calculated ONCE at startup, reused for all API calls
+var YESTERDAY_DATA_CACHE = null;
+var YESTERDAY_TOTAL_CLICKS = 0;
+var YESTERDAY_UNIQUE_PAGES = 0;
+
+// ============================================
+// DYNAMIC INTERVAL FETCHING
+// ============================================
+function getCurrentIntervalFromAPI() {
+  try {
+    // Use cached yesterday data (already calculated at startup)
+    var totalClicks = YESTERDAY_TOTAL_CLICKS;
+    var uniqueLandingPages = YESTERDAY_UNIQUE_PAGES;
+    
+    Logger.log('[INTERVAL] Using cached yesterday data: ' + totalClicks + ' clicks, ' + uniqueLandingPages + ' pages (no recalculation)');
+    
+    if (uniqueLandingPages === 0) {
+      Logger.log('[INTERVAL] No landing page data, using default: ' + DEFAULT_INTERVAL_MS + 'ms');
+      return DEFAULT_INTERVAL_MS;
+    }
+    
+    var accountTimezone = AdsApp.currentAccount().getTimeZone();
+    
+    // Build URL with offer_name and account_id as query parameters (required by endpoint)
+    var url = SUPABASE_URL + '/functions/v1/get-recommended-interval?offer_name=' + encodeURIComponent(OFFER_NAME);
+    url += '&account_id=' + encodeURIComponent(ACCOUNT_ID);
+    
+    var payload = {
+      yesterday_total_clicks: totalClicks,
+      yesterday_unique_landing_pages: uniqueLandingPages,
+      account_timezone: accountTimezone
+    };
+    
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    var response = UrlFetchApp.fetch(url, options);
+    var responseCode = response.getResponseCode();
+    var responseText = response.getContentText();
+    
+    if (responseCode === 200) {
+      var result = JSON.parse(responseText);
+      if (result.recommended_interval_ms) {
+        var cacheInfo = result.data_source === 'cache' ? ' (from API daily cache)' : ' (newly calculated)';
+        Logger.log('[INTERVAL] Fetched: ' + result.recommended_interval_ms + 'ms' + cacheInfo);
+        return result.recommended_interval_ms;
+      }
+    }
+    
+    Logger.log('[INTERVAL] API call failed, using default: ' + DEFAULT_INTERVAL_MS + 'ms');
+    return DEFAULT_INTERVAL_MS;
+  } catch (error) {
+    Logger.log('[INTERVAL] Error fetching: ' + error + ', using default: ' + DEFAULT_INTERVAL_MS + 'ms');
+    return DEFAULT_INTERVAL_MS;
+  }
+}
+
 // ============================================
 // API CALL FUNCTION
 // ============================================
-function callGetSuffixAPI(campaignCount) {
+function callGetSuffixAPI(campaignCount, intervalToUse) {
   executionState.totalApiCalls++;
   
   campaignCount = campaignCount || 1;
-  var url = '${supabaseUrl}/functions/v1/get-suffix?offer_name=' + encodeURIComponent(OFFER_NAME);
+  intervalToUse = intervalToUse || DEFAULT_INTERVAL_MS;
+  
+  var url = SUPABASE_URL + '/functions/v1/get-suffix?offer_name=' + encodeURIComponent(OFFER_NAME);
+  
+  // Add account_id parameter for multi-account support
+  url += '&account_id=' + encodeURIComponent(ACCOUNT_ID);
   
   // Add campaign_count parameter for batch requests
   if (campaignCount > 1) {
     url += '&campaign_count=' + campaignCount;
     Logger.log('[API] Requesting ' + campaignCount + ' unique suffixes');
+  }
+  
+  // Pass the interval to track actual speed used
+  if (intervalToUse > 0) {
+    url += '&interval_used=' + intervalToUse;
   }
 
   var options = {
@@ -215,6 +453,7 @@ function callGetSuffixAPI(campaignCount) {
 
       if (json.success) {
         Logger.log('[API SUCCESS] Response time: ' + (callEnd - callStart) + 'ms');
+        
         return {
           success: true,
           suffix: json.suffix || '',
@@ -251,7 +490,7 @@ function callGetSuffixAPI(campaignCount) {
 // ============================================
 // CAMPAIGN UPDATE FUNCTION
 // ============================================
-function updateCampaigns() {
+function updateCampaigns(currentInterval) {
   var campaignSelector;
 
   // Priority 1: Filter by Campaign IDs if provided
@@ -306,6 +545,9 @@ function updateCampaigns() {
   var failedCount = 0;
   var skippedCount = 0;
 
+  // Use the interval passed from main loop (already fetched once per cycle)
+  Logger.log('[INTERVAL] Using pre-fetched interval: ' + currentInterval + 'ms');
+
   if (DRY_RUN_MODE) {
     Logger.log('[DRY RUN] Would call API once for ' + campaignCount + ' campaigns');
     for (var i = 0; i < campaignList.length; i++) {
@@ -322,7 +564,7 @@ function updateCampaigns() {
 
   // Make SINGLE API call requesting multiple unique suffixes
   Logger.log('[API] Calling API once with campaign_count=' + campaignCount);
-  var apiResult = callGetSuffixAPI(campaignCount);
+  var apiResult = callGetSuffixAPI(campaignCount, currentInterval);
   
   if (!apiResult.success) {
     Logger.log('[API ERROR] Failed to get suffixes: ' + (apiResult.error || 'Unknown error'));
@@ -374,9 +616,10 @@ function updateCampaigns() {
       Logger.log('[UPDATED] ' + campaign.getName() + ' (ID: ' + campaign.getId() + ') with unique suffix #' + (suffixIndex + 1));
       updatedCount++;
       
-      // Add small delay between updates
-      if (DELAY_MS > 0 && i < campaignList.length - 1) {
-        Utilities.sleep(DELAY_MS);
+      // Use pre-fetched interval for delay between campaigns
+      if (i < campaignList.length - 1 && currentInterval > 0) {
+        Logger.log('[DELAY] Waiting ' + currentInterval + 'ms before next update');
+        Utilities.sleep(currentInterval);
       }
     } catch (e) {
       failedCount++;
@@ -413,7 +656,9 @@ function getRemainingMs() {
 }
 
 function hasEnoughTime() {
-  return getRemainingMs() > (RUN_INTERVAL_MS + 120000);
+  // Check if we have enough time for another cycle (max interval + 2min buffer)
+  // Using MAX_INTERVAL_MS (30000) + 120000 buffer = 150000ms = 2.5 minutes
+  return getRemainingMs() > (MAX_INTERVAL_MS + 120000);
 }
 
 function formatMs(ms) {
@@ -448,7 +693,7 @@ function logScriptStart() {
   }
   
   Logger.log('  Dry Run: ' + (DRY_RUN_MODE ? 'YES' : 'NO'));
-  Logger.log('  Delay Between Calls: ' + DELAY_MS + 'ms');
+  Logger.log('  Note: Interval fetched dynamically from endpoint before each delay');
   Logger.log('====================================');
 }
 
@@ -490,20 +735,44 @@ function logFinalSummary() {
 // MAIN EXECUTION LOOP
 // ============================================
 function main() {
+  // Set account ID at startup
+  ACCOUNT_ID = getAccountId();
+  Logger.log('[STARTUP] Account ID: ' + ACCOUNT_ID);
+  
   logScriptStart();
+
+  // Calculate yesterday's data ONCE at startup (expensive query)
+  Logger.log('[STARTUP] Calculating yesterday\\'s landing page data (one-time calculation)...');
+  YESTERDAY_DATA_CACHE = getYesterdayLandingPages();
+  
+  if (YESTERDAY_DATA_CACHE) {
+    YESTERDAY_TOTAL_CLICKS = 0;
+    for (var url in YESTERDAY_DATA_CACHE) {
+      YESTERDAY_TOTAL_CLICKS += YESTERDAY_DATA_CACHE[url];
+    }
+    YESTERDAY_UNIQUE_PAGES = Object.keys(YESTERDAY_DATA_CACHE).length;
+    Logger.log('[STARTUP] Cached yesterday data: ' + YESTERDAY_TOTAL_CLICKS + ' clicks, ' + YESTERDAY_UNIQUE_PAGES + ' unique pages');
+  } else {
+    Logger.log('[STARTUP] No yesterday data available, will use defaults');
+    YESTERDAY_TOTAL_CLICKS = 0;
+    YESTERDAY_UNIQUE_PAGES = 0;
+  }
+
+  // Interval is now fetched dynamically from endpoint before each use
+  Logger.log('[STARTUP] Interval will be fetched dynamically from endpoint before each delay');
 
   try {
     while (hasEnoughTime()) {
       logCycleStart();
 
-      // Add delay if configured
-      if (DELAY_MS > 0 && executionState.cycleNumber > 1) {
-        Utilities.sleep(DELAY_MS);
-      }
+      // Fetch interval ONCE at the start of each cycle
+      Logger.log('[INTERVAL] Fetching interval for this cycle...');
+      var cycleInterval = getCurrentIntervalFromAPI();
+      Logger.log('[INTERVAL] Using ' + cycleInterval + 'ms for this entire cycle');
 
       // Update campaigns - each campaign gets a unique suffix from API
       Logger.log('[UPDATE MODE] Calling API once per campaign for unique parameters');
-      var updateResult = updateCampaigns();
+      var updateResult = updateCampaigns(cycleInterval); // Pass interval to avoid re-fetching
       
       // Log cycle results
       Logger.log('[CYCLE COMPLETE]');
@@ -512,18 +781,12 @@ function main() {
       Logger.log('  Campaigns Failed: ' + updateResult.failed);
       Logger.log('  Campaigns Skipped: ' + updateResult.skipped);
       
-      if (CAMPAIGN_IDS && CAMPAIGN_IDS.length > 0) {
-        Logger.log('  Targeted Campaign IDs: ' + CAMPAIGN_IDS.join(', '));
-      }
-      
       executionState.totalApiCalls += updateResult.apiCalls;
 
-      // Calculate sleep time until next cycle
-      var sleepTime = RUN_INTERVAL_MS - DELAY_MS;
-
-      if (sleepTime > 0 && hasEnoughTime()) {
-        Logger.log('[WAITING] Sleeping for ' + formatMs(sleepTime) + ' until next cycle...');
-        Utilities.sleep(sleepTime);
+      // Sleep using the same interval we already fetched (no re-query)
+      if (hasEnoughTime()) {
+        Logger.log('[WAITING] Sleeping for ' + cycleInterval + 'ms until next cycle...');
+        Utilities.sleep(cycleInterval);
       }
     }
 
@@ -871,17 +1134,17 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
         <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-neutral-200 dark:border-neutral-800 overflow-hidden">
           <div className="bg-neutral-50 dark:bg-neutral-850 px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Code2 className="text-brand-600 dark:text-brand-400" size={24} />
+              <Code2 className="text-neutral-600 dark:text-neutral-400" size={24} />
               <div>
-                <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Google Ads Script (Basic - Single Call)</h3>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Google Ads Script (Baseline - Constant Delay)</h3>
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                  Simple script for one-time API calls with rate control
+                  Fallback option: Simple script with fixed delay (5 seconds) - use if adaptive script fails
                 </p>
               </div>
             </div>
             <button
               onClick={() => copyToClipboard(googleAdsScript, 'google-ads')}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-600 dark:bg-brand-500 text-white rounded-lg hover:bg-brand-700 dark:hover:bg-brand-600 transition-smooth"
+              className="flex items-center gap-2 px-4 py-2 bg-neutral-600 dark:bg-neutral-500 text-white rounded-lg hover:bg-neutral-700 dark:hover:bg-neutral-600 transition-smooth"
             >
               {copiedScript === 'google-ads' ? (
                 <>
@@ -897,11 +1160,24 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
             </button>
           </div>
           <div className="p-6 space-y-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">📌 When to Use This Script</h4>
+              <div className="text-sm text-blue-800 dark:text-blue-400 space-y-2">
+                <p>Use this baseline script if:</p>
+                <ul className="list-disc ml-5 space-y-1">
+                  <li>The adaptive script (below) fails or encounters errors</li>
+                  <li>You want a simple, predictable constant delay</li>
+                  <li>You're testing and want no dynamic interval calculation</li>
+                  <li>You don't have data history yet (fresh offer)</li>
+                </ul>
+              </div>
+            </div>
+
             <pre className="bg-neutral-900 dark:bg-neutral-950 text-neutral-100 dark:text-neutral-200 text-sm p-4 rounded overflow-x-auto max-h-96">
               {googleAdsScript}
             </pre>
             <div className="bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 rounded-lg p-4">
-              <h4 className="font-semibold text-warning-900 dark:text-warning-300 mb-2">Rate Control Configuration</h4>
+              <h4 className="font-semibold text-warning-900 dark:text-warning-300 mb-2">⚙️ Rate Control Configuration</h4>
               <div className="text-sm text-warning-800 dark:text-warning-400 space-y-2">
                 <p>
                   The <code className="bg-warning-100 dark:bg-warning-900/30 px-1 py-0.5 rounded">DELAY_MS</code> variable controls how fast the script calls your API endpoint.
@@ -910,7 +1186,7 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
                   <li><strong>0 ms</strong> - No delay (fastest, for testing)</li>
                   <li><strong>1000 ms</strong> - 1 second between calls (60 calls/min)</li>
                   <li><strong>2000 ms</strong> - 2 seconds between calls (30 calls/min)</li>
-                  <li><strong>5000 ms</strong> - 5 seconds between calls (12 calls/min)</li>
+                  <li><strong>5000 ms</strong> - 5 seconds between calls (12 calls/min, default)</li>
                 </ul>
                 <p className="pt-1">
                   Adjust based on your API limits and campaign requirements. Higher delays = slower API calls = lower server load.
@@ -920,20 +1196,20 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
           </div>
         </div>
 
-        <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-error-200 dark:border-error-800 overflow-hidden">
-          <div className="bg-gradient-to-r from-error-50 to-warning-50 dark:from-error-900/20 dark:to-warning-900/20 px-6 py-4 border-b border-error-200 dark:border-error-800 flex items-center justify-between">
+        <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-success-200 dark:border-success-800 overflow-hidden">
+          <div className="bg-gradient-to-r from-success-50 to-emerald-50 dark:from-success-900/20 dark:to-emerald-900/20 px-6 py-4 border-b border-success-200 dark:border-success-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Code2 className="text-error-600 dark:text-error-400" size={24} />
+              <Code2 className="text-success-600 dark:text-success-400" size={24} />
               <div>
-                <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Google Ads Script (Continuous Auto-Update) ⚡</h3>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Google Ads Script (Adaptive V2 - Multi-Account) ⚡</h3>
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                  RECOMMENDED: Runs continuously for up to 25 minutes, automatically calling API and updating campaigns
+                  RECOMMENDED: Script collects & sends real landing page data with multi-account support for superior accuracy
                 </p>
               </div>
             </div>
             <button
               onClick={() => copyToClipboard(googleAdsScheduledScript, 'google-ads-scheduled')}
-              className="flex items-center gap-2 px-4 py-2 bg-error-600 dark:bg-error-500 text-white rounded-lg hover:bg-error-700 dark:hover:bg-error-600 transition-smooth"
+              className="flex items-center gap-2 px-4 py-2 bg-success-600 dark:bg-success-500 text-white rounded-lg hover:bg-success-700 dark:hover:bg-success-600 transition-smooth"
             >
               {copiedScript === 'google-ads-scheduled' ? (
                 <>
@@ -949,20 +1225,21 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
             </button>
           </div>
           <div className="p-6 space-y-4">
-            <div className="bg-error-50 dark:bg-error-900/20 border border-error-300 dark:border-error-800 rounded-lg p-4">
-              <h4 className="font-semibold text-error-900 dark:text-error-300 mb-2">🔥 How It Works</h4>
-              <div className="text-sm text-error-800 dark:text-error-400 space-y-2">
-                <p className="font-semibold">This script runs in a continuous loop with an internal timer:</p>
+            <div className="bg-success-50 dark:bg-success-900/20 border border-success-300 dark:border-success-800 rounded-lg p-4">
+              <h4 className="font-semibold text-success-900 dark:text-success-300 mb-2">🚀 How Adaptive V2 Works (Better!)</h4>
+              <div className="text-sm text-success-800 dark:text-success-400 space-y-2">
+                <p className="font-semibold">Yesterday's Performance Data:</p>
                 <ul className="list-disc ml-5 space-y-1">
-                  <li>Calls your API at configurable intervals (default: 300000ms = 5 minutes)</li>
-                  <li>Automatically updates ALL enabled campaigns with fresh parameters</li>
-                  <li>Runs for configurable duration (default: 1500000ms = 25 minutes)</li>
-                  <li>Gracefully exits before Google Ads 30-minute timeout</li>
-                  <li>Provides detailed logging and execution summary</li>
-                  <li>Includes error handling and retry logic</li>
+                  <li><strong>Historical Data:</strong> Queries yesterday's AD_PERFORMANCE_REPORT for expanded landing pages</li>
+                  <li><strong>Click Aggregation:</strong> Groups clicks by landing page URL (sums duplicates)</li>
+                  <li><strong>Formula:</strong> next_interval = previous_interval × (5 / max_duplicates)</li>
+                  <li><strong>Example Evolution:</strong> Day1 5000ms → 15 dup → 1666ms → 10 dup → 833ms → 6 dup → 694ms → 5 dup (stabilizes)</li>
+                  <li><strong>Multi-Account:</strong> Uses account_id to track multiple accounts running same offer</li>
+                  <li><strong>Daily Update:</strong> Recalculates each morning using previous day's performance</li>
+                  <li><strong>Result:</strong> Adaptive interval based on yesterday's actual click distribution!</li>
                 </ul>
-                <p className="pt-2 font-semibold">
-                  Perfect for: Keeping campaigns always up-to-date without manual intervention
+                <p className="pt-2 font-semibold text-success-900 dark:text-success-300">
+                  ✨ Uses AD_PERFORMANCE_REPORT - real yesterday's data with click metrics!
                 </p>
               </div>
             </div>
@@ -1000,21 +1277,27 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
                   <p className="font-semibold">DRY_RUN_MODE</p>
                   <p className="ml-4">Set to true to test without actually updating campaigns</p>
                 </div>
+                <div className="bg-success-100 dark:bg-success-900/30 rounded p-2">
+                  <p className="font-semibold text-success-900 dark:text-success-200">📊 Smart Delay Calculation</p>
+                  <p className="ml-4 text-xs mt-1 text-success-900 dark:text-success-300">Script calculates: <code>max(1000, min(30000, yesterday_interval × (5 / max_duplicates)))</code></p>
+                  <p className="ml-4 text-xs mt-1 text-success-900 dark:text-success-300">Constraint: Between 1000ms (never overload) and 30000ms (max cap)</p>
+                </div>
               </div>
             </div>
 
             <div className="bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800 rounded-lg p-4">
-              <h4 className="font-semibold text-success-900 dark:text-success-300 mb-2">📊 What You'll Get</h4>
+              <h4 className="font-semibold text-success-900 dark:text-success-300 mb-2">📊 Expected Performance</h4>
               <div className="text-sm text-success-800 dark:text-success-400 space-y-2">
                 <p>With default settings (RUN_INTERVAL_MS = 300000, MAX_RUNTIME_MS = 1500000):</p>
                 <ul className="list-disc ml-5 space-y-1">
-                  <li><strong>5 API calls</strong> during a single script execution (5 min intervals over 25 min)</li>
-                  <li><strong>5 campaign update cycles</strong> (if UPDATE_MODE = "always")</li>
-                  <li><strong>Detailed logs</strong> for each cycle showing API response times, campaigns updated, errors</li>
-                  <li><strong>Final summary</strong> with total stats: API calls, campaigns updated, runtime, errors</li>
+                  <li><strong>~5 API calls</strong> during single execution (5 min intervals over 25 min)</li>
+                  <li><strong>~5 campaign updates</strong> with dynamic intervals</li>
+                  <li><strong>Automatic data collection:</strong> Each API call records the interval used</li>
+                  <li><strong>Daily optimization:</strong> Tomorrow's interval recalculated from today's data</li>
+                  <li><strong>Detailed logs:</strong> Shows actual interval used, API response times, campaign updates</li>
                 </ul>
                 <p className="pt-2">
-                  Schedule this script to run every 30 minutes in Google Ads for continuous updates!
+                  Schedule this script every 30 minutes in Google Ads for continuous optimization!
                 </p>
               </div>
             </div>

@@ -188,6 +188,8 @@ Deno.serve(async (req: Request) => {
     const offerName = url.searchParams.get('offer_name');
     const debug = url.searchParams.get('debug') === 'true'; // NEW: Debug flag for bandwidth info
     const campaignCount = parseInt(url.searchParams.get('campaign_count') || '1', 10); // Number of unique suffixes needed
+    const intervalUsed = parseInt(url.searchParams.get('interval_used') || '0', 10); // NEW: Dynamic interval used by script
+    const accountId = url.searchParams.get('account_id'); // NEW: Google Ads account ID for multi-account support
 
     if (!offerName) {
       return new Response(
@@ -373,6 +375,10 @@ Deno.serve(async (req: Request) => {
             tracer_mode: offer.tracer_mode || 'auto',
             suffix_step: offer.redirect_chain_step || null,
             expected_final_url: expectedFinalUrl,
+            // Pass interval_used for tracking
+            interval_used_ms: intervalUsed > 0 ? intervalUsed : null,
+            offer_id: offer.id,
+            account_id: accountId,
           };
 
           // Add geo rotation parameters if configured
@@ -517,22 +523,31 @@ Deno.serve(async (req: Request) => {
               }
 
               if (traceSuccessful && traceResult.proxy_ip) {
-                await supabase.from('url_traces').insert({
-                  offer_id: offer.id,
-                  user_id: offer.user_id,
-                  redirect_chain: chain,
-                  final_url: chain[chain.length - 1].url,
-                  proxy_ip: traceResult.proxy_ip,
-                  geo_country: traceResult.geo_location?.country,
-                  geo_city: traceResult.geo_location?.city,
-                  geo_region: traceResult.geo_location?.region,
-                  geo_data: traceResult.geo_location,
-                  device_type: 'bot',
-                  user_agent: traceResult.user_agent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                  visited_at: new Date().toISOString(),
-                  tracking_url_used: trackingUrlToUse,
-                  referrer_used: referrerToUse,
-                });
+                // Store individual trace for monitoring (last 10 kept via trigger)
+                // Note: daily_trace_counts is incremented in trace-redirects on success
+                try {
+                  await supabase.from('url_traces').insert({
+                    offer_id: offer.id,
+                    user_id: offer.user_id,
+                    account_id: accountId,
+                    redirect_chain: chain,
+                    final_url: chain[chain.length - 1].url,
+                    proxy_ip: traceResult.proxy_ip,
+                    geo_country: traceResult.geo_location?.country,
+                    geo_city: traceResult.geo_location?.city,
+                    geo_region: traceResult.geo_location?.region,
+                    geo_data: traceResult.geo_location,
+                    device_type: 'bot',
+                    user_agent: traceResult.user_agent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    visited_at: new Date().toISOString(),
+                    tracking_url_used: trackingUrlToUse,
+                    referrer_used: referrerToUse,
+                    interval_used_ms: intervalUsed > 0 ? intervalUsed : null,
+                  });
+                  console.log('✅ Stored trace for monitoring');
+                } catch (e) {
+                  console.error('⚠️ Failed to store trace:', e);
+                }
               }
 
               // Only update offer chain for first campaign
