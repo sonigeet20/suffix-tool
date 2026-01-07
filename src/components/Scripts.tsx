@@ -616,11 +616,7 @@ function updateCampaigns(currentInterval) {
       Logger.log('[UPDATED] ' + campaign.getName() + ' (ID: ' + campaign.getId() + ') with unique suffix #' + (suffixIndex + 1));
       updatedCount++;
       
-      // Use pre-fetched interval for delay between campaigns
-      if (i < campaignList.length - 1 && currentInterval > 0) {
-        Logger.log('[DELAY] Waiting ' + currentInterval + 'ms before next update');
-        Utilities.sleep(currentInterval);
-      }
+      // No delay between campaigns for maximum speed
     } catch (e) {
       failedCount++;
       Logger.log('[CAMPAIGN ERROR] Failed to update ' + campaign.getName() + ' (ID: ' + campaign.getId() + '): ' + e.toString());
@@ -783,11 +779,7 @@ function main() {
       
       executionState.totalApiCalls += updateResult.apiCalls;
 
-      // Sleep using the same interval we already fetched (no re-query)
-      if (hasEnoughTime()) {
-        Logger.log('[WAITING] Sleeping for ' + cycleInterval + 'ms until next cycle...');
-        Utilities.sleep(cycleInterval);
-      }
+      // No delay between cycles for maximum speed
     }
 
     Logger.log('');
