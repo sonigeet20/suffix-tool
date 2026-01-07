@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>URL Tracker</title>
+    <script>
+      // Linear Dark-First - default to dark mode
+      const savedTheme = localStorage.getItem('theme');
+      if (!savedTheme || (savedTheme !== 'light' && savedTheme !== 'dark')) {
+        localStorage.setItem('theme', 'dark');
+        document.documentElement.className = 'dark';
+      } else {
+        document.documentElement.className = savedTheme;
+      }
+    </script>
+    <script type="module" crossorigin src="/assets/index-v0Mubmj9.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CNyzTeD9.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

@@ -270,7 +270,7 @@ export default function IntervalHistory() {
                 <div>
                   <p className="text-neutral-600 dark:text-neutral-400">Last Updated</p>
                   <p className="font-semibold text-neutral-900 dark:text-neutral-50">
-                    {formatDate(latest.trace_date)}
+                    {formatDate(latest.date)}
                   </p>
                 </div>
               </div>
@@ -328,15 +328,15 @@ export default function IntervalHistory() {
                     ? item.interval_used_ms - prevItem.interval_used_ms 
                     : 0;
                   
-                  const editing = isEditing(item.offer_name, item.trace_date);
-                  const deleting = isDeletePending(item.offer_name, item.trace_date);
+                  const editing = isEditing(item.offer_id, item.date);
+                  const deleting = isDeletePending(item.offer_id, item.date);
 
                   return (
-                    <tr key={`${item.offer_name}-${item.trace_date}-${item.created_at}`} className={`hover:bg-neutral-50 dark:hover:bg-neutral-850 ${deleting ? 'bg-error-50 dark:bg-error-900/20' : ''}`}>
+                    <tr key={`${item.offer_id}-${item.date}-${item.created_at}`} className={`hover:bg-neutral-50 dark:hover:bg-neutral-850 ${deleting ? 'bg-error-50 dark:bg-error-900/20' : ''}`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-neutral-50">
                         <div className="flex items-center gap-2">
                           <Calendar size={14} className="text-neutral-400" />
-                          {formatDate(item.trace_date)}
+                          {formatDate(item.date)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 dark:text-neutral-50">
@@ -349,8 +349,8 @@ export default function IntervalHistory() {
                         {editing ? (
                           <input
                             type="number"
-                            value={editingRow.interval_used_ms}
-                            onChange={(e) => setEditingRow({ ...editingRow, interval_used_ms: parseInt(e.target.value) || 0 })}
+                            value={editingRow?.interval_used_ms || 0}
+                            onChange={(e) => editingRow && setEditingRow({ ...editingRow, interval_used_ms: parseInt(e.target.value) || 0 })}
                             className="w-24 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
                           />
                         ) : (
@@ -363,8 +363,8 @@ export default function IntervalHistory() {
                         {editing ? (
                           <input
                             type="number"
-                            value={editingRow.total_clicks}
-                            onChange={(e) => setEditingRow({ ...editingRow, total_clicks: parseInt(e.target.value) || 0 })}
+                            value={editingRow?.total_clicks || 0}
+                            onChange={(e) => editingRow && setEditingRow({ ...editingRow, total_clicks: parseInt(e.target.value) || 0 })}
                             className="w-20 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
                           />
                         ) : (
@@ -375,8 +375,8 @@ export default function IntervalHistory() {
                         {editing ? (
                           <input
                             type="number"
-                            value={editingRow.unique_landing_pages}
-                            onChange={(e) => setEditingRow({ ...editingRow, unique_landing_pages: parseInt(e.target.value) || 0 })}
+                            value={editingRow?.unique_landing_pages || 0}
+                            onChange={(e) => editingRow && setEditingRow({ ...editingRow, unique_landing_pages: parseInt(e.target.value) || 0 })}
                             className="w-20 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
                           />
                         ) : (
@@ -386,7 +386,7 @@ export default function IntervalHistory() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-neutral-50 text-right">
                         {editing ? (
                           <span className="text-neutral-600 dark:text-neutral-400">
-                            {editingRow.unique_landing_pages > 0 
+                            {editingRow && editingRow.unique_landing_pages > 0 
                               ? (editingRow.total_clicks / editingRow.unique_landing_pages).toFixed(2)
                               : '0.00'}x
                           </span>
@@ -437,7 +437,7 @@ export default function IntervalHistory() {
                               <Edit2 size={16} />
                             </button>
                             <button
-                              onClick={() => handleDelete(item.offer_name, item.trace_date)}
+                              onClick={() => handleDelete(item.offer_id, item.date)}
                               className={`p-1.5 rounded transition-smooth ${
                                 deleting
                                   ? 'bg-error-600 text-white hover:bg-error-700'
