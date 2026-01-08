@@ -308,61 +308,14 @@ Deno.serve(async (req: Request) => {
       .eq('date', yesterdayDate)
       .maybeSingle();
 
-    // TREAT AS DAY-0 if no yesterday interval in database
-    if (!yesterdayData || !yesterdayData.interval_used_ms) {
-      console.log(`⚠️ [DAY-0 DETECTED] No yesterday interval in database, treating as day-0`);
-      const recommendedInterval = Math.max(minIntervalMs, Math.min(maxIntervalMs, defaultIntervalMs));
-      console.log(`⚠️ [DAY-0] Using script default (clamped): ${recommendedInterval}ms [default=${defaultIntervalMs}, min=${minIntervalMs}, max=${maxIntervalMs}]`);
-
-      try {
-        const { error: storeError } = await supabase
-          .from('daily_trace_counts')
-          .upsert({
-            offer_id: offer.id,
-            account_id: accountId || '',
-            date: todayDate,
-            trace_count: 0,
-            total_clicks: yesterdayClicks,
-            unique_landing_pages: yesterdayLandingPages,
-            interval_used_ms: recommendedInterval,
-            updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'offer_id,account_id,date'
-          });
-        if (storeError) {
-          console.warn('⚠️ Failed to cache day-0 interval:', storeError.message);
-        } else {
-          console.log(`✅ Cached day-0 interval ${recommendedInterval}ms for ${todayDate}`);
-        }
-      } catch (e: any) {
-        console.warn('⚠️ Error caching day-0 interval:', e.message);
-      }
-
-      return new Response(
-        JSON.stringify({
-          recommended_interval_ms: recommendedInterval,
-          yesterday_interval_ms: recommendedInterval,
-          yesterday_clicks: yesterdayClicks,
-          yesterday_landing_pages: yesterdayLandingPages,
-          average_repeats: yesterdayLandingPages > 0 ? parseFloat((yesterdayClicks / yesterdayLandingPages).toFixed(2)) : 0,
-          min_interval_ms: minIntervalMs,
-          max_interval_ms: maxIntervalMs,
-          target_average_repeats: targetAverageRepeats,
-          data_source: 'day_0_no_history',
-          used_default_fallback: true,
-          account_id: accountId,
-          account_timezone: accountTimezone,
-          cached_date: todayDate,
-          message: 'No yesterday interval found in database; using script default as day-0'
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+    // If no yesterday interval, use script default as base for calculation
+    let yesterdayInterval = defaultIntervalMs;
+    if (yesterdayData && yesterdayData.interval_used_ms) {
+      yesterdayInterval = yesterdayData.interval_used_ms;
+      console.log(`✅ Found yesterday's interval: ${yesterdayInterval}ms`);
+    } else {
+      console.log(`⚠️ No yesterday interval found, using script default as base: ${defaultIntervalMs}ms`);
     }
-
-    let yesterdayInterval = yesterdayData.interval_used_ms;
     console.log(`✅ Found yesterday's interval: ${yesterdayInterval}ms`);
 
     // 7. Calculate interval based on average repeats per landing page

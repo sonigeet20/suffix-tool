@@ -10,11 +10,115 @@ export default function Scripts() {
   const [tracerMode, setTracerMode] = useState('http_only');
   const [isTracing, setIsTracing] = useState(false);
   const [traceResult, setTraceResult] = useState<any>(null);
+  // Scheduler panel state
+  const [schedOfferName, setSchedOfferName] = useState('OFFER_NAME');
+  const [schedAccountId, setSchedAccountId] = useState('');
+  const [schedMinInterval, setSchedMinInterval] = useState<number>(1800);
+  const [schedPaused, setSchedPaused] = useState<boolean>(false);
+  const [schedAutoSchedule, setSchedAutoSchedule] = useState<boolean>(false);
+  const [schedNextRun, setSchedNextRun] = useState<string>('');
+  const [schedLoading, setSchedLoading] = useState<boolean>(false);
+  const [schedMessage, setSchedMessage] = useState<string>('');
+  // Executions status panel state
+  const [execLoading, setExecLoading] = useState<boolean>(false);
+  const [executions, setExecutions] = useState<any[]>([]);
+  const [execMessage, setExecMessage] = useState<string>('');
 
   const copyToClipboard = (text: string, scriptName: string) => {
     navigator.clipboard.writeText(text);
     setCopiedScript(scriptName);
     setTimeout(() => setCopiedScript(null), 2000);
+  };
+
+  const loadSchedulerConfig = async () => {
+    try {
+      setSchedLoading(true);
+      setSchedMessage('');
+      if (!schedOfferName || !schedAccountId) {
+        setSchedMessage('Offer name and account id are required');
+        return;
+      }
+      const res = await fetch(`${supabaseUrl}/functions/v1/schedule-script-execution?action=get_config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offer_name: schedOfferName, account_id: schedAccountId })
+      });
+      const json = await res.json();
+      if (res.ok && json?.config) {
+        setSchedPaused(!!json.config.is_paused);
+        setSchedAutoSchedule(!!json.config.auto_schedule);
+        setSchedMinInterval(json.config.min_interval_seconds ?? 1800);
+        setSchedNextRun(json.config.next_earliest_run_at || '');
+        setSchedMessage('Loaded current config');
+      } else {
+        setSchedMessage(json?.error || 'Failed to load config');
+      }
+    } catch (e: any) {
+      setSchedMessage(e?.message || 'Error loading config');
+    } finally {
+      setSchedLoading(false);
+    }
+  };
+
+  const saveSchedulerConfig = async () => {
+    try {
+      setSchedLoading(true);
+      setSchedMessage('');
+      if (!schedOfferName || !schedAccountId) {
+        setSchedMessage('Offer name and account id are required');
+        return;
+      }
+      const body: any = {
+        offer_name: schedOfferName,
+        account_id: schedAccountId,
+        is_paused: schedPaused,
+        auto_schedule: schedAutoSchedule,
+        min_interval_seconds: Number(schedMinInterval)
+      };
+      const res = await fetch(`${supabaseUrl}/functions/v1/schedule-script-execution?action=update_config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setSchedMessage('Saved configuration');
+      } else {
+        setSchedMessage(json?.error || 'Failed to save');
+      }
+    } catch (e: any) {
+      setSchedMessage(e?.message || 'Error saving config');
+    } finally {
+      setSchedLoading(false);
+    }
+  };
+
+  const loadExecutions = async () => {
+    try {
+      setExecLoading(true);
+      setExecMessage('');
+      setExecutions([]);
+      if (!schedOfferName || !schedAccountId) {
+        setExecMessage('Offer name and account id are required');
+        return;
+      }
+      const res = await fetch(`${supabaseUrl}/functions/v1/schedule-script-execution?action=list_executions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offer_name: schedOfferName, account_id: schedAccountId })
+      });
+      const json = await res.json();
+      if (res.ok && json?.executions) {
+        setExecutions(json.executions);
+        setExecMessage(`Loaded ${json.executions.length} runs`);
+      } else {
+        setExecMessage(json?.error || 'Failed to load runs');
+      }
+    } catch (e: any) {
+      setExecMessage(e?.message || 'Error loading runs');
+    } finally {
+      setExecLoading(false);
+    }
   };
 
   const handleTraceTest = async () => {
@@ -294,14 +398,6 @@ function fetchRecommendedInterval() {
 // ============================================
 // CONTINUOUS CAMPAIGN UPDATE CONFIGURATION
 // ============================================
-
-// How often to call API and update campaigns (in milliseconds)
-// Examples:
-// - 300000 = 5 minutes (recommended)
-// - 600000 = 10 minutes
-// - 900000 = 15 minutes
-// - 60000 = 1 minute (for testing)
-var RUN_INTERVAL_MS = 300000;
 
 // Maximum script runtime before timeout (in milliseconds)
 // Google Ads limit is 30 minutes (1800000ms)
@@ -656,9 +752,8 @@ function getRemainingMs() {
 }
 
 function hasEnoughTime() {
-  // Check if we have enough time for another cycle (max interval + 2min buffer)
-  // Using MAX_INTERVAL_MS (30000) + 120000 buffer = 150000ms = 2.5 minutes
-  return getRemainingMs() > (MAX_INTERVAL_MS + 120000);
+  // Run until time is up - no buffer for maximum 30-minute utilization
+  return getRemainingMs() > 0;
 }
 
 function formatMs(ms) {
@@ -677,7 +772,6 @@ function logScriptStart() {
   Logger.log('====================================');
   Logger.log('Configuration:');
   Logger.log('  Offer Name: ' + OFFER_NAME);
-  Logger.log('  Run Interval: ' + formatMs(RUN_INTERVAL_MS));
   Logger.log('  Max Runtime: ' + formatMs(MAX_RUNTIME_MS));
   Logger.log('  Update Mode: ' + UPDATE_MODE);
   
@@ -783,11 +877,15 @@ function main() {
       
       executionState.totalApiCalls += updateResult.apiCalls;
 
-      // No delay between cycles for maximum speed
+      // Use the adaptive interval to pace how often the suffix API is called (one call per cycle)
+      if (cycleInterval > 0) {
+        Logger.log('[INTERVAL] Waiting ' + cycleInterval + 'ms before next cycle');
+        Utilities.sleep(cycleInterval);
+      }
     }
 
     Logger.log('');
-    Logger.log('[TIMEOUT APPROACHING] Stopping execution to prevent timeout');
+    Logger.log('[RUNTIME COMPLETE] Reached 30-minute limit');
 
   } catch (e) {
     Logger.log('[FATAL ERROR] ' + e.toString());
@@ -832,6 +930,699 @@ function listCampaignIds() {
   Logger.log('Total: ' + count + ' enabled campaigns');
   Logger.log('='.repeat(60));
 }`;
+
+  const googleAdsAutoScheduleV3 = `// ============================================
+// ADAPTIVE INTERVAL + AUTO-SCHEDULE (V3)
+// ============================================
+// V3: Same as V2 but with scheduler check/report for central control
+// Also sets expected repeat count to 2 (more aggressive speed optimization)
+var CURRENT_INTERVAL_MS = 5000; // Default fallback (will be overridden by API)
+var ACCOUNT_ID = ''; // Will be set at startup
+
+// Configuration for interval calculation
+var SUPABASE_URL = '${supabaseUrl}';
+var OFFER_NAME = 'OFFER_NAME';
+var DEFAULT_INTERVAL_MS = 5000;
+var MIN_INTERVAL_MS = 1000;     // Minimum speed (never go below)
+var MAX_INTERVAL_MS = 30000;    // Maximum speed (never go above)
+
+// ============================================
+// ACCOUNT ID HELPER
+// ============================================
+function getAccountId() {
+  try {
+    return AdsApp.currentAccount().getCustomerId();
+  } catch (error) {
+    Logger.log('⚠️ [ACCOUNT] Failed to get account ID: ' + error);
+    return 'unknown';
+  }
+}
+
+// ============================================
+// SCHEDULER INTEGRATION (CHECK + REPORT)
+// ============================================
+function schedulerCheck() {
+  try {
+    var url = SUPABASE_URL + '/functions/v1/schedule-script-execution?action=check';
+    var payload = {
+      offer_name: OFFER_NAME,
+      account_id: ACCOUNT_ID,
+      client: 'google_ads',
+      version: 'v3'
+    };
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    var response = UrlFetchApp.fetch(url, options);
+    if (response.getResponseCode() === 200) {
+      var data = JSON.parse(response.getContentText());
+      if (data && data.allow === false) {
+        Logger.log('[SCHEDULER] Execution denied by controller. Reason: ' + (data.reason || 'unspecified'));
+        if (data.next_allowed_at) {
+          Logger.log('[SCHEDULER] Next allowed at: ' + data.next_allowed_at);
+        }
+        return false;
+      }
+      Logger.log('[SCHEDULER] Execution allowed.');
+      return true;
+    }
+    Logger.log('⚠️ [SCHEDULER] Non-200 response, proceeding by default');
+  } catch (e) {
+    Logger.log('⚠️ [SCHEDULER] Check failed (' + e + '), proceeding');
+  }
+  return true; // default permissive if scheduler unavailable
+}
+
+function schedulerReport(summary) {
+  try {
+    var url = SUPABASE_URL + '/functions/v1/schedule-script-execution?action=report';
+    var payload = {
+      offer_name: OFFER_NAME,
+      account_id: ACCOUNT_ID,
+      client: 'google_ads',
+      version: 'v3',
+      summary: summary || {}
+    };
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    var response = UrlFetchApp.fetch(url, options);
+    Logger.log('[SCHEDULER] Report sent (' + response.getResponseCode() + ')');
+  } catch (e) {
+    Logger.log('⚠️ [SCHEDULER] Report failed: ' + e);
+  }
+}
+
+// ============================================
+// GET YESTERDAY'S LANDING PAGES WITH CLICKS
+// ============================================
+function getYesterdayLandingPages() {
+  try {
+    Logger.log('[GOOGLE ADS] Collecting yesterday landing pages via FINAL_URL_REPORT...');
+    
+    var query = 'SELECT EffectiveFinalUrl, Clicks ' +
+                'FROM FINAL_URL_REPORT ' +
+                'DURING YESTERDAY';
+    
+    var report = AdsApp.report(query);
+    var rows = report.rows();
+    
+    var landingPages = {};
+    var totalClicks = 0;
+    var processedRows = 0;
+    
+    while (rows.hasNext()) {
+      var row = rows.next();
+      var url = row['EffectiveFinalUrl'] || '';
+      var clicks = parseInt(row['Clicks'], 10) || 0;
+      
+      if (url && clicks > 0) {
+        landingPages[url] = (landingPages[url] || 0) + clicks;
+        totalClicks += clicks;
+        processedRows++;
+      }
+    }
+    
+    var uniquePages = Object.keys(landingPages).length;
+    Logger.log('[REPORT] Yesterday results:');
+    Logger.log('  Rows processed: ' + processedRows);
+    Logger.log('  Unique landing pages: ' + uniquePages);
+    Logger.log('  Total clicks: ' + totalClicks);
+    
+    // Log each landing page and its click count
+    for (var url in landingPages) {
+      Logger.log('  [LP] URL: ' + url + ' -> ' + landingPages[url] + ' clicks');
+    }
+
+    if (uniquePages > 0 && totalClicks > 0) {
+      Logger.log('  Sending landing_page_counts to API');
+      return landingPages;
+    }
+    return null;
+  } catch (error) {
+    Logger.log('⚠️ [REPORT] Failed to collect yesterday data: ' + error);
+    return null;
+  }
+}
+
+// ============================================
+// CONTINUOUS CAMPAIGN UPDATE CONFIGURATION
+// ============================================
+
+// Maximum script runtime before timeout (in milliseconds)
+// Google Ads limit is 30 minutes (1800000ms)
+// Examples:
+// - 1500000 = 25 minutes (recommended - safe buffer)
+// - 1680000 = 28 minutes (aggressive - tight buffer)
+// - 300000 = 5 minutes (for testing)
+var MAX_RUNTIME_MS = 1500000;
+
+// Update mode: "always" or "on_change"
+// - "always": Update campaigns every cycle regardless of suffix changes
+// - "on_change": Only update campaigns when suffix changes
+var UPDATE_MODE = 'on_change';
+
+// ============================================
+// CAMPAIGN FILTERING OPTIONS (Choose ONE)
+// ============================================
+
+// Option 1: Filter by Campaign IDs (recommended - most precise)
+// Array of campaign IDs to update. Leave empty [] to disable.
+// Example: ['12345678', '87654321', '11223344']
+// To find campaign IDs: Go to Campaigns tab, click on campaign, check URL for campaignId=XXXXXXXXXX
+var CAMPAIGN_IDS = [];
+
+// Option 2: Filter by Label (fallback if no IDs specified)
+// Empty string = all enabled campaigns
+// Example: 'auto-update' or 'offer-campaigns'
+var CAMPAIGN_LABEL_FILTER = '';
+
+// Dry run mode: Set to true to test without actually updating campaigns
+var DRY_RUN_MODE = false;
+
+// ============================================
+// STATE TRACKING
+// ============================================
+var executionState = {
+  startTime: new Date().getTime(),
+  lastApiCall: 0,
+  lastSuffix: '',
+  totalApiCalls: 0,
+  totalCampaignsUpdated: 0,
+  cycleNumber: 0,
+  errors: []
+};
+
+// Yesterday's data - calculated ONCE at startup, reused for all API calls
+var YESTERDAY_DATA_CACHE = null;
+var YESTERDAY_TOTAL_CLICKS = 0;
+var YESTERDAY_UNIQUE_PAGES = 0;
+
+// ============================================
+// DYNAMIC INTERVAL FETCHING (TARGET REPEATS = 2)
+// ============================================
+function getCurrentIntervalFromAPI() {
+  try {
+    // Use cached yesterday data (already calculated at startup)
+    var totalClicks = YESTERDAY_TOTAL_CLICKS;
+    var uniqueLandingPages = YESTERDAY_UNIQUE_PAGES;
+    
+    Logger.log('[INTERVAL] Using cached yesterday data: ' + totalClicks + ' clicks, ' + uniqueLandingPages + ' pages (no recalculation)');
+    
+    if (uniqueLandingPages === 0) {
+      Logger.log('[INTERVAL] No landing page data; delegating default to API with constraints. Default=' + DEFAULT_INTERVAL_MS + 'ms');
+    }
+    
+    var accountTimezone = AdsApp.currentAccount().getTimeZone();
+    
+    // Build URL with offer_name and account_id as query parameters (required by endpoint)
+    var url = SUPABASE_URL + '/functions/v1/get-recommended-interval?offer_name=' + encodeURIComponent(OFFER_NAME);
+    url += '&account_id=' + encodeURIComponent(ACCOUNT_ID);
+    
+    // Pass script-level constraints to API (V3 uses target_average_repeats=2 for more aggressive speed)
+    var payload = {
+      yesterday_total_clicks: totalClicks,
+      yesterday_unique_landing_pages: uniqueLandingPages,
+      account_timezone: accountTimezone,
+      min_interval_ms: MIN_INTERVAL_MS,
+      max_interval_ms: MAX_INTERVAL_MS,
+      target_average_repeats: 2,
+      default_interval_ms: DEFAULT_INTERVAL_MS
+    };
+    
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    var response = UrlFetchApp.fetch(url, options);
+    var responseCode = response.getResponseCode();
+    var responseText = response.getContentText();
+    
+    if (responseCode === 200) {
+      var result = JSON.parse(responseText);
+      if (result.recommended_interval_ms) {
+        var cacheInfo = result.data_source === 'cache' ? ' (from API daily cache)' : ' (newly calculated)';
+        Logger.log('[INTERVAL V3] Fetched: ' + result.recommended_interval_ms + 'ms' + cacheInfo);
+        return result.recommended_interval_ms;
+      }
+    }
+    
+    Logger.log('[INTERVAL V3] API call failed, using default: ' + DEFAULT_INTERVAL_MS + 'ms');
+    return DEFAULT_INTERVAL_MS;
+  } catch (error) {
+    Logger.log('[INTERVAL V3] Error fetching: ' + error + ', using default: ' + DEFAULT_INTERVAL_MS + 'ms');
+    return DEFAULT_INTERVAL_MS;
+  }
+}
+
+// ============================================
+// API CALL FUNCTION
+// ============================================
+function callGetSuffixAPI(campaignCount, intervalToUse) {
+  executionState.totalApiCalls++;
+  
+  campaignCount = campaignCount || 1;
+  intervalToUse = intervalToUse || DEFAULT_INTERVAL_MS;
+  
+  var url = SUPABASE_URL + '/functions/v1/get-suffix?offer_name=' + encodeURIComponent(OFFER_NAME);
+  
+  // Add account_id parameter for multi-account support
+  url += '&account_id=' + encodeURIComponent(ACCOUNT_ID);
+  
+  // Add campaign_count parameter for batch requests
+  if (campaignCount > 1) {
+    url += '&campaign_count=' + campaignCount;
+    Logger.log('[API] Requesting ' + campaignCount + ' unique suffixes');
+  }
+  
+  // Pass the interval to track actual speed used
+  if (intervalToUse > 0) {
+    url += '&interval_used=' + intervalToUse;
+  }
+
+  var options = {
+    'method': 'get',
+    'muteHttpExceptions': true
+  };
+
+  var maxRetries = 3;
+  var retryCount = 0;
+
+  while (retryCount < maxRetries) {
+    try {
+      var callStart = new Date().getTime();
+      var response = UrlFetchApp.fetch(url, options);
+      var callEnd = new Date().getTime();
+      var json = JSON.parse(response.getContentText());
+
+      if (json.success) {
+        Logger.log('[API SUCCESS] Response time: ' + (callEnd - callStart) + 'ms');
+        
+        return {
+          success: true,
+          suffix: json.suffix || '',
+          suffixes: json.suffixes || [],
+          finalUrl: json.final_url,
+          changed: json.suffix !== executionState.lastSuffix,
+          timestamp: new Date()
+        };
+      } else {
+        Logger.log('[API ERROR] Invalid response: ' + JSON.stringify(json));
+      }
+    } catch (e) {
+      retryCount++;
+      Logger.log('[API ERROR] Attempt ' + retryCount + '/' + maxRetries + ': ' + e.toString());
+
+      if (retryCount < maxRetries) {
+        Utilities.sleep(2000 * retryCount);
+      } else {
+        executionState.errors.push({
+          type: 'api_error',
+          message: e.toString(),
+          timestamp: new Date()
+        });
+      }
+    }
+  }
+
+  return {
+    success: false,
+    error: 'Failed after ' + maxRetries + ' attempts'
+  };
+}
+
+// ============================================
+// CAMPAIGN UPDATE FUNCTION
+// ============================================
+function updateCampaigns(currentInterval) {
+  var campaignSelector;
+
+  // Priority 1: Filter by Campaign IDs if provided
+  if (CAMPAIGN_IDS && CAMPAIGN_IDS.length > 0) {
+    Logger.log('[FILTER] Using Campaign IDs: ' + CAMPAIGN_IDS.join(', '));
+    
+    // Build ID filter condition
+    var idConditions = [];
+    for (var i = 0; i < CAMPAIGN_IDS.length; i++) {
+      idConditions.push('Id = ' + CAMPAIGN_IDS[i]);
+    }
+    var idFilter = '(' + idConditions.join(' OR ') + ')';
+    
+    campaignSelector = AdsApp.campaigns()
+      .withCondition('Status = ENABLED')
+      .withCondition(idFilter);
+  }
+  // Priority 2: Filter by Label if no IDs specified
+  else if (CAMPAIGN_LABEL_FILTER && CAMPAIGN_LABEL_FILTER !== '') {
+    Logger.log('[FILTER] Using Label: ' + CAMPAIGN_LABEL_FILTER);
+    campaignSelector = AdsApp.campaigns()
+      .withCondition('Status = ENABLED')
+      .withCondition('LabelNames CONTAINS_ANY ["' + CAMPAIGN_LABEL_FILTER + '"]');
+  }
+  // Priority 3: All enabled campaigns
+  else {
+    Logger.log('[FILTER] Using all enabled campaigns');
+    campaignSelector = AdsApp.campaigns()
+      .withCondition('Status = ENABLED');
+  }
+
+  // First, count campaigns
+  var campaigns = campaignSelector.get();
+  var campaignList = [];
+  while (campaigns.hasNext()) {
+    campaignList.push(campaigns.next());
+  }
+  
+  var campaignCount = campaignList.length;
+  Logger.log('[INFO] Found ' + campaignCount + ' campaigns to update');
+  
+  if (campaignCount === 0) {
+    return {
+      updated: 0,
+      failed: 0,
+      skipped: 0,
+      apiCalls: 0
+    };
+  }
+
+  var updatedCount = 0;
+  var failedCount = 0;
+  var skippedCount = 0;
+
+  // Use the interval passed from main loop (already fetched once per cycle)
+  Logger.log('[INTERVAL] Using pre-fetched interval: ' + currentInterval + 'ms');
+
+  if (DRY_RUN_MODE) {
+    Logger.log('[DRY RUN] Would call API once for ' + campaignCount + ' campaigns');
+    for (var i = 0; i < campaignList.length; i++) {
+      Logger.log('[DRY RUN] Would update: ' + campaignList[i].getName() + ' (ID: ' + campaignList[i].getId() + ')');
+      skippedCount++;
+    }
+    return {
+      updated: 0,
+      failed: 0,
+      skipped: skippedCount,
+      apiCalls: 0
+    };
+  }
+
+  // Make SINGLE API call requesting multiple unique suffixes
+  Logger.log('[API] Calling API once with campaign_count=' + campaignCount);
+  var apiResult = callGetSuffixAPI(campaignCount, currentInterval);
+  
+  if (!apiResult.success) {
+    Logger.log('[API ERROR] Failed to get suffixes: ' + (apiResult.error || 'Unknown error'));
+    executionState.errors.push({
+      type: 'api_error',
+      message: apiResult.error || 'Failed to get suffixes from API',
+      timestamp: new Date()
+    });
+    return {
+      updated: 0,
+      failed: campaignCount,
+      skipped: 0,
+      apiCalls: 1
+    };
+  }
+  
+  // Get suffixes array (or single suffix for backward compatibility)
+  var suffixes = [];
+  if (apiResult.suffixes && apiResult.suffixes.length > 0) {
+    suffixes = apiResult.suffixes;
+    Logger.log('[API] Received ' + suffixes.length + ' unique suffixes');
+  } else if (apiResult.suffix) {
+    // Backward compatibility: single suffix
+    suffixes = [{ suffix: apiResult.suffix }];
+    Logger.log('[API] Received single suffix (backward compatibility mode)');
+  }
+  
+  if (suffixes.length === 0) {
+    Logger.log('[ERROR] No suffixes received from API');
+    return {
+      updated: 0,
+      failed: campaignCount,
+      skipped: 0,
+      apiCalls: 1
+    };
+  }
+
+  // Distribute unique suffixes to campaigns
+  for (var i = 0; i < campaignList.length; i++) {
+    var campaign = campaignList[i];
+    
+    // Use suffix from array, or reuse last if we run out
+    var suffixIndex = Math.min(i, suffixes.length - 1);
+    var suffixData = suffixes[suffixIndex];
+    var suffix = suffixData.suffix || suffixData;
+    
+    try {
+      campaign.urls().setFinalUrlSuffix(suffix);
+      Logger.log('[UPDATED] ' + campaign.getName() + ' (ID: ' + campaign.getId() + ') with unique suffix #' + (suffixIndex + 1));
+      updatedCount++;
+      
+      // No delay between campaigns for maximum speed
+    } catch (e) {
+      failedCount++;
+      Logger.log('[CAMPAIGN ERROR] Failed to update ' + campaign.getName() + ' (ID: ' + campaign.getId() + '): ' + e.toString());
+      executionState.errors.push({
+        type: 'campaign_update_error',
+        campaign: campaign.getName(),
+        campaignId: campaign.getId(),
+        message: e.toString(),
+        timestamp: new Date()
+      });
+    }
+  }
+
+  executionState.totalCampaignsUpdated += updatedCount;
+
+  return {
+    updated: updatedCount,
+    failed: failedCount,
+    skipped: skippedCount,
+    apiCalls: 1
+  };
+}
+
+// ============================================
+// TIME CALCULATION HELPERS
+// ============================================
+function getElapsedMs() {
+  return new Date().getTime() - executionState.startTime;
+}
+
+function getRemainingMs() {
+  return MAX_RUNTIME_MS - getElapsedMs();
+}
+
+function hasEnoughTime() {
+  // Run until time is up - no buffer for maximum 30-minute utilization
+  return getRemainingMs() > 0;
+}
+
+function formatMs(ms) {
+  var seconds = Math.floor(ms / 1000);
+  var minutes = Math.floor(seconds / 60);
+  seconds = seconds % 60;
+  return minutes + 'm ' + seconds + 's';
+}
+
+// ============================================
+// LOGGING FUNCTIONS
+// ============================================
+function logScriptStart() {
+  Logger.log('====================================');
+  Logger.log('CONTINUOUS CAMPAIGN UPDATER (V3)');
+  Logger.log('====================================');
+  Logger.log('Configuration:');
+  Logger.log('  Offer Name: ' + OFFER_NAME);
+  Logger.log('  Max Runtime: ' + formatMs(MAX_RUNTIME_MS));
+  Logger.log('  Update Mode: ' + UPDATE_MODE);
+  Logger.log('  Target Repeats: 2 (more aggressive)');
+  
+  // Show filter method
+  if (CAMPAIGN_IDS && CAMPAIGN_IDS.length > 0) {
+    Logger.log('  Filter Method: Campaign IDs');
+    Logger.log('  Campaign IDs: ' + CAMPAIGN_IDS.join(', '));
+  } else if (CAMPAIGN_LABEL_FILTER && CAMPAIGN_LABEL_FILTER !== '') {
+    Logger.log('  Filter Method: Campaign Label');
+    Logger.log('  Campaign Label: ' + CAMPAIGN_LABEL_FILTER);
+  } else {
+    Logger.log('  Filter Method: All enabled campaigns');
+  }
+  
+  Logger.log('  Dry Run: ' + (DRY_RUN_MODE ? 'YES' : 'NO'));
+  Logger.log('  Note: Interval fetched dynamically from endpoint before each delay');
+  Logger.log('====================================');
+}
+
+function logCycleStart() {
+  executionState.cycleNumber++;
+  Logger.log('');
+  Logger.log('--- CYCLE #' + executionState.cycleNumber + ' ---');
+  Logger.log('Time: ' + new Date().toLocaleString());
+  Logger.log('Elapsed: ' + formatMs(getElapsedMs()) + ' / ' + formatMs(MAX_RUNTIME_MS));
+  Logger.log('Remaining: ' + formatMs(getRemainingMs()));
+}
+
+function logFinalSummary() {
+  Logger.log('');
+  Logger.log('====================================');
+  Logger.log('EXECUTION SUMMARY (V3)');
+  Logger.log('====================================');
+  Logger.log('Total Runtime: ' + formatMs(getElapsedMs()));
+  Logger.log('Total Cycles: ' + executionState.cycleNumber);
+  Logger.log('Total API Calls: ' + executionState.totalApiCalls);
+  Logger.log('Total Campaigns Updated: ' + executionState.totalCampaignsUpdated);
+  Logger.log('Total Errors: ' + executionState.errors.length);
+
+  if (executionState.errors.length > 0) {
+    Logger.log('');
+    Logger.log('Error Details:');
+    for (var i = 0; i < executionState.errors.length; i++) {
+      var error = executionState.errors[i];
+      Logger.log('  [' + error.type + '] ' + error.message);
+    }
+  }
+
+  Logger.log('====================================');
+  Logger.log('Script finished at: ' + new Date().toLocaleString());
+  Logger.log('====================================');
+}
+
+// ============================================
+// MAIN EXECUTION LOOP (WITH SCHEDULER)
+// ============================================
+function main() {
+  // Set account ID at startup
+  ACCOUNT_ID = getAccountId();
+  Logger.log('[STARTUP V3] Account ID: ' + ACCOUNT_ID);
+  
+  // Scheduler check - exit early if denied
+  if (!schedulerCheck()) {
+    Logger.log('[EXIT] Scheduler denied execution.');
+    return;
+  }
+  
+  var startedAt = new Date();
+  
+  logScriptStart();
+
+  // Calculate yesterday's data ONCE at startup (expensive query)
+  Logger.log('[STARTUP] Calculating yesterday\\'s landing page data (one-time calculation)...');
+  YESTERDAY_DATA_CACHE = getYesterdayLandingPages();
+  
+  if (YESTERDAY_DATA_CACHE) {
+    YESTERDAY_TOTAL_CLICKS = 0;
+    for (var url in YESTERDAY_DATA_CACHE) {
+      YESTERDAY_TOTAL_CLICKS += YESTERDAY_DATA_CACHE[url];
+    }
+    YESTERDAY_UNIQUE_PAGES = Object.keys(YESTERDAY_DATA_CACHE).length;
+    Logger.log('[STARTUP] Cached yesterday data: ' + YESTERDAY_TOTAL_CLICKS + ' clicks, ' + YESTERDAY_UNIQUE_PAGES + ' unique pages');
+  } else {
+    Logger.log('[STARTUP] No yesterday data available, will use defaults');
+    YESTERDAY_TOTAL_CLICKS = 0;
+    YESTERDAY_UNIQUE_PAGES = 0;
+  }
+
+  // Interval is now fetched dynamically from endpoint before each use
+  Logger.log('[STARTUP] Interval will be fetched dynamically from endpoint before each delay');
+
+  try {
+    while (hasEnoughTime()) {
+      logCycleStart();
+
+      // Fetch interval ONCE at the start of each cycle
+      Logger.log('[INTERVAL] Fetching interval for this cycle...');
+      var cycleInterval = getCurrentIntervalFromAPI();
+      Logger.log('[INTERVAL] Using ' + cycleInterval + 'ms for this entire cycle');
+
+      // Update campaigns - each campaign gets a unique suffix from API
+      Logger.log('[UPDATE MODE] Calling API once per campaign for unique parameters');
+      var updateResult = updateCampaigns(cycleInterval); // Pass interval to avoid re-fetching
+      
+      // Log cycle results
+      Logger.log('[CYCLE COMPLETE]');
+      Logger.log('  API Calls This Cycle: ' + updateResult.apiCalls);
+      Logger.log('  Campaigns Updated: ' + updateResult.updated);
+      Logger.log('  Campaigns Failed: ' + updateResult.failed);
+      Logger.log('  Campaigns Skipped: ' + updateResult.skipped);
+      
+      executionState.totalApiCalls += updateResult.apiCalls;
+
+      // Use the adaptive interval to pace how often the suffix API is called (one call per cycle)
+      if (cycleInterval > 0) {
+        Logger.log('[INTERVAL] Waiting ' + cycleInterval + 'ms before next cycle');
+        Utilities.sleep(cycleInterval);
+      }
+    }
+
+    Logger.log('');
+    Logger.log('[RUNTIME COMPLETE] Reached 30-minute limit');
+
+  } catch (e) {
+    Logger.log('[FATAL ERROR] ' + e.toString());
+    executionState.errors.push({
+      type: 'fatal_error',
+      message: e.toString(),
+      timestamp: new Date()
+    });
+  }
+
+  logFinalSummary();
+  
+  // Report to scheduler
+  var finishedAt = new Date();
+  schedulerReport({
+    started_at: startedAt.toISOString(),
+    finished_at: finishedAt.toISOString(),
+    total_api_calls: executionState.totalApiCalls,
+    total_campaigns_updated: executionState.totalCampaignsUpdated,
+    total_campaigns_failed: executionState.errors.length
+  });
+}
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * List all enabled campaigns with their IDs
+ * Run this once to find Campaign IDs for the CAMPAIGN_IDS array
+ */
+function listCampaignIds() {
+  Logger.log('\\n' + '='.repeat(60));
+  Logger.log('CAMPAIGN ID FINDER');
+  Logger.log('='.repeat(60));
+  
+  var campaigns = AdsApp.campaigns()
+    .withCondition('Status = ENABLED')
+    .get();
+  
+  var count = 0;
+  while (campaigns.hasNext()) {
+    var campaign = campaigns.next();
+    count++;
+    Logger.log(count + '. ' + campaign.getName());
+    Logger.log('   ID: ' + campaign.getId());
+    Logger.log('   Status: ' + campaign.getStatsFor('LAST_30_DAYS').getClicks() + ' clicks (30d)');
+    Logger.log('');
+  }
+  
+  Logger.log('='.repeat(60));
+  Logger.log('Total: ' + count + ' enabled campaigns');
+  Logger.log('='.repeat(60));
+}
+`;
 
   const trackingTemplate = `${supabaseUrl}/functions/v1/get-suffix?offer_name=OFFER_NAME&redirect=true`;
 
@@ -1127,6 +1918,109 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
       </div>
 
       <div className="grid gap-6">
+        <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-indigo-200 dark:border-indigo-800 overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 px-6 py-4 border-b border-indigo-200 dark:border-indigo-800">
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Script Scheduler Control</h3>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">Pause/resume and set minimum interval (seconds) per offer/account</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Offer Name</label>
+                <input value={schedOfferName} onChange={(e) => setSchedOfferName(e.target.value)} className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Account ID</label>
+                <input value={schedAccountId} onChange={(e) => setSchedAccountId(e.target.value)} className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Min Interval (seconds)</label>
+                <input type="number" min={60} step={60} value={schedMinInterval} onChange={(e) => setSchedMinInterval(Number(e.target.value))} className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <input id="pauseToggle" type="checkbox" checked={schedPaused} onChange={(e) => setSchedPaused(e.target.checked)} />
+                  <label htmlFor="pauseToggle" className="text-sm text-neutral-800 dark:text-neutral-200">Pause execution</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input id="autoScheduleToggle" type="checkbox" checked={schedAutoSchedule} onChange={(e) => setSchedAutoSchedule(e.target.checked)} />
+                  <label htmlFor="autoScheduleToggle" className="text-sm text-neutral-800 dark:text-neutral-200">Auto-schedule (24/7)</label>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={loadSchedulerConfig} disabled={schedLoading} className="px-3 py-2 text-sm rounded bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600">
+                  {schedLoading ? 'Loading…' : 'Load'}
+                </button>
+                <button onClick={saveSchedulerConfig} disabled={schedLoading} className="px-3 py-2 text-sm rounded bg-indigo-600 text-white hover:bg-indigo-700">
+                  {schedLoading ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+            {schedNextRun && (
+              <div className="text-sm text-neutral-700 dark:text-neutral-300">
+                <strong>Next Run:</strong> {new Date(schedNextRun).toLocaleString()}
+              </div>
+            )}
+            {schedMessage && (
+              <div className="text-sm text-neutral-700 dark:text-neutral-300">{schedMessage}</div>
+            )}
+            <div className="text-xs text-neutral-500 dark:text-neutral-400">
+              <p><strong>Auto-schedule (24/7):</strong> When enabled, script automatically calculates next run = start time + min interval (e.g., starts at 10:00, next at 10:30).</p>
+              <p><strong>How to use:</strong> Set Google Ads trigger to run every 5-10 minutes. Scheduler will allow execution only at calculated times.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-indigo-200 dark:border-indigo-800 overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 px-6 py-4 border-b border-indigo-200 dark:border-indigo-800">
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Script Execution Status</h3>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">Recent runs for the selected offer/account</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="flex gap-2">
+              <button onClick={loadExecutions} disabled={execLoading} className="px-3 py-2 text-sm rounded bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600">
+                {execLoading ? 'Loading…' : 'Refresh'}
+              </button>
+              {execMessage && <div className="text-sm text-neutral-700 dark:text-neutral-300">{execMessage}</div>}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left border-b border-neutral-200 dark:border-neutral-800">
+                    <th className="py-2 pr-4">Started</th>
+                    <th className="py-2 pr-4">Finished</th>
+                    <th className="py-2 pr-4">Client</th>
+                    <th className="py-2 pr-4">Version</th>
+                    <th className="py-2 pr-4">API Calls</th>
+                    <th className="py-2 pr-4">Updated</th>
+                    <th className="py-2 pr-4">Failed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {executions.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-3 text-neutral-600 dark:text-neutral-400">No runs yet</td>
+                    </tr>
+                  ) : (
+                    executions.map((row, idx) => (
+                      <tr key={row.id || idx} className="border-b border-neutral-200 dark:border-neutral-800">
+                        <td className="py-2 pr-4">{row.started_at ? new Date(row.started_at).toLocaleString() : '-'}</td>
+                        <td className="py-2 pr-4">{row.finished_at ? new Date(row.finished_at).toLocaleString() : '-'}</td>
+                        <td className="py-2 pr-4">{row.client || '-'}</td>
+                        <td className="py-2 pr-4">{row.version || '-'}</td>
+                        <td className="py-2 pr-4">{row.total_api_calls ?? '-'}</td>
+                        <td className="py-2 pr-4">{row.total_campaigns_updated ?? '-'}</td>
+                        <td className="py-2 pr-4">{row.total_campaigns_failed ?? '-'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
         <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-neutral-200 dark:border-neutral-800 overflow-hidden">
           <div className="bg-neutral-50 dark:bg-neutral-850 px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1297,6 +2191,52 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-indigo-200 dark:border-indigo-800 overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 px-6 py-4 border-b border-indigo-200 dark:border-indigo-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Code2 className="text-indigo-600 dark:text-indigo-400" size={24} />
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Google Ads Script (Adaptive V3 + Auto-Schedule)</h3>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                  Uses scheduler check/report, no sleeps, target repeats = 2 for faster optimization
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => copyToClipboard(googleAdsAutoScheduleV3, 'google-ads-v3')}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-smooth"
+            >
+              {copiedScript === 'google-ads-v3' ? (
+                <>
+                  <CheckCircle size={18} />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy size={18} />
+                  Copy
+                </>
+              )}
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
+              <h4 className="font-semibold text-indigo-900 dark:text-indigo-300 mb-2">🗓 Auto-Scheduler + Aggressive Targeting</h4>
+              <div className="text-sm text-indigo-800 dark:text-indigo-400 space-y-2">
+                <ul className="list-disc ml-5 space-y-1">
+                  <li>Checks central scheduler before running; reports summary after</li>
+                  <li>No sleeps anywhere (even between retries)</li>
+                  <li>Adaptive interval uses target repeats = 2</li>
+                  <li>Passes min/max/default constraints to the API</li>
+                </ul>
+              </div>
+            </div>
+            <pre className="bg-neutral-900 dark:bg-neutral-950 text-neutral-100 dark:text-neutral-200 text-sm p-4 rounded overflow-x-auto max-h-96">
+              {googleAdsAutoScheduleV3}
+            </pre>
           </div>
         </div>
 

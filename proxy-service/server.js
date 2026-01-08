@@ -580,9 +580,15 @@ async function initBrowser(forceNew = false) {
     }
   }
 
-  browser = await puppeteer.launch(launchOptions);
+  const newBrowser = await puppeteer.launch(launchOptions);
 
-  return browser;
+  // CRITICAL: Only update global browser variable if NOT creating a fresh trace browser
+  // This prevents orphaning the shared browser instance when forceNew=true
+  if (!forceNew) {
+    browser = newBrowser;
+  }
+
+  return newBrowser;
 }
 
 async function fetchGeolocation(username = null, password = null) {
