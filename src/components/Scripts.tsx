@@ -1252,7 +1252,7 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
                   <p className="ml-4">Your offer name (required)</p>
                 </div>
                 <div>
-                  <p className="font-semibold">RUN_INTERVAL_MS</p>
+                  <p className="font-semibold">MAX_RUNTIME_MS</p>
                   <p className="ml-4">How often to call API in milliseconds (default: 300000 = 5 minutes)</p>
                   <p className="ml-4 text-xs mt-1">Examples: 60000=1m, 300000=5m, 600000=10m, 900000=15m</p>
                 </div>
@@ -1284,7 +1284,7 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
             <div className="bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800 rounded-lg p-4">
               <h4 className="font-semibold text-success-900 dark:text-success-300 mb-2">📊 Expected Performance</h4>
               <div className="text-sm text-success-800 dark:text-success-400 space-y-2">
-                <p>With default settings (RUN_INTERVAL_MS = 300000, MAX_RUNTIME_MS = 1500000):</p>
+                <p>With default settings (MAX_RUNTIME_MS = 1500000):</p>
                 <ul className="list-disc ml-5 space-y-1">
                   <li><strong>~5 API calls</strong> during single execution (5 min intervals over 25 min)</li>
                   <li><strong>~5 campaign updates</strong> with dynamic intervals</li>

@@ -200,6 +200,61 @@ Deno.serve(async (req: Request) => {
     const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: accountTimezone }); // YYYY-MM-DD
     console.log(`📅 Today's date in ${accountTimezone}: ${todayDate}`);
 
+    const hasData = yesterdayClicks > 0 && yesterdayLandingPages > 0;
+
+    // If no data (day-0 or empty report), honor script default (clamped) and bypass cache
+    if (!hasData) {
+      const recommendedInterval = Math.max(minIntervalMs, Math.min(maxIntervalMs, defaultIntervalMs));
+      console.log(`⚠️ [NO DATA] Using default (clamped): ${recommendedInterval}ms [default=${defaultIntervalMs}, min=${minIntervalMs}, max=${maxIntervalMs}]`);
+
+      try {
+        const { error: storeError } = await supabase
+          .from('daily_trace_counts')
+          .upsert({
+            offer_id: offer.id,
+            account_id: accountId || '',
+            date: todayDate,
+            trace_count: 0,
+            total_clicks: yesterdayClicks,
+            unique_landing_pages: yesterdayLandingPages,
+            interval_used_ms: recommendedInterval,
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'offer_id,account_id,date'
+          });
+        if (storeError) {
+          console.warn('⚠️ Failed to cache default interval:', storeError.message);
+        } else {
+          console.log(`✅ Cached default interval ${recommendedInterval}ms for ${todayDate}`);
+        }
+      } catch (e: any) {
+        console.warn('⚠️ Error caching default interval:', e.message);
+      }
+
+      return new Response(
+        JSON.stringify({
+          recommended_interval_ms: recommendedInterval,
+          yesterday_interval_ms: recommendedInterval,
+          yesterday_clicks: yesterdayClicks,
+          yesterday_landing_pages: yesterdayLandingPages,
+          average_repeats: 0,
+          min_interval_ms: minIntervalMs,
+          max_interval_ms: maxIntervalMs,
+          target_average_repeats: targetAverageRepeats,
+          data_source: 'default_no_data',
+          used_default_fallback: true,
+          account_id: accountId,
+          account_timezone: accountTimezone,
+          cached_date: todayDate,
+          message: 'No data provided; using script default clamped to min/max'
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     // 4. Check if we already calculated interval for today (CACHE CHECK)
     const { data: cachedInterval, error: cacheError } = await supabase
       .from('daily_trace_counts')
@@ -253,13 +308,62 @@ Deno.serve(async (req: Request) => {
       .eq('date', yesterdayDate)
       .maybeSingle();
 
-    let yesterdayInterval = BASE_INTERVAL_MS;
-    if (yesterdayData && yesterdayData.interval_used_ms) {
-      yesterdayInterval = yesterdayData.interval_used_ms;
-      console.log(`✅ Found yesterday's interval: ${yesterdayInterval}ms`);
-    } else {
-      console.log(`⚠️ No yesterday interval found, using base: ${BASE_INTERVAL_MS}ms`);
+    // TREAT AS DAY-0 if no yesterday interval in database
+    if (!yesterdayData || !yesterdayData.interval_used_ms) {
+      console.log(`⚠️ [DAY-0 DETECTED] No yesterday interval in database, treating as day-0`);
+      const recommendedInterval = Math.max(minIntervalMs, Math.min(maxIntervalMs, defaultIntervalMs));
+      console.log(`⚠️ [DAY-0] Using script default (clamped): ${recommendedInterval}ms [default=${defaultIntervalMs}, min=${minIntervalMs}, max=${maxIntervalMs}]`);
+
+      try {
+        const { error: storeError } = await supabase
+          .from('daily_trace_counts')
+          .upsert({
+            offer_id: offer.id,
+            account_id: accountId || '',
+            date: todayDate,
+            trace_count: 0,
+            total_clicks: yesterdayClicks,
+            unique_landing_pages: yesterdayLandingPages,
+            interval_used_ms: recommendedInterval,
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'offer_id,account_id,date'
+          });
+        if (storeError) {
+          console.warn('⚠️ Failed to cache day-0 interval:', storeError.message);
+        } else {
+          console.log(`✅ Cached day-0 interval ${recommendedInterval}ms for ${todayDate}`);
+        }
+      } catch (e: any) {
+        console.warn('⚠️ Error caching day-0 interval:', e.message);
+      }
+
+      return new Response(
+        JSON.stringify({
+          recommended_interval_ms: recommendedInterval,
+          yesterday_interval_ms: recommendedInterval,
+          yesterday_clicks: yesterdayClicks,
+          yesterday_landing_pages: yesterdayLandingPages,
+          average_repeats: yesterdayLandingPages > 0 ? parseFloat((yesterdayClicks / yesterdayLandingPages).toFixed(2)) : 0,
+          min_interval_ms: minIntervalMs,
+          max_interval_ms: maxIntervalMs,
+          target_average_repeats: targetAverageRepeats,
+          data_source: 'day_0_no_history',
+          used_default_fallback: true,
+          account_id: accountId,
+          account_timezone: accountTimezone,
+          cached_date: todayDate,
+          message: 'No yesterday interval found in database; using script default as day-0'
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
+
+    let yesterdayInterval = yesterdayData.interval_used_ms;
+    console.log(`✅ Found yesterday's interval: ${yesterdayInterval}ms`);
 
     // 7. Calculate interval based on average repeats per landing page
     // Formula: average_repeats = clicks / unique_landing_pages
@@ -322,6 +426,8 @@ Deno.serve(async (req: Request) => {
         .upsert({
           offer_id: offer.id,
           account_id: accountId || '',
+          total_clicks: yesterdayClicks,
+          unique_landing_pages: yesterdayLandingPages,
           date: todayDate,
           trace_count: 0, // Not tracking traces anymore, using Google Ads data
           interval_used_ms: recommendedInterval,
