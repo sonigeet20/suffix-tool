@@ -367,8 +367,7 @@ function getCurrentIntervalFromAPI() {
     Logger.log('[INTERVAL] Using cached yesterday data: ' + totalClicks + ' clicks, ' + uniqueLandingPages + ' pages (no recalculation)');
     
     if (uniqueLandingPages === 0) {
-      Logger.log('[INTERVAL] No landing page data, using default: ' + DEFAULT_INTERVAL_MS + 'ms');
-      return DEFAULT_INTERVAL_MS;
+      Logger.log('[INTERVAL] No landing page data; delegating default to API with constraints. Default=' + DEFAULT_INTERVAL_MS + 'ms');
     }
     
     var accountTimezone = AdsApp.currentAccount().getTimeZone();
@@ -377,10 +376,15 @@ function getCurrentIntervalFromAPI() {
     var url = SUPABASE_URL + '/functions/v1/get-recommended-interval?offer_name=' + encodeURIComponent(OFFER_NAME);
     url += '&account_id=' + encodeURIComponent(ACCOUNT_ID);
     
+    // Pass script-level constraints to API (including day-0 default)
     var payload = {
       yesterday_total_clicks: totalClicks,
       yesterday_unique_landing_pages: uniqueLandingPages,
-      account_timezone: accountTimezone
+      account_timezone: accountTimezone,
+      min_interval_ms: MIN_INTERVAL_MS,
+      max_interval_ms: MAX_INTERVAL_MS,
+      target_average_repeats: 5,
+      default_interval_ms: DEFAULT_INTERVAL_MS
     };
     
     var options = {

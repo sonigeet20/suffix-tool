@@ -7,10 +7,12 @@ const corsHeaders = {
 };
 
 // Configuration constants
-const TARGET_AVERAGE_REPEATS = 5;  // Target: average repeats per landing page should be ~5
-const MIN_INTERVAL_MS = 1000;       // Minimum speed (floor protection)
-const MAX_INTERVAL_MS = 30000;      // Maximum speed (ceiling cap)
 const BASE_INTERVAL_MS = 5000;      // Fallback for fresh campaigns
+
+// Default constraints (used if script doesn't provide them)
+const DEFAULT_TARGET_AVERAGE_REPEATS = 5;
+const DEFAULT_MIN_INTERVAL_MS = 1000;
+const DEFAULT_MAX_INTERVAL_MS = 30000;
 
 // Helper to calculate yesterday's date in a given timezone and return UTC range
 function getYesterdayUTCRange(timezone: string): { startUTC: string; endUTC: string; localDate: string } {
@@ -165,10 +167,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 2. Parse request body for clicks, landing pages, and timezone
+    // 3. Parse request body for clicks, landing pages, timezone, and constraints
     let yesterdayClicks = 0;
     let yesterdayLandingPages = 0;
     let accountTimezone = 'UTC';
+    let minIntervalMs = DEFAULT_MIN_INTERVAL_MS;
+    let maxIntervalMs = DEFAULT_MAX_INTERVAL_MS;
+    let targetAverageRepeats = DEFAULT_TARGET_AVERAGE_REPEATS;
+    let defaultIntervalMs = BASE_INTERVAL_MS;
     
     if (req.method === 'POST') {
       try {
@@ -176,7 +182,15 @@ Deno.serve(async (req: Request) => {
         yesterdayClicks = body.yesterday_total_clicks || 0;
         yesterdayLandingPages = body.yesterday_unique_landing_pages || 0;
         accountTimezone = body.account_timezone || 'UTC';
+        
+        // Accept constraints from script (script-level settings take priority)
+        if (body.min_interval_ms !== undefined) minIntervalMs = body.min_interval_ms;
+        if (body.max_interval_ms !== undefined) maxIntervalMs = body.max_interval_ms;
+        if (body.target_average_repeats !== undefined) targetAverageRepeats = body.target_average_repeats;
+        if (body.default_interval_ms !== undefined) defaultIntervalMs = body.default_interval_ms;
+        
         console.log(`📬 POST data: clicks=${yesterdayClicks}, landing_pages=${yesterdayLandingPages}, timezone=${accountTimezone}`);
+        console.log(`⚙️  Script constraints: MIN=${minIntervalMs}ms, MAX=${maxIntervalMs}ms, TARGET=${targetAverageRepeats}, DEFAULT=${defaultIntervalMs}`);
       } catch (e) {
         console.warn('⚠️ Failed to parse POST body');
       }
@@ -206,6 +220,9 @@ Deno.serve(async (req: Request) => {
           yesterday_clicks: yesterdayClicks,
           yesterday_landing_pages: yesterdayLandingPages,
           average_repeats: yesterdayLandingPages > 0 ? parseFloat((yesterdayClicks / yesterdayLandingPages).toFixed(2)) : 0,
+          min_interval_ms: minIntervalMs,
+          max_interval_ms: maxIntervalMs,
+          target_average_repeats: targetAverageRepeats,
           data_source: 'cache',
           used_default_fallback: false,
           account_id: accountId,
@@ -246,31 +263,30 @@ Deno.serve(async (req: Request) => {
 
     // 7. Calculate interval based on average repeats per landing page
     // Formula: average_repeats = clicks / unique_landing_pages
-    // If average > 5, increase delay (slow down)
-    // If average < 5, decrease delay (speed up)
+    // If average > target, increase delay (slow down)
+    // If average < target, decrease delay (speed up)
     let recommendedInterval = BASE_INTERVAL_MS;
     let averageRepeats = 0;
     let usedFallback = false;
 
     if (yesterdayClicks > 0 && yesterdayLandingPages > 0) {
-      // Calculate average: clicks / landing pages
       averageRepeats = yesterdayClicks / yesterdayLandingPages;
-      
-      // Apply formula: next = yesterday_interval * (TARGET / average)
-      // Use yesterday's actual interval for iterative improvement
-      const calculated = Math.round(yesterdayInterval * (TARGET_AVERAGE_REPEATS / averageRepeats));
-      recommendedInterval = Math.max(MIN_INTERVAL_MS, Math.min(MAX_INTERVAL_MS, calculated));
+      const calculated = Math.round(yesterdayInterval * (targetAverageRepeats / averageRepeats));
+      const adjusted = averageRepeats < targetAverageRepeats ? Math.min(yesterdayInterval, calculated) : calculated;
+      recommendedInterval = Math.max(minIntervalMs, Math.min(maxIntervalMs, adjusted));
       
       console.log(`📊 Calculation:`);
       console.log(`   Clicks: ${yesterdayClicks}`);
       console.log(`   Unique Landing Pages: ${yesterdayLandingPages}`);
       console.log(`   Average Repeats: ${yesterdayClicks}/${yesterdayLandingPages} = ${averageRepeats.toFixed(2)}`);
       console.log(`   Yesterday Interval: ${yesterdayInterval}ms`);
-      console.log(`   Formula: ${yesterdayInterval} * (${TARGET_AVERAGE_REPEATS}/${averageRepeats.toFixed(2)}) = ${calculated}ms`);
-      console.log(`   Final (clamped): ${recommendedInterval}ms`);
+      console.log(`   Formula: ${yesterdayInterval} * (${targetAverageRepeats}/${averageRepeats.toFixed(2)}) = ${calculated}ms`);
+      console.log(`   Final (clamped to MIN=${minIntervalMs}, MAX=${maxIntervalMs}): ${recommendedInterval}ms`);
     } else {
       usedFallback = true;
-      console.log(`⚠️ Not enough data for calculation, using default: ${BASE_INTERVAL_MS}ms`);
+      // Day-0 or no-data: use script-provided default, clamped to constraints
+      recommendedInterval = Math.max(minIntervalMs, Math.min(maxIntervalMs, defaultIntervalMs));
+      console.log(`⚠️ Not enough data for calculation, using default (clamped): ${recommendedInterval}ms [default=${defaultIntervalMs}, min=${minIntervalMs}, max=${maxIntervalMs}]`);
     }
 
     const response = {
@@ -279,17 +295,21 @@ Deno.serve(async (req: Request) => {
       yesterday_clicks: yesterdayClicks,
       yesterday_landing_pages: yesterdayLandingPages,
       average_repeats: averageRepeats > 0 ? parseFloat(averageRepeats.toFixed(2)) : 0,
+      min_interval_ms: minIntervalMs,
+      max_interval_ms: maxIntervalMs,
+      target_average_repeats: targetAverageRepeats,
       data_source: (yesterdayClicks > 0 && yesterdayLandingPages > 0) ? 'google_ads_report' : 'fallback',
       used_default_fallback: usedFallback,
       account_id: accountId,
       account_timezone: accountTimezone,
       stats_date: yesterdayDate,
       formula: {
-        description: 'next = yesterday_interval * (5 / average_repeats) where average_repeats = clicks / unique_landing_pages',
-        target_average_repeats: TARGET_AVERAGE_REPEATS,
-        min_interval_ms: MIN_INTERVAL_MS,
-        max_interval_ms: MAX_INTERVAL_MS,
+        description: 'next = yesterday_interval * (target / average_repeats) where average_repeats = clicks / unique_landing_pages',
+        target_average_repeats: targetAverageRepeats,
+        min_interval_ms: minIntervalMs,
+        max_interval_ms: maxIntervalMs,
         base_interval_ms: BASE_INTERVAL_MS,
+        default_interval_ms: defaultIntervalMs
       }
     };
 
