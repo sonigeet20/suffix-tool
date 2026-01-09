@@ -77,6 +77,10 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Trackier Dual-URL Webhook Integration (Isolated Module - Safe to disable)
+const trackierRoutes = require('./routes/trackier-webhook');
+app.use('/api', trackierRoutes);
+
 // Utility function to convert bytes to human-readable format
 function formatBytes(bytes) {
   if (bytes === null || bytes === undefined) return 'unknown';
@@ -636,6 +640,7 @@ async function traceRedirectsHttpOnly(url, options = {}) {
     userAgent = userAgentRotator.getNext(),
     targetCountry = null,
     referrer = null,
+    referrerHops = null,
     proxyIp = null,
     proxyPort = null,
     expectedFinalUrl = null,
@@ -796,6 +801,14 @@ async function traceRedirectsHttpOnly(url, options = {}) {
     const timeoutId = setTimeout(() => abortController.abort(), budgetPerHop);
     
     try {
+      // Determine if referrer should be applied to this hop
+      const currentHopNumber = currentHopIndex + 1; // 1-indexed
+      const shouldApplyReferrer = referrer && (
+        !referrerHops || 
+        referrerHops.length === 0 || 
+        referrerHops.includes(currentHopNumber)
+      );
+      
       // Use got.stream() with AbortController for instant kill
       const stream = got.stream(url, {
         signal: abortController.signal,
@@ -809,7 +822,7 @@ async function traceRedirectsHttpOnly(url, options = {}) {
           'accept-language': fingerprint.language,
           'accept-encoding': fingerprint.encoding,
           'connection': 'close', // Don't keep alive - we're killing it anyway
-          ...(referrer ? { 'referer': referrer } : {}),
+          ...(shouldApplyReferrer ? { 'referer': referrer } : {}),
         },
         retry: { limit: 0 },
         timeout: {
@@ -1122,6 +1135,7 @@ async function traceRedirectsBrightDataBrowser(url, options = {}) {
     userAgent = userAgentRotator.getNext(),
     targetCountry = null,
     referrer = null,
+    referrerHops = null,
     apiKey = null,
   } = options;
 
@@ -1143,7 +1157,7 @@ async function traceRedirectsBrightDataBrowser(url, options = {}) {
     logger.info(`🌍 Bright Data Browser: Geo-targeting ${targetCountry.toUpperCase()}`);
   }
 
-  const buildPayload = (targetUrl) => {
+  const buildPayload = (targetUrl, hopNumber = 1) => {
     const payload = {
       zone: 'scraping_browser1',
       url: targetUrl,
@@ -1165,7 +1179,14 @@ async function traceRedirectsBrightDataBrowser(url, options = {}) {
       payload.headers['User-Agent'] = userAgent;
     }
 
-    if (referrer) {
+    // Apply referrer based on hop configuration
+    const shouldApplyReferrer = referrer && (
+      !referrerHops || 
+      referrerHops.length === 0 || 
+      referrerHops.includes(hopNumber)
+    );
+    
+    if (shouldApplyReferrer) {
       payload.headers['Referer'] = referrer;
     }
 
@@ -1230,7 +1251,7 @@ async function traceRedirectsBrightDataBrowser(url, options = {}) {
       }
       seen.add(currentUrl);
 
-      const payload = buildPayload(currentUrl);
+      const payload = buildPayload(currentUrl, hop); // Pass hop number
       const startTime = Date.now();
 
       logger.info(`🔄 Bright Data hop ${hop}: ${currentUrl.substring(0, 100)}...`);
@@ -1344,6 +1365,7 @@ async function traceRedirectsBrowser(url, options = {}) {
     userAgent = userAgentRotator.getNext(),
     targetCountry = selectedCountry || null,
     referrer = null,
+    referrerHops = null, // NEW: Array of hop numbers [1,2,3] or null for all hops
     expectedFinalUrl = null,
     suffixStep = null,
   } = options;
@@ -1405,7 +1427,11 @@ async function traceRedirectsBrowser(url, options = {}) {
     
     if (referrer) {
       headers['Referer'] = referrer;
-      logger.info(`🔗 Browser using custom referrer: ${referrer}`);
+      if (referrerHops && referrerHops.length > 0) {
+        logger.info(`🔗 Browser using custom referrer on hops ${referrerHops.join(',')}: ${referrer}`);
+      } else {
+        logger.info(`🔗 Browser using custom referrer on ALL hops: ${referrer}`);
+      }
     }
     
     await page.setExtraHTTPHeaders(headers);
@@ -1707,8 +1733,17 @@ async function traceRedirectsBrowser(url, options = {}) {
       if (shouldBlock) {
         request.abort();
       } else {
-        // Override headers to maintain the same referrer across all hops
-        if (referrer && resourceType === 'document') {
+        // Apply referrer based on referrerHops configuration
+        // If referrerHops is null/empty -> apply to ALL hops (default behavior)
+        // If referrerHops is an array -> apply only to specified hop numbers (1-indexed)
+        const currentHopNumber = requestLog.documentRequests.size;
+        const shouldApplyReferrer = referrer && resourceType === 'document' && (
+          !referrerHops || 
+          referrerHops.length === 0 || 
+          referrerHops.includes(currentHopNumber)
+        );
+        
+        if (shouldApplyReferrer) {
           const overrideHeaders = {
             ...request.headers(),
             'Referer': referrer,
@@ -1801,7 +1836,6 @@ async function traceRedirectsBrowser(url, options = {}) {
           }
         } else if (status >= 200 && status < 300) {
           redirectType = 'final';
-          // CRITICAL: Close page immediately to prevent body download
           pageClosed = true;
           logger.info(`🛑 Browser: Detected final URL, closing page to save bandwidth`);
           setImmediate(async () => {
@@ -1972,6 +2006,20 @@ async function traceRedirectsBrowser(url, options = {}) {
           }
           
           logger.info('⚡ Browser: Early stop - no more redirects found');
+          
+          // Close page now to save bandwidth after confirming no more redirects
+          if (!pageClosed) {
+            pageClosed = true;
+            setImmediate(async () => {
+              try {
+                await page.close();
+                logger.info('🛑 Browser: Page closed after idle detection');
+              } catch (e) {
+                logger.error(`Error closing page after idle: ${e.message}`);
+              }
+            });
+          }
+          
           resolve();
         }
       };
@@ -2120,6 +2168,7 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     userAgent = userAgentRotator.getNext(),
     targetCountry = null,
     referrer = null,
+    referrerHops = null,
     expectedFinalUrl = null,
     suffixStep = null,
   } = options;
@@ -2220,7 +2269,11 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
         'Accept-Language': fingerprint.language,
         'Accept-Encoding': fingerprint.encoding,
       });
-      logger.info(`🔗 Anti-cloaking using custom referrer: ${referrer}`);
+      if (referrerHops && referrerHops.length > 0) {
+        logger.info(`🔗 Anti-cloaking using custom referrer on hops ${referrerHops.join(',')}: ${referrer}`);
+      } else {
+        logger.info(`🔗 Anti-cloaking using custom referrer on ALL hops: ${referrer}`);
+      }
     } else {
       await page.setExtraHTTPHeaders({
         'Accept-Language': fingerprint.language,
@@ -2442,8 +2495,15 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       if (shouldBlock) {
         request.abort();
       } else {
-        // Override headers to maintain the same referrer across all hops
-        if (referrer && resourceType === 'document') {
+        // Apply referrer based on referrerHops configuration
+        const currentHopNumber = requestLog.documentRequests.size;
+        const shouldApplyReferrer = referrer && resourceType === 'document' && (
+          !referrerHops || 
+          referrerHops.length === 0 || 
+          referrerHops.includes(currentHopNumber)
+        );
+        
+        if (shouldApplyReferrer) {
           const overrideHeaders = {
             ...request.headers(),
             'Referer': referrer,
@@ -2914,6 +2974,7 @@ app.post('/trace', async (req, res) => {
       user_agent,
       target_country,
       referrer,
+      referrer_hops, // NEW: Array of hop numbers where referrer should be applied [1,2,3] or null for all hops
       mode = 'browser',
       proxy_ip,
       proxy_port,
@@ -3011,6 +3072,7 @@ app.post('/trace', async (req, res) => {
         userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: selectedCountry || null,
         referrer: referrer || null,
+        referrerHops: referrer_hops || null,
         proxyIp: proxy_ip || null,
         proxyPort: proxy_port || null,
         expectedFinalUrl: expected_final_url || null,
@@ -3038,6 +3100,7 @@ app.post('/trace', async (req, res) => {
         userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: selectedCountry || null,
         referrer: referrer || null,
+        referrerHops: referrer_hops || null,
         apiKey: apiKey,
       });
 
@@ -3072,6 +3135,7 @@ app.post('/trace', async (req, res) => {
         userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: selectedCountry || null,
         referrer: referrer || null,
+        referrerHops: referrer_hops || null,
         expectedFinalUrl: expected_final_url || null,
         suffixStep: suffix_step || null,
         debug, // Pass debug flag
@@ -3084,6 +3148,7 @@ app.post('/trace', async (req, res) => {
         userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: selectedCountry || null,
         referrer: referrer || null,
+        referrerHops: referrer_hops || null,
         minSessionTime: 4000,
         maxSessionTime: 8000,
       }, puppeteer, generateBrowserFingerprint, BLOCKED_DOMAINS, BLOCKED_RESOURCE_TYPES);
@@ -3095,6 +3160,7 @@ app.post('/trace', async (req, res) => {
         userAgent: user_agent || userAgentRotator.getNext(),
         targetCountry: selectedCountry || null,
         referrer: referrer || null,
+        referrerHops: referrer_hops || null, // NEW: Pass referrerHops configuration
         expectedFinalUrl: expected_final_url || null,
         suffixStep: suffix_step || null,
       });

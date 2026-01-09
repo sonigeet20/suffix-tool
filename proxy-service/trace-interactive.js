@@ -170,6 +170,7 @@ async function traceRedirectsInteractive(
     userAgent = null,
     targetCountry = null,
     referrer = null,
+    referrerHops = null, // NEW: Array of hop numbers for referrer [1,2,3] or null for all
     minSessionTime = 3000,
     maxSessionTime = 8000,
   } = options;
@@ -320,7 +321,11 @@ async function traceRedirectsInteractive(
     
     if (referrer) {
       headers['Referer'] = referrer;
-      interactiveLogger.info(`🔗 Using custom referrer: ${referrer}`);
+      if (referrerHops && referrerHops.length > 0) {
+        interactiveLogger.info(`🔗 Using custom referrer on hops ${referrerHops.join(',')}: ${referrer}`);
+      } else {
+        interactiveLogger.info(`🔗 Using custom referrer on ALL hops: ${referrer}`);
+      }
     }
     
     await page.setExtraHTTPHeaders(headers);
@@ -423,7 +428,15 @@ async function traceRedirectsInteractive(
       if (shouldBlock) {
         request.abort();
       } else {
-        if (referrer && resourceType === 'document') {
+        // Apply referrer based on referrerHops configuration
+        const currentHopNumber = requestLog.documentRequests.size;
+        const shouldApplyReferrer = referrer && resourceType === 'document' && (
+          !referrerHops || 
+          referrerHops.length === 0 || 
+          referrerHops.includes(currentHopNumber)
+        );
+        
+        if (shouldApplyReferrer) {
           request.continue({ headers: { ...request.headers(), 'Referer': referrer } });
         } else {
           request.continue();

@@ -25,6 +25,7 @@ interface ReferrerEntry {
   weight: number;
   enabled: boolean;
   label: string;
+  hops?: number[]; // Optional: specific hops for this referrer (e.g., [1,2,3]). If empty/null, applies to all hops
 }
 
 export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
@@ -1178,7 +1179,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                   <div className="space-y-3">
                     {referrers.map((entry, index) => (
                       <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <div className="grid grid-cols-12 gap-3">
+                        <div className="grid grid-cols-12 gap-3 mb-3">
                           <div className="col-span-5">
                             <label className="block text-xs font-medium text-gray-600 mb-1">Referrer URL</label>
                             <input
@@ -1231,6 +1232,23 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                               <Trash2 size={16} />
                             </button>
                           </div>
+                        </div>
+                        <div className="mt-2">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Apply to Hops (optional)
+                            <span className="ml-1 text-gray-500 font-normal">- Leave empty for all hops, or specify: 1,2,3</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={entry.hops?.join(',') || ''}
+                            onChange={(e) => {
+                              const value = e.target.value.trim();
+                              const hops = value ? value.split(',').map(h => parseInt(h.trim())).filter(h => !isNaN(h) && h > 0) : [];
+                              updateReferrer(index, 'hops', hops.length > 0 ? hops : undefined);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            placeholder="e.g., 1,2,3 (empty = all hops)"
+                          />
                         </div>
                       </div>
                     ))}
