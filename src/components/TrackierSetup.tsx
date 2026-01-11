@@ -481,7 +481,6 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         if (updateWebhookError) throw updateWebhookError;
         result = updatedData;
       }
-      }
 
       setConfig(result);
       setSuccess('Configuration saved successfully!');
