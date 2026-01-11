@@ -33,9 +33,11 @@ interface TrackierOffer {
   advertiser_id: string;
   url1_campaign_id: string;
   url1_campaign_name: string;
+  url1_tracking_url?: string;
   url2_campaign_id: string;
   url2_campaign_name: string;
   url2_destination_url: string;
+  url2_tracking_url?: string;
   url2_last_suffix: string;
   google_ads_template: string;
   final_url: string;
@@ -52,6 +54,8 @@ interface TrackierOffer {
   update_count?: number;
   url2_last_updated_at?: string;
   last_webhook_at?: string;
+  publisher_id?: string;
+  webhook_url?: string;
 }
 
 export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTemplate, onClose }: TrackierSetupProps) {
@@ -1197,7 +1201,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                               className="flex-1 px-3 py-2 border border-orange-300 rounded-md bg-white text-sm font-mono"
                             />
                             <button
-                              onClick={() => copyToClipboard(config.webhook_url, 'S2S Push URL')}
+                              onClick={() => copyToClipboard(config.webhook_url || '', 'S2S Push URL')}
                               className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm font-medium"
                             >
                               Copy URL
