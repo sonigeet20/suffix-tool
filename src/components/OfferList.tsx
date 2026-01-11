@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase, Offer } from '../lib/supabase';
-import { Plus, Edit, Trash2, Link2, ExternalLink, Copy, CheckCircle, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
+import { Plus, Edit, Trash2, Link2, ExternalLink, Copy, CheckCircle, ChevronDown, ChevronUp, ArrowRight, Webhook } from 'lucide-react';
 import OfferForm from './OfferForm';
+import TrackierSetup from './TrackierSetup';
 import SearchBar from './ui/SearchBar';
 import FilterDropdown from './ui/FilterDropdown';
 import Pagination from './ui/Pagination';
@@ -11,6 +12,7 @@ export default function OfferList() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingOffer, setEditingOffer] = useState<Offer | undefined>();
+  const [trackierOffer, setTrackierOffer] = useState<Offer | undefined>();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedTraces, setExpandedTraces] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
@@ -247,6 +249,13 @@ export default function OfferList() {
                   </div>
                   <div className="flex gap-1 flex-shrink-0 ml-3">
                     <button
+                      onClick={() => setTrackierOffer(offer)}
+                      className="p-1.5 text-neutral-500 hover:text-blue-600 dark:text-neutral-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-md transition-smooth"
+                      title="Trackier Dual-URL Setup"
+                    >
+                      <Webhook size={16} />
+                    </button>
+                    <button
                       onClick={() => handleEdit(offer)}
                       className="p-1.5 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-smooth"
                     >
@@ -432,6 +441,16 @@ export default function OfferList() {
           offer={editingOffer}
           onClose={handleCloseForm}
           onSave={handleSave}
+        />
+      )}
+
+      {trackierOffer && (
+        <TrackierSetup
+          offerId={trackierOffer.id}
+          offerName={trackierOffer.offer_name}
+          finalUrl={trackierOffer.final_url}
+          trackingTemplate={(trackierOffer as any).tracking_template}
+          onClose={() => setTrackierOffer(undefined)}
         />
       )}
     </div>
