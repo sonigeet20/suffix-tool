@@ -496,10 +496,6 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
         if (insertError) throw insertError;
         result = data;
-        // webhook_url is already set with token, no update needed
-        
-        if (updateWebhookError) throw updateWebhookError;
-        result = updatedData;
       }
 
       setConfig(result);
