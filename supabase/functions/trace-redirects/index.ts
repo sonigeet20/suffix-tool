@@ -94,6 +94,7 @@ async function fetchThroughAWSProxy(
   userAgent: string,
   targetCountry?: string | null,
   referrer?: string | null,
+  referrerHops?: number[] | null,
   tracerMode?: string,
   expectedFinalUrl?: string | null,
   suffixStep?: number | null,
@@ -101,6 +102,8 @@ async function fetchThroughAWSProxy(
   geoStrategy?: string | null,
   geoWeights?: Record<string, number> | null,
   deviceDistribution?: Array<{ deviceCategory: string; weight: number }> | null,
+  extractFromLocationHeader?: boolean | null,
+  locationExtractHop?: number | null,
 ): Promise<
   | { success: boolean; chain: any[]; proxy_ip?: string; geo_location?: any }
   | null
@@ -133,6 +136,21 @@ async function fetchThroughAWSProxy(
 
     if (referrer) {
       requestBody.referrer = referrer;
+      if (referrerHops && referrerHops.length > 0) {
+        requestBody.referrer_hops = referrerHops;
+        console.log(`🔗 Passing referrer_hops to instance: ${referrerHops.join(',')}`);
+      }
+    }
+
+    // Location header extraction config (optional)
+    if (extractFromLocationHeader) {
+      requestBody.extract_from_location_header = true;
+      if (locationExtractHop) {
+        requestBody.location_extract_hop = locationExtractHop;
+        console.log(`📍 Passing location extraction hop: ${locationExtractHop}`);
+      } else {
+        console.log(`📍 Passing location extraction: last redirect`);
+      }
     }
 
     if (expectedFinalUrl) {
@@ -492,6 +510,7 @@ Deno.serve(async (req: Request) => {
       use_proxy = true,
       target_country,
       referrer,
+      referrer_hops,
       tracer_mode = "auto",
       expected_final_url = null,
       suffix_step = null,
@@ -502,6 +521,8 @@ Deno.serve(async (req: Request) => {
       device_distribution = null,
       interval_used_ms = null,
       account_id = null,
+      extract_from_location_header = null,
+      location_extract_hop = null,
     } = await req.json() as TraceRequest;
 
     if (!url) {
@@ -977,6 +998,7 @@ Deno.serve(async (req: Request) => {
         userAgentStr,
         target_country,
         referrer,
+        referrer_hops,
         tracer_mode,
         expected_final_url,
         suffix_step,
@@ -984,6 +1006,8 @@ Deno.serve(async (req: Request) => {
         geo_strategy,
         geo_weights,
         device_distribution,
+        extract_from_location_header,
+        location_extract_hop,
       );
 
       if (awsResult) {

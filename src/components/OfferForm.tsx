@@ -52,6 +52,8 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
     tracer_mode: (offer as any)?.tracer_mode || 'auto',
     block_resources: (offer as any)?.block_resources ?? true,
     extract_only: (offer as any)?.extract_only ?? true,
+    extract_from_location_header: (offer as any)?.extract_from_location_header ?? false,
+    location_extract_hop: (offer as any)?.location_extract_hop || null,
     geo_pool: (offer as any)?.geo_pool || [],
     geo_strategy: (offer as any)?.geo_strategy || 'weighted',
     geo_weights: (offer as any)?.geo_weights || {},
@@ -938,6 +940,61 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                       <p>Reason: <span className="text-neutral-700 dark:text-neutral-300">{(offer as any).tracer_detection_result.detection_reason}</span></p>
                       <p>Timing: <span className="text-neutral-700 dark:text-neutral-300">{(offer as any).tracer_detection_result.timing_ms}ms</span></p>
                       <p>Bandwidth: <span className="text-neutral-700 dark:text-neutral-300">{(offer as any).tracer_detection_result.bandwidth_kb} KB</span></p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 bg-emerald-600 dark:bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold">
+                    📍
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-neutral-900 dark:text-neutral-50 mb-1">Location Header Extraction</h4>
+                    <p className="text-sm text-neutral-700 dark:text-neutral-300">Extract parameters from location header of a specific redirect hop</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="extract_from_location_header"
+                    checked={formData.extract_from_location_header}
+                    onChange={(e) => setFormData({ ...formData, extract_from_location_header: e.target.checked })}
+                    className="w-4 h-4 text-emerald-600 border-neutral-300 dark:border-neutral-700 rounded focus:ring-emerald-500"
+                  />
+                  <label htmlFor="extract_from_location_header" className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    Enable Location Header Parameter Extraction
+                  </label>
+                </div>
+
+                {formData.extract_from_location_header && (
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Extract from Hop (optional)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.location_extract_hop || ''}
+                      onChange={(e) => setFormData({ ...formData, location_extract_hop: e.target.value ? parseInt(e.target.value) : null })}
+                      min="1"
+                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-emerald-500/20 dark:focus:ring-emerald-400/20 focus:border-emerald-500 dark:focus:border-emerald-400 outline-none transition-smooth"
+                      placeholder="Leave empty for last redirect"
+                    />
+                    <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
+                      {formData.location_extract_hop 
+                        ? `Will extract params from location header of hop ${formData.location_extract_hop}` 
+                        : 'Will extract params from location header of the last redirect (recommended for most cases)'}
+                    </p>
+                    <div className="mt-3 p-3 bg-emerald-100/50 dark:bg-emerald-900/30 rounded border border-emerald-200 dark:border-emerald-800">
+                      <p className="text-xs text-emerald-900 dark:text-emerald-200">
+                        <strong>Use Case:</strong> When the final destination URL with complete tracking parameters (like dclid, gad_source) 
+                        is embedded in the location header of an intermediate redirect, rather than the final page URL itself.
+                      </p>
+                      <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-2">
+                        <strong>Example:</strong> DoubleClick redirects often have the actual landing page URL with all params in their location header.
+                      </p>
                     </div>
                   </div>
                 )}

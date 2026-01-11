@@ -173,6 +173,8 @@ async function traceRedirectsInteractive(
     referrerHops = null, // NEW: Array of hop numbers for referrer [1,2,3] or null for all
     minSessionTime = 3000,
     maxSessionTime = 8000,
+    extractFromLocationHeader = false,
+    locationExtractHop = null,
   } = options;
 
   if (minSessionTime > maxSessionTime) {
@@ -636,6 +638,34 @@ async function traceRedirectsInteractive(
       const totalBandwidth = chain.reduce((sum, entry) => sum + (entry.bandwidth_bytes || 0), 0);
       const avgBandwidth = chain.length > 0 ? totalBandwidth / chain.length : 0;
       const docCount = chain.filter(e => e.method === 'interactive' && e.redirect_type !== 'error').length;
+      
+      // Extract params from location header based on configuration (optional)
+      let locationUrl = null;
+      let locationParams = {};
+      if (extractFromLocationHeader && chain.length > 0) {
+        const selectRedirectEntry = () => {
+          if (locationExtractHop && locationExtractHop > 0 && locationExtractHop <= chain.length) {
+            const candidate = chain[locationExtractHop - 1];
+            if (candidate && candidate.status >= 300 && candidate.status < 400 && candidate.headers) {
+              return candidate;
+            }
+          }
+          return [...chain].reverse().find(entry => entry.status >= 300 && entry.status < 400 && entry.headers);
+        };
+
+        const chosenRedirect = selectRedirectEntry();
+
+        if (chosenRedirect && chosenRedirect.headers && chosenRedirect.headers.location) {
+          locationUrl = chosenRedirect.headers.location;
+          try {
+            const urlObj = new URL(locationUrl);
+            urlObj.searchParams.forEach((value, key) => {
+              locationParams[key] = value;
+            });
+          } catch (e) {}
+        }
+      }
+      
       return {
         success: false,
         chain,
@@ -644,6 +674,8 @@ async function traceRedirectsInteractive(
         total_popups: popupChains.length,
         total_steps: chain.length,
         final_url: finalUrlCandidate,
+        location_url: extractFromLocationHeader ? locationUrl : undefined,
+        location_params: extractFromLocationHeader && Object.keys(locationParams).length > 0 ? locationParams : undefined,
         user_agent: userAgent,
         total_bandwidth_bytes: totalBandwidth,
         bandwidth_per_step_bytes: Math.round(avgBandwidth),
@@ -718,6 +750,36 @@ async function traceRedirectsInteractive(
   ├─ Session dwell time: ${sessionMetrics.session_dwell_time_ms}ms
   └─ Total interactions: ${sessionMetrics.total_actions}`);
 
+      // Extract params from location header based on configuration (optional)
+      let locationUrl = null;
+      let locationParams = {};
+      if (extractFromLocationHeader && chain.length > 0) {
+        const selectRedirectEntry = () => {
+          if (locationExtractHop && locationExtractHop > 0 && locationExtractHop <= chain.length) {
+            const candidate = chain[locationExtractHop - 1];
+            if (candidate && candidate.status >= 300 && candidate.status < 400 && candidate.headers) {
+              return candidate;
+            }
+          }
+          return [...chain].reverse().find(entry => entry.status >= 300 && entry.status < 400 && entry.headers);
+        };
+
+        const chosenRedirect = selectRedirectEntry();
+
+        if (chosenRedirect && chosenRedirect.headers && chosenRedirect.headers.location) {
+          locationUrl = chosenRedirect.headers.location;
+          try {
+            const urlObj = new URL(locationUrl);
+            urlObj.searchParams.forEach((value, key) => {
+              locationParams[key] = value;
+            });
+            interactiveLogger.info(`📍 Extracted ${Object.keys(locationParams).length} params from location header (hop ${locationExtractHop || 'last redirect'}): ${locationUrl.substring(0, 100)}...`);
+          } catch (e) {
+            interactiveLogger.warn(`Could not parse location header as URL: ${e.message}`);
+          }
+        }
+      }
+
     return {
       success: true,
       chain,
@@ -726,6 +788,8 @@ async function traceRedirectsInteractive(
       total_popups: popupChains.length,
       total_steps: chain.length,
       final_url: finalUrlCandidate,
+      location_url: extractFromLocationHeader ? locationUrl : undefined,
+      location_params: extractFromLocationHeader && Object.keys(locationParams).length > 0 ? locationParams : undefined,
       user_agent: userAgent,
       total_bandwidth_bytes: totalBandwidth,
       bandwidth_per_step_bytes: Math.round(avgBandwidth),

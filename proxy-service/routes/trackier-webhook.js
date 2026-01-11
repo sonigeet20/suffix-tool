@@ -171,13 +171,31 @@ function autoDetectSubIdMapping(suffix, maxSubIds = 10) {
  *   "browser": "chrome"
  * }
  */
+
+// GET endpoint for testing/health check
+router.get('/trackier-webhook', (req, res) => {
+  const token = req.query.token;
+  res.status(200).json({
+    success: true,
+    message: 'Trackier webhook endpoint is ready',
+    method: 'This endpoint only accepts POST requests from Trackier',
+    usage: 'Configure this URL as S2S Push URL in Trackier dashboard with ?token=<UUID>&click_id={click_id}&...',
+    example: `${req.protocol}://${req.get('host')}/api/trackier-webhook?token=YOUR-OFFER-UUID&click_id={click_id}&campaign_id={campaign_id}&p1={p1}&p2={p2}`,
+    token: token || 'not provided',
+    status: 'active',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 router.post('/trackier-webhook', async (req, res) => {
   const startTime = Date.now();
+  const token = req.query.token;
   
   // ALWAYS return 200 immediately to Trackier (don't block their webhook)
   res.status(200).json({ 
     success: true, 
     message: 'Webhook received',
+    token: token,
     timestamp: new Date().toISOString()
   });
 
@@ -191,44 +209,60 @@ router.post('/trackier-webhook', async (req, res) => {
       }
 
       const payload = req.body;
-      console.log('[Trackier Webhook] Received:', JSON.stringify(payload, null, 2));
+      const queryParams = req.query;
+      console.log('[Trackier Webhook] Received for token:', token);
+      console.log('[Trackier Webhook] Query params:', JSON.stringify(queryParams, null, 2));
+      console.log('[Trackier Webhook] Payload:', JSON.stringify(payload, null, 2));
 
-      // Validate payload
-      if (!payload.campaign_id) {
-        console.warn('[Trackier Webhook] Missing campaign_id in payload');
+      // Validate token parameter
+      if (!token) {
+        console.error('[Trackier Webhook] ERROR: Missing token in URL query parameter');
+        console.error('[Trackier Webhook] URL should be: /api/trackier-webhook?token=<UUID>&click_id={click_id}...');
         return;
       }
 
-      // Find trackier offer by URL1 campaign ID
+      // Find trackier offer by token (which is the offer ID)
       const { data: trackierOffer, error: findError } = await supabase
         .from('trackier_offers')
         .select('*')
-        .eq('url1_campaign_id', payload.campaign_id)
+        .eq('id', token)
         .eq('enabled', true)
         .single();
 
       if (findError || !trackierOffer) {
-        // Not a Trackier-managed campaign - silently ignore
-        console.log('[Trackier Webhook] No active Trackier offer found for campaign_id:', payload.campaign_id);
+        console.error('[Trackier Webhook] No active Trackier offer found for token:', token);
+        console.error('[Trackier Webhook] Error:', findError);
         return;
       }
 
       console.log(`[Trackier Webhook] Found offer: ${trackierOffer.offer_name} (ID: ${trackierOffer.id})`);
+
+      // Merge query parameters with payload body (query params take precedence for Trackier macros)
+      const fullPayload = {
+        ...payload,
+        ...queryParams,
+        _query_params: queryParams, // Keep original query params for debugging
+        _body_params: payload // Keep original body for debugging
+      };
+
+      // Extract key parameters from query string (Trackier sends via URL)
+      const clickId = queryParams.click_id || payload.click_id || null;
+      const campaignId = queryParams.campaign_id || payload.campaign_id || null;
 
       // Log webhook to database
       const { data: webhookLog, error: logError } = await supabase
         .from('trackier_webhook_logs')
         .insert({
           trackier_offer_id: trackierOffer.id,
-          campaign_id: payload.campaign_id,
-          click_id: payload.click_id || null,
-          publisher_id: payload.publisher_id || null,
-          ip: payload.ip || null,
-          country: payload.country || null,
-          device: payload.device || null,
-          os: payload.os || null,
-          browser: payload.browser || null,
-          payload: payload,
+          campaign_id: campaignId,
+          click_id: clickId,
+          publisher_id: queryParams.publisher_id || payload.publisher_id || null,
+          ip: queryParams.ip || payload.ip || null,
+          country: queryParams.country || payload.country || null,
+          device: queryParams.device || payload.device || null,
+          os: queryParams.os || payload.os || null,
+          browser: queryParams.browser || payload.browser || null,
+          payload: fullPayload,
           processed: false,
           queued_for_update: false
         })

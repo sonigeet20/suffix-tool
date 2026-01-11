@@ -31,19 +31,6 @@ const COMMON_AFFILIATE_DOMAINS = [
   'pepperjamnetwork.com', 'cj.com', 'shareasale.com', 'awin1.com',
   'gotrackier.com', 'tradedoubler.com', 'adform.net', 'impact.com'
 ];
-COMMON_AFFILIATE_DOMAINS.forEach(domain => {
-  dns.resolve(domain).catch(() => {});
-});
-
-// Optimization #3: Final URL patterns for early stopping
-const FINAL_URL_PATTERNS = [
-  /\/(product|item|p|shop|pd|dp)\/[^/]+$/i,
-  /\/cart|checkout|basket|buy/i,
-  /\?utm_source=|&aff_|&clickid=|&affiliate=/i,
-  /\.(html?|php|aspx?)$/i
-];
-
-// Create persistent agents for connection pooling
 // NOTE: These are ONLY used for non-proxy HTTPS calls (like health checks)
 // For proxy-based requests, we create fresh agents per request to ensure IP rotation
 const httpsAgent = new https.Agent({
@@ -79,7 +66,9 @@ app.use(express.json({ limit: '10mb' }));
 
 // Trackier Dual-URL Webhook Integration (Isolated Module - Safe to disable)
 const trackierRoutes = require('./routes/trackier-webhook');
+const trackierTraceRoutes = require('./routes/trackier-trace');
 app.use('/api', trackierRoutes);
+app.use('/api', trackierTraceRoutes);
 
 // Utility function to convert bytes to human-readable format
 function formatBytes(bytes) {
@@ -1111,6 +1100,20 @@ async function traceRedirectsHttpOnly(url, options = {}) {
     logger.info(`✅ HTTP-only trace complete: ${chain.length} steps (${hopCount} hops launched, max concurrent=${maxConcurrentHops})`);
   }
 
+  // Extract params from location header of last redirect (for special scenarios)
+  let locationUrl = null;
+  let locationParams = {};
+  if (chain.length > 0) {
+    // Find the last redirect entry (not final page)
+    const lastRedirect = [...chain].reverse().find(entry => 
+      entry.status >= 300 && entry.status < 400
+    );
+    
+    // Note: http_only mode doesn't store headers in chain, only tracks redirects
+    // Location URL is already followed and stored as next entry's URL
+    // This mode prioritizes speed over detailed header extraction
+  }
+
   return {
     success: chain.length > 0 && chain[chain.length - 1].redirect_type !== 'error',
     chain,
@@ -1368,6 +1371,8 @@ async function traceRedirectsBrowser(url, options = {}) {
     referrerHops = null, // NEW: Array of hop numbers [1,2,3] or null for all hops
     expectedFinalUrl = null,
     suffixStep = null,
+    extractFromLocationHeader = false,
+    locationExtractHop = null,
   } = options;
 
   const chain = [];
@@ -1425,12 +1430,12 @@ async function traceRedirectsBrowser(url, options = {}) {
       'Cache-Control': 'max-age=0',
     };
     
+    // DO NOT set Referer in global headers - it will be applied per-hop in the request interceptor
     if (referrer) {
-      headers['Referer'] = referrer;
       if (referrerHops && referrerHops.length > 0) {
-        logger.info(`🔗 Browser using custom referrer on hops ${referrerHops.join(',')}: ${referrer}`);
+        logger.info(`🔗 Browser will apply referrer only on hops ${referrerHops.join(',')}: ${referrer}`);
       } else {
-        logger.info(`🔗 Browser using custom referrer on ALL hops: ${referrer}`);
+        logger.info(`🔗 Browser will apply referrer on ALL hops: ${referrer}`);
       }
     }
     
@@ -1743,14 +1748,33 @@ async function traceRedirectsBrowser(url, options = {}) {
           referrerHops.includes(currentHopNumber)
         );
         
+        if (resourceType === 'document') {
+          const currentHeaders = request.headers();
+          const hasReferer = currentHeaders['referer'] || currentHeaders['Referer'];
+          logger.info(`🔍 Browser Mode - Hop ${currentHopNumber}: referrer=${referrer}, referrerHops=${JSON.stringify(referrerHops)}, shouldApply=${shouldApplyReferrer}`);
+          logger.info(`   📋 Current request headers Referer: ${hasReferer || 'NOT SET'}`);
+        }
+        
         if (shouldApplyReferrer) {
           const overrideHeaders = {
             ...request.headers(),
             'Referer': referrer,
           };
+          logger.info(`   ✅ APPLYING Referer header: ${referrer}`);
           request.continue({ headers: overrideHeaders });
         } else {
-          request.continue();
+          // Explicitly remove Referer header if it exists (browser may add it automatically)
+          const currentHeaders = request.headers();
+          if (currentHeaders['referer'] || currentHeaders['Referer']) {
+            const cleanHeaders = { ...currentHeaders };
+            delete cleanHeaders['referer'];
+            delete cleanHeaders['Referer'];
+            logger.info(`   🗑️ REMOVING existing Referer header`);
+            request.continue({ headers: cleanHeaders });
+          } else {
+            logger.info(`   ⛔ No Referer header to apply`);
+            request.continue();
+          }
         }
       }
     });
@@ -1908,7 +1932,7 @@ async function traceRedirectsBrowser(url, options = {}) {
     const navigationPromise = page.goto(url, {
       waitUntil: 'domcontentloaded',
       timeout,  // Single timeout, no retries
-      referer: referrer || undefined,
+      // NOTE: referer is handled per-hop in the request interceptor based on referrerHops configuration
     }).catch(err => {
       // Catch and log navigation errors without retry
       logger.warn(`⚠️ Browser navigation failed (no retry): ${err.message}`);
@@ -1992,7 +2016,8 @@ async function traceRedirectsBrowser(url, options = {}) {
                     // Wait a bit more and check again
                     await new Promise(r => setTimeout(r, 2000));
                     
-                    // Reset idle detection to continue
+                    // Reset idle detection to continue (clear old interval first to prevent duplicates)
+                    if (idleCheckInterval) clearInterval(idleCheckInterval);
                     idleCheckInterval = setInterval(checkIdle, 500);
                     return; // Don't resolve yet, continue monitoring
                   } catch (err) {
@@ -2003,6 +2028,19 @@ async function traceRedirectsBrowser(url, options = {}) {
             }
           } catch (err) {
             logger.warn(`⚠️ Error searching for hidden redirects: ${err.message}`);
+          }
+          
+          // Check if all document requests have corresponding responses in chain
+          // This prevents closing the page before final 200 status response is added
+          const documentRequestCount = requestLog.documentRequests.size;
+          const chainEntryCount = chain.length;
+          
+          if (documentRequestCount > chainEntryCount) {
+            logger.info(`⏳ Browser: Waiting for response ${chainEntryCount + 1}/${documentRequestCount} before closing`);
+            // Wait a bit more for the response to be added to chain
+            await new Promise(r => setTimeout(r, 500));
+            lastUrlChange = Date.now(); // Reset idle timer to give response time to process
+            return; // Don't close yet, continue monitoring
           }
           
           logger.info('⚡ Browser: Early stop - no more redirects found');
@@ -2097,6 +2135,37 @@ async function traceRedirectsBrowser(url, options = {}) {
   ├─ Request ratio (clicks/docs): ${requestRatio}x
   └─ Duration: ${requestDuration}ms`);
 
+    // Extract params from location header based on configuration (optional)
+    let locationUrl = null;
+    let locationParams = {};
+    if (extractFromLocationHeader && chain.length > 0) {
+      // Helper to select the redirect entry we should inspect
+      const selectRedirectEntry = () => {
+        if (locationExtractHop && locationExtractHop > 0 && locationExtractHop <= chain.length) {
+          const candidate = chain[locationExtractHop - 1];
+          if (candidate && candidate.status >= 300 && candidate.status < 400 && candidate.headers) {
+            return candidate;
+          }
+        }
+        return [...chain].reverse().find(entry => entry.status >= 300 && entry.status < 400 && entry.headers);
+      };
+
+      const chosenRedirect = selectRedirectEntry();
+
+      if (chosenRedirect && chosenRedirect.headers && chosenRedirect.headers.location) {
+        locationUrl = chosenRedirect.headers.location;
+        try {
+          const urlObj = new URL(locationUrl);
+          urlObj.searchParams.forEach((value, key) => {
+            locationParams[key] = value;
+          });
+          logger.info(`📍 Extracted ${Object.keys(locationParams).length} params from location header (hop ${locationExtractHop || 'last redirect'}): ${locationUrl.substring(0, 100)}...`);
+        } catch (e) {
+          logger.warn(`Could not parse location header as URL: ${e.message}`);
+        }
+      }
+    }
+
     return {
       success: true,
       chain,
@@ -2104,6 +2173,8 @@ async function traceRedirectsBrowser(url, options = {}) {
       total_popups: popupChains.length,
       total_steps: chain.length,
       final_url: finalUrl,
+      location_url: extractFromLocationHeader ? locationUrl : undefined,
+      location_params: extractFromLocationHeader && Object.keys(locationParams).length > 0 ? locationParams : undefined,
       user_agent: userAgent,
       total_bandwidth_bytes: totalBandwidth,
       bandwidth_per_step_bytes: Math.round(avgBandwidth),
@@ -2171,6 +2242,8 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     referrerHops = null,
     expectedFinalUrl = null,
     suffixStep = null,
+    extractFromLocationHeader = false,
+    locationExtractHop = null,
   } = options;
 
   const chain = [];
@@ -2503,14 +2576,33 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
           referrerHops.includes(currentHopNumber)
         );
         
+        if (resourceType === 'document') {
+          const currentHeaders = request.headers();
+          const hasReferer = currentHeaders['referer'] || currentHeaders['Referer'];
+          logger.info(`🔍 Anti-cloaking Mode - Hop ${currentHopNumber}: referrer=${referrer}, referrerHops=${JSON.stringify(referrerHops)}, shouldApply=${shouldApplyReferrer}`);
+          logger.info(`   📋 Current request headers Referer: ${hasReferer || 'NOT SET'}`);
+        }
+        
         if (shouldApplyReferrer) {
           const overrideHeaders = {
             ...request.headers(),
             'Referer': referrer,
           };
+          logger.info(`   ✅ APPLYING Referer header: ${referrer}`);
           request.continue({ headers: overrideHeaders });
         } else {
-          request.continue();
+          // Explicitly remove Referer header if it exists (browser may add it automatically)
+          const currentHeaders = request.headers();
+          if (currentHeaders['referer'] || currentHeaders['Referer']) {
+            const cleanHeaders = { ...currentHeaders };
+            delete cleanHeaders['referer'];
+            delete cleanHeaders['Referer'];
+            logger.info(`   🗑️ REMOVING existing Referer header`);
+            request.continue({ headers: cleanHeaders });
+          } else {
+            logger.info(`   ⛔ No Referer header to apply`);
+            request.continue();
+          }
         }
       }
     });
@@ -2664,7 +2756,7 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
     const navigationPromise = page.goto(url, {
       waitUntil: 'domcontentloaded',
       timeout,  // Single timeout, no retries
-      referer: referrer || undefined,
+      // NOTE: referer is handled per-hop in the request interceptor based on referrerHops configuration
     }).catch(err => {
       // Catch and log navigation errors without retry
       logger.warn(`⚠️ Anti-cloaking navigation failed (no retry): ${err.message}`);
@@ -2897,6 +2989,36 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
   ├─ Request ratio (clicks/docs): ${requestRatio}x
   └─ Duration: ${requestDuration}ms`);
 
+    // Extract params from location header based on configuration (optional)
+    let locationUrl = null;
+    let locationParams = {};
+    if (extractFromLocationHeader && chain.length > 0) {
+      const selectRedirectEntry = () => {
+        if (locationExtractHop && locationExtractHop > 0 && locationExtractHop <= chain.length) {
+          const candidate = chain[locationExtractHop - 1];
+          if (candidate && candidate.status >= 300 && candidate.status < 400 && candidate.headers) {
+            return candidate;
+          }
+        }
+        return [...chain].reverse().find(entry => entry.status >= 300 && entry.status < 400 && entry.headers);
+      };
+
+      const chosenRedirect = selectRedirectEntry();
+
+      if (chosenRedirect && chosenRedirect.headers && chosenRedirect.headers.location) {
+        locationUrl = chosenRedirect.headers.location;
+        try {
+          const urlObj = new URL(locationUrl);
+          urlObj.searchParams.forEach((value, key) => {
+            locationParams[key] = value;
+          });
+          logger.info(`📍 Extracted ${Object.keys(locationParams).length} params from location header (hop ${locationExtractHop || 'last redirect'}): ${locationUrl.substring(0, 100)}...`);
+        } catch (e) {
+          logger.warn(`Could not parse location header as URL: ${e.message}`);
+        }
+      }
+    }
+
     return {
       success: true,
       chain,
@@ -2907,6 +3029,8 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
       total_popups: popupChains.length,
       total_steps: chain.length,
       final_url: finalUrl,
+      location_url: extractFromLocationHeader ? locationUrl : undefined,
+      location_params: extractFromLocationHeader && Object.keys(locationParams).length > 0 ? locationParams : undefined,
       user_agent: userAgent,
       total_bandwidth_bytes: totalBandwidth,
       bandwidth_per_step_bytes: Math.round(avgBandwidth),
@@ -2983,6 +3107,8 @@ app.post('/trace', async (req, res) => {
       geo_strategy,
       geo_weights,
       force_country,
+      extract_from_location_header = false,
+      location_extract_hop = null,
       enable_interactions = false,
       interaction_count = 0,
       bandwidth_limit_kb = null,
@@ -2994,6 +3120,10 @@ app.post('/trace', async (req, res) => {
       device_distribution = null, // NEW: Custom device distribution [{ deviceCategory: 'mobile', weight: 60 }, ...]
     } = req.body;
 
+    const normalizedLocationExtractHop = typeof location_extract_hop === 'number'
+      ? location_extract_hop
+      : (location_extract_hop ? parseInt(location_extract_hop, 10) : null);
+
     // Apply custom device distribution if provided
     if (device_distribution && Array.isArray(device_distribution) && device_distribution.length > 0) {
       userAgentRotator.setDeviceDistribution(device_distribution);
@@ -3002,6 +3132,11 @@ app.post('/trace', async (req, res) => {
 
     if (!url) {
       return res.status(400).json({ error: 'URL is required' });
+    }
+
+    // Debug logging for referrer_hops
+    if (referrer) {
+      logger.info(`🔗 Trace request received - referrer: ${referrer}, referrer_hops: ${JSON.stringify(referrer_hops)}`);
     }
 
     logger.info('⚡ Trace request:', {
@@ -3075,6 +3210,8 @@ app.post('/trace', async (req, res) => {
         referrerHops: referrer_hops || null,
         proxyIp: proxy_ip || null,
         proxyPort: proxy_port || null,
+        extractFromLocationHeader: false,
+        locationExtractHop: null,
         expectedFinalUrl: expected_final_url || null,
         suffixStep: suffix_step || null,
         debug: debug, // Pass debug flag to tracer
@@ -3138,6 +3275,8 @@ app.post('/trace', async (req, res) => {
         referrerHops: referrer_hops || null,
         expectedFinalUrl: expected_final_url || null,
         suffixStep: suffix_step || null,
+        extractFromLocationHeader: extract_from_location_header || false,
+        locationExtractHop: normalizedLocationExtractHop || null,
         debug, // Pass debug flag
       });
     } else if (mode === 'interactive') {
@@ -3149,6 +3288,8 @@ app.post('/trace', async (req, res) => {
         targetCountry: selectedCountry || null,
         referrer: referrer || null,
         referrerHops: referrer_hops || null,
+        extractFromLocationHeader: extract_from_location_header || false,
+        locationExtractHop: normalizedLocationExtractHop || null,
         minSessionTime: 4000,
         maxSessionTime: 8000,
       }, puppeteer, generateBrowserFingerprint, BLOCKED_DOMAINS, BLOCKED_RESOURCE_TYPES);
@@ -3163,6 +3304,8 @@ app.post('/trace', async (req, res) => {
         referrerHops: referrer_hops || null, // NEW: Pass referrerHops configuration
         expectedFinalUrl: expected_final_url || null,
         suffixStep: suffix_step || null,
+        extractFromLocationHeader: extract_from_location_header || false,
+        locationExtractHop: normalizedLocationExtractHop || null,
       });
     }
 

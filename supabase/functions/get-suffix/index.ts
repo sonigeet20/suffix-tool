@@ -18,6 +18,7 @@ interface ReferrerEntry {
   weight: number;
   enabled: boolean;
   label: string;
+  hops?: number[]; // Optional: specific hops for this referrer
 }
 
 function selectByMode(
@@ -238,6 +239,7 @@ Deno.serve(async (req: Request) => {
     let trackingUrlWeight = 0;
     let trackingUrlIndex = 0;
     let referrerToUse: string | null = null;
+    let referrerHops: number[] | null = null; // NEW: Track which hops get the referrer
     let referrerLabel = '';
     let referrerWeight = 0;
     let referrerIndex = 0;
@@ -279,14 +281,25 @@ Deno.serve(async (req: Request) => {
 
       if (referrerSelection) {
         referrerToUse = referrerSelection.selected.url;
+        referrerHops = (referrerSelection.selected as ReferrerEntry).hops || null; // Capture hops if defined
         referrerLabel = referrerSelection.selected.label || '';
         referrerWeight = referrerSelection.selected.weight || 1;
         referrerIndex = referrerSelection.newIndex;
         newReferrerIndex = referrerSelection.newIndex;
+        
+        console.log(`🔍 Selected referrer: ${referrerToUse}`);
+        console.log(`🔍 Referrer hops from DB: ${JSON.stringify(referrerHops)}`);
+        console.log(`🔍 Full referrer entry: ${JSON.stringify(referrerSelection.selected)}`);
       }
     } else if (offer.custom_referrer) {
       referrerToUse = offer.custom_referrer;
       referrerLabel = 'Legacy Custom Referrer';
+    }
+
+    // Ensure referrer has protocol if set
+    if (referrerToUse && !referrerToUse.startsWith('http://') && !referrerToUse.startsWith('https://')) {
+      referrerToUse = 'https://' + referrerToUse;
+      console.log(`✅ Referrer formatted with https protocol: ${referrerToUse}`);
     }
 
     await supabase
@@ -397,11 +410,35 @@ Deno.serve(async (req: Request) => {
             console.log(`📱 Device distribution: ${JSON.stringify(offer.device_distribution)}`);
           }
 
+          // Add location header extraction configuration
+          if (offer.extract_from_location_header) {
+            traceRequestBody.extract_from_location_header = true;
+            if (offer.location_extract_hop) {
+              traceRequestBody.location_extract_hop = offer.location_extract_hop;
+              console.log(`📍 Location extraction enabled: hop ${offer.location_extract_hop}`);
+            } else {
+              console.log(`📍 Location extraction enabled: last redirect`);
+            }
+          }
+
           console.log(`📡 Trace request - tracer_mode: ${traceRequestBody.tracer_mode}, url: ${trackingUrlToUse.substring(0, 80)}`);
 
           if (referrerToUse) {
             traceRequestBody.referrer = referrerToUse;
+            console.log(`🔗 Referrer being sent: ${referrerToUse}`);
+            console.log(`🔗 referrerHops value: ${JSON.stringify(referrerHops)}`);
+            console.log(`🔗 referrerHops type: ${typeof referrerHops}`);
+            console.log(`🔗 referrerHops check: hops=${referrerHops}, length=${referrerHops?.length}`);
+            
+            if (referrerHops && referrerHops.length > 0) {
+              traceRequestBody.referrer_hops = referrerHops;
+              console.log(`✅ Referrer will be applied to hops: ${referrerHops.join(',')}`);
+            } else {
+              console.log(`⚠️ No referrer_hops to send (hops=${referrerHops})`);
+            }
           }
+
+          console.log(`🚀 Final trace request body: ${JSON.stringify(traceRequestBody)}`);
 
           const traceResponse = await fetch(`${supabaseUrl}/functions/v1/trace-redirects`, {
             method: 'POST',
@@ -428,14 +465,19 @@ Deno.serve(async (req: Request) => {
 
             if (traceResult.success && traceResult.chain && traceResult.chain.length > 0) {
               const chain = traceResult.chain;
-              const stepIndex = offer.redirect_chain_step || 0;
+              let stepIndex = offer.redirect_chain_step || 0;
               
               // Capture the actual final URL from the trace
               tracedFinalUrl = chain[chain.length - 1].url;
 
-              if (stepIndex < chain.length) {
-                const selectedStep = chain[stepIndex];
+              // Try to extract params from the configured step, but fallback to final step if empty
+              let paramsFound = false;
+              let selectedStep = null;
+              let usedStepIndex = stepIndex;
 
+              // First try the configured step
+              if (stepIndex < chain.length) {
+                selectedStep = chain[stepIndex];
                 let paramsToUse = selectedStep.params || {};
 
                 if (Object.keys(paramsToUse).length === 0 && selectedStep.url) {
@@ -475,25 +517,59 @@ Deno.serve(async (req: Request) => {
 
                 if (Object.keys(paramsToUse).length > 0) {
                   campaignParams = paramsToUse;
+                  paramsFound = true;
+                }
+              }
 
-                  const paramFilterMode = offer.param_filter_mode || 'all';
-                  const paramFilter = offer.param_filter || [];
-                  campaignFiltered = filterParams(campaignParams, paramFilterMode, paramFilter);
+              // If no params found at configured step, try final step
+              if (!paramsFound && chain.length > 1) {
+                console.log(`⚠️ No params at step ${stepIndex + 1}, trying final step...`);
+                usedStepIndex = chain.length - 1;
+                selectedStep = chain[usedStepIndex];
+                let paramsToUse = selectedStep.params || {};
 
-                  const params = new URLSearchParams(campaignFiltered);
-                  campaignSuffix = params.toString();
-                  campaignTraceSuccess = true;
-                  const status = selectedStep.error ? 'error' : `status ${selectedStep.status}`;
-                  console.log(`✅ Campaign ${campaignIndex + 1}: Extracted ${Object.keys(campaignParams).length} params, filtered to ${Object.keys(campaignFiltered).length} params from step ${stepIndex + 1}/${chain.length} (${status})`);
-                  
-                  // Store for first campaign (backward compatibility)
-                  if (campaignIndex === 0) {
-                    extractedParams = campaignParams;
-                    filteredParams = campaignFiltered;
-                    finalSuffix = campaignSuffix;
-                    traceSuccessful = true;
+                if (Object.keys(paramsToUse).length === 0 && selectedStep.url) {
+                  try {
+                    const urlObj = new URL(selectedStep.url);
+                    const urlParams: Record<string, string> = {};
+                    urlObj.searchParams.forEach((value, key) => {
+                      urlParams[key] = value;
+                    });
+                    if (Object.keys(urlParams).length > 0) {
+                      paramsToUse = urlParams;
+                      console.log(`Extracted params from final step URL query string`);
+                    }
+                  } catch (e) {
+                    console.log(`Could not parse final step URL`);
                   }
                 }
+
+                if (Object.keys(paramsToUse).length > 0) {
+                  campaignParams = paramsToUse;
+                  paramsFound = true;
+                }
+              }
+
+              if (paramsFound && selectedStep) {
+                const paramFilterMode = offer.param_filter_mode || 'all';
+                const paramFilter = offer.param_filter || [];
+                campaignFiltered = filterParams(campaignParams, paramFilterMode, paramFilter);
+
+                const params = new URLSearchParams(campaignFiltered);
+                campaignSuffix = params.toString();
+                campaignTraceSuccess = true;
+                const status = selectedStep.error ? 'error' : `status ${selectedStep.status}`;
+                console.log(`✅ Campaign ${campaignIndex + 1}: Extracted ${Object.keys(campaignParams).length} params, filtered to ${Object.keys(campaignFiltered).length} params from step ${usedStepIndex + 1}/${chain.length} (${status})`);
+                
+                // Store for first campaign (backward compatibility)
+                if (campaignIndex === 0) {
+                  extractedParams = campaignParams;
+                  filteredParams = campaignFiltered;
+                  finalSuffix = campaignSuffix;
+                  traceSuccessful = true;
+                }
+              } else if (stepIndex < chain.length) {
+                console.error(`No params extracted from step ${stepIndex + 1} or fallback final step`);
               } else {
                 console.error(`Configured step ${stepIndex + 1} exceeds chain length ${chain.length}`);
               }
@@ -702,6 +778,8 @@ Deno.serve(async (req: Request) => {
       tracking_url_weight: trackingUrlWeight,
       tracking_url_index: trackingUrlIndex,
       referrer_used: referrerToUse,
+      referrer_hops_from_db: referrerHops, // DEBUG: show what we extracted from database
+      tracer_mode_used: offer.tracer_mode || 'auto', // DEBUG: show mode
       referrer_label: referrerLabel,
       referrer_weight: referrerWeight,
       referrer_index: referrerIndex,

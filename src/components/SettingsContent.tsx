@@ -8,6 +8,7 @@ import { useRole } from '../hooks/useRole';
 interface ProxySettings {
   id?: string;
   user_id?: string;
+  trackier_api_key: string;
   aws_proxy_url: string;
   luna_proxy_host: string;
   luna_proxy_port: string;
@@ -21,6 +22,7 @@ interface ProxySettings {
 export default function SettingsContent() {
   const { isAdmin } = useRole();
   const [settings, setSettings] = useState<ProxySettings>({
+    trackier_api_key: '',
     aws_proxy_url: '',
     luna_proxy_host: '',
     luna_proxy_port: '',
@@ -60,6 +62,7 @@ export default function SettingsContent() {
     if (!error && data) {
       setSettings({
         ...data,
+        trackier_api_key: data.trackier_api_key || '',
         luna_proxy_port: data.luna_proxy_port ? String(data.luna_proxy_port) : '',
         ip_cooldown_seconds: data.ip_cooldown_seconds ?? 60,
         proxy_rotation_mode: data.proxy_rotation_mode ?? 'sequential',
@@ -79,6 +82,7 @@ export default function SettingsContent() {
       if (!user) throw new Error('Not authenticated');
 
       const settingsData = {
+        trackier_api_key: settings.trackier_api_key || null,
         aws_proxy_url: settings.aws_proxy_url || null,
         luna_proxy_host: settings.luna_proxy_host,
         luna_proxy_port: settings.luna_proxy_port ? parseInt(settings.luna_proxy_port) : null,
@@ -193,6 +197,25 @@ export default function SettingsContent() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="bg-neutral-50 dark:bg-neutral-850 p-4 rounded-lg border border-neutral-200 dark:border-neutral-800">
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50 mb-3">Trackier Integration</h3>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Trackier API Key
+              </label>
+              <input
+                type="password"
+                value={settings.trackier_api_key}
+                onChange={(e) => setSettings({ ...settings, trackier_api_key: e.target.value })}
+                className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 dark:focus:ring-brand-400/20 focus:border-brand-500 dark:focus:border-brand-400 outline-none transition-smooth font-mono text-sm placeholder-neutral-400 dark:placeholder-neutral-500"
+                placeholder="sk_live_..."
+              />
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                Stored securely per user. Used to prefill Trackier setup screens so you do not need to paste it every time.
+              </p>
+            </div>
+          </div>
+
           <div className="bg-brand-50 dark:bg-brand-900/20 p-4 rounded-lg border border-brand-200 dark:border-brand-800/50">
             <h3 className="text-sm font-semibold text-brand-900 dark:text-brand-300 mb-3">AWS Proxy Service (Recommended for Luna Residential)</h3>
             <div>

@@ -824,3 +824,52 @@
 {"level":"info","message":"============================================================\n"}
 {"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 3\n  ├─ Total network clicks: 7\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 2.33x\n  ├─ Duration: 38600ms\n  ├─ Session dwell time: 5854ms\n  └─ Total interactions: 8"}
 {"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"info","message":"🎬 Interactive trace started: https://www.awin1.com/cread.php?awinmid=13075&awinaffid=885207&ued=https://www.elcorteingles.es/..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: 2px5ouo8...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome..."}
+{"level":"info","message":"🖥️ Fingerprint: mobile | viewport=406x903"}
+{"level":"info","message":"🔗 Using custom referrer on hops 1: https://test.com/"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://www.awin1.com/cread.php?awinmid=13075&awinaffid=885207&ued=https://www.elcorteingles.es/..."}
+{"level":"info","message":"📄 Document request #1: https://www.awin1.com/cread.php?awinmid=13075&awinaffid=885207&ued=https://www.elcorteingles.es/..."}
+{"level":"info","message":"📨 Response: 302 from https://www.awin1.com/cread.php?awinmid=13075&awinaffid=885207&ued=https://www.e..."}
+{"level":"info","message":"📄 Document request #2: https://ad.doubleclick.net/ddm/clk/444125285;247787737;w?https://www.elcorteingles.es?aw_affid=88520..."}
+{"level":"info","message":"📨 Response: 302 from https://ad.doubleclick.net/ddm/clk/444125285;247787737;w?https://www.elcorteingl..."}
+{"level":"info","message":"📄 Document request #3: https://www.elcorteingles.es/?aw_affid=885207&awc=13075_1767988045_d98ee6e59fc8ac71bd9cd22c19d004e6&..."}
+{"level":"info","message":"📨 Response: 200 from https://www.elcorteingles.es/?aw_affid=885207&awc=13075_1767988045_d98ee6e59fc8a..."}
+{"level":"info","message":"📄 Frame navigated to: https://www.elcorteingles.es/?aw_affid=885207&awc=13075_1767988045_d98ee6e59fc8ac71bd9cd22c19d004e6&..."}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"🎯 Final URL reached: https://www.elcorteingles.es/?aw_affid=885207&awc=13075_1767988045_d98ee6e59fc8ac71bd9cd22c19d004e6&..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 5311ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 2 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: scroll"}
+{"level":"info","message":"↕️ Scroll up by 148px (scroll #1)"}
+{"level":"info","message":"⚙️ Executing action #2: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (768, 180)"}
+{"level":"info","message":"📄 Document request #4: https://www.elcorteingles.es/ecivuestore/session/check..."}
+{"level":"info","message":"📄 Document request #5: https://cuenta.elcorteingles.es/oidc/check-session?origin=https%3A%2F%2Fwww.elcorteingles.es..."}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (2166ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #3: wait"}
+{"level":"info","message":"⏱️ Wait 961ms"}
+{"level":"info","message":"📨 Response: 200 from https://www.elcorteingles.es/ecivuestore/session/check..."}
+{"level":"info","message":"⚙️ Executing action #4: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (570, 443)"}
+{"level":"info","message":"⚙️ Executing action #5: scroll"}
+{"level":"info","message":"↕️ Scroll down by 192px (scroll #2)"}
+{"level":"info","message":"↕️ Scroll down by 192px (scroll #3)"}
+{"level":"info","message":"✅ Interactive session complete: 5706ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 3\n  ├─ Mouse movements: 2\n  ├─ Waits: 1\n  ├─ Total actions: 5\n  └─ Dwell time: 5706ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 5\n  ├─ Total network clicks: 187\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 37.40x\n  ├─ Duration: 28113ms\n  ├─ Session dwell time: 5706ms\n  └─ Total interactions: 5"}
+{"level":"info","message":"✅ Cleanup complete\n"}

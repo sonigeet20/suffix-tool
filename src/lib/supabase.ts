@@ -42,6 +42,8 @@ export interface Offer {
   last_traced_chain: RedirectStep[] | null;
   last_trace_date: string | null;
   is_active: boolean;
+  extract_from_location_header?: boolean;
+  location_extract_hop?: number | null;
   created_at: string;
   updated_at: string;
 }

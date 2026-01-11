@@ -424,8 +424,13 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         throw new Error('URL 2 Campaign ID is required');
       }
 
-      // Generate Google Ads template and webhook URL
-      const webhookUrl = `http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com/api/trackier-webhook`;
+      // Generate webhook URL with static token parameter for proper tracking
+      // Trackier will append macros like {click_id}, {p1}, etc. but won't replace our static token
+      const baseWebhookUrl = `http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com/api/trackier-webhook`;
+      const webhookUrl = config.id 
+        ? `${baseWebhookUrl}?token=${config.id}&click_id={click_id}&campaign_id={campaign_id}&p1={p1}&p2={p2}&p3={p3}&p4={p4}&p5={p5}&p6={p6}&p7={p7}&p8={p8}&p9={p9}&p10={p10}&gclid={gclid}&fbclid={fbclid}`
+        : baseWebhookUrl; // Will be updated after first save
+      
       const publisherId = config.publisher_id || '2'; // Default to 2 if not set
       
       // Build URL 2 (final destination) with force_transparency, pub_id, and actual final URL
@@ -463,6 +468,19 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
         if (insertError) throw insertError;
         result = data;
+        
+        // Update webhook_url with the new offer_id and Trackier macros
+        const webhookUrlWithToken = `${baseWebhookUrl}?token=${result.id}&click_id={click_id}&campaign_id={campaign_id}&p1={p1}&p2={p2}&p3={p3}&p4={p4}&p5={p5}&p6={p6}&p7={p7}&p8={p8}&p9={p9}&p10={p10}&gclid={gclid}&fbclid={fbclid}`;
+        const { data: updatedData, error: updateWebhookError } = await supabase
+          .from('trackier_offers')
+          .update({ webhook_url: webhookUrlWithToken })
+          .eq('id', result.id)
+          .select()
+          .single();
+        
+        if (updateWebhookError) throw updateWebhookError;
+        result = updatedData;
+      }
       }
 
       setConfig(result);
