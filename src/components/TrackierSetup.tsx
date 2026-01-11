@@ -110,10 +110,22 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
   });
 
   const [stats, setStats] = useState<any>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   useEffect(() => {
     loadConfig();
   }, [offerId]);
+
+  // Auto-refresh webhook count every 10 seconds when enabled
+  useEffect(() => {
+    if (!autoRefresh || !config.id) return;
+
+    const interval = setInterval(() => {
+      loadConfig();
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, config.id]);
 
   const loadConfig = async () => {
     try {
@@ -647,6 +659,50 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
               </svg>
             </button>
           </div>
+
+          {/* Real-time Webhook Counter */}
+          {config.id && (
+            <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-300 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl">📊</div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-600 uppercase">Webhooks Received</p>
+                    <p className="text-3xl font-bold text-green-700">
+                      {config.webhook_count || 0}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-600">Last Updated</p>
+                  <p className="text-sm font-medium text-gray-800">
+                    {config.url2_last_updated_at 
+                      ? new Date(config.url2_last_updated_at).toLocaleTimeString()
+                      : 'Never'}
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => loadConfig()}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      🔄 Refresh
+                    </button>
+                    <button
+                      onClick={() => setAutoRefresh(!autoRefresh)}
+                      className={`text-xs ${autoRefresh ? 'text-green-600' : 'text-gray-600'} hover:text-green-800 underline`}
+                    >
+                      {autoRefresh ? '⏸️ Auto' : '▶️ Auto'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {(config.webhook_count || 0) === 0 && (
+                <p className="mt-2 text-xs text-orange-700 bg-orange-50 p-2 rounded">
+                  ⚠️ No webhooks received yet. Make sure S2S Push URL is configured in Trackier Dashboard.
+                </p>
+              )}
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
