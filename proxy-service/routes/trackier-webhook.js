@@ -28,7 +28,8 @@ if (!supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Feature flag - can be disabled without affecting anything
-const TRACKIER_ENABLED = process.env.TRACKIER_ENABLED !== 'false';
+// Can also be toggled via POST /api/trackier-emergency-toggle endpoint
+let TRACKIER_ENABLED = process.env.TRACKIER_ENABLED !== 'false';
 
 /**
  * ===================================================================
@@ -348,24 +349,41 @@ async function processTrackierUpdate(trackierOffer, webhookLogId) {
     
     // Call get-suffix edge function with offer_name
     const edgeFunctionUrl = `https://rfhuqenntxiqurplenjn.supabase.co/functions/v1/get-suffix?offer_name=${encodeURIComponent(trackierOffer.offer_name)}`;
-    const traceResponse = await fetch(edgeFunctionUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY || ''}`,
+    
+    // Add timeout controller to prevent hanging
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    try {
+      const traceResponse = await fetch(edgeFunctionUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY || ''}`,
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
+
+      if (!traceResponse.ok) {
+        const errorText = await traceResponse.text().catch(() => 'Unable to read error');
+        throw new Error(`Edge function failed: ${traceResponse.status} ${traceResponse.statusText} - ${errorText}`);
       }
-    });
 
-    if (!traceResponse.ok) {
-      throw new Error(`Edge function failed: ${traceResponse.status} ${traceResponse.statusText}`);
+      const traceResult = await traceResponse.json();
+      trace_duration_ms = Date.now() - traceStart;
+
+      console.log(`[Trackier Update] Edge function completed in ${trace_duration_ms}ms`);
+
+      // Extract data from edge function response
+      traced_url = traceResult.final_url || traceResult.finalUrl;
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Edge function timed out after 30 seconds');
+      }
+      throw fetchError;
     }
-
-    const traceResult = await traceResponse.json();
-    trace_duration_ms = Date.now() - traceStart;
-
-    console.log(`[Trackier Update] Edge function completed in ${trace_duration_ms}ms`);
-
-    // Extract data from edge function response
-    traced_url = traceResult.final_url || traceResult.finalUrl;
     
     if (!traced_url) {
       console.log(`[Trackier Update] Edge function result:`, JSON.stringify(traceResult, null, 2).substring(0, 500));
@@ -716,6 +734,28 @@ router.get('/trackier-status', async (req, res) => {
       enabled: TRACKIER_ENABLED
     });
   }
+});
+
+/**
+ * EMERGENCY TOGGLE - Disable/Enable Trackier processing without restart
+ * POST /api/trackier-emergency-toggle?enabled=false
+ */
+router.post('/trackier-emergency-toggle', (req, res) => {
+  const newState = req.query.enabled === 'true';
+  const oldState = TRACKIER_ENABLED;
+  
+  TRACKIER_ENABLED = newState;
+  
+  console.log(`[EMERGENCY] Trackier processing ${oldState ? 'DISABLED' : 'ENABLED'} → ${newState ? 'ENABLED' : 'DISABLED'}`);
+  
+  res.json({
+    success: true,
+    previous_state: oldState,
+    current_state: TRACKIER_ENABLED,
+    message: `Trackier processing is now ${TRACKIER_ENABLED ? 'ENABLED' : 'DISABLED'}`,
+    note: 'This is a runtime toggle. Set TRACKIER_ENABLED env var for permanent change.',
+    timestamp: new Date().toISOString()
+  });
 });
 
 /**
