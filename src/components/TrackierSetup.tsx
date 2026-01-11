@@ -32,9 +32,11 @@ interface TrackierOffer {
   api_base_url: string;
   advertiser_id: string;
   url1_campaign_id: string;
+  url1_campaign_id_real?: string;
   url1_campaign_name: string;
   url1_tracking_url?: string;
   url2_campaign_id: string;
+  url2_campaign_id_real?: string;
   url2_campaign_name: string;
   url2_destination_url: string;
   url2_tracking_url?: string;
@@ -424,12 +426,10 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         throw new Error('URL 2 Campaign ID is required');
       }
 
-      // Generate webhook URL with static token parameter for proper tracking
-      // Trackier will append macros like {click_id}, {p1}, etc. but won't replace our static token
-      const baseWebhookUrl = `http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com/api/trackier-webhook`;
-      const webhookUrl = config.id 
-        ? `${baseWebhookUrl}?token=${config.id}&click_id={click_id}&campaign_id={campaign_id}&p1={p1}&p2={p2}&p3={p3}&p4={p4}&p5={p5}&p6={p6}&p7={p7}&p8={p8}&p9={p9}&p10={p10}&gclid={gclid}&fbclid={fbclid}`
-        : baseWebhookUrl; // Will be updated after first save
+      // Generate webhook URL with token parameter for offer mapping
+      // Token is the offer UUID, Trackier will append {campaign_id} and {click_id}
+      const baseWebhookUrl = `https://rfhuqenntxiqurplenjn.supabase.co/functions/v1/trackier-webhook`;
+      const webhookUrl = `${baseWebhookUrl}?token=${config.id}&campaign_id={campaign_id}&click_id={click_id}`;
       
       const publisherId = config.publisher_id || '2'; // Default to 2 if not set
       
@@ -468,15 +468,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
         if (insertError) throw insertError;
         result = data;
-        
-        // Update webhook_url with the new offer_id and Trackier macros
-        const webhookUrlWithToken = `${baseWebhookUrl}?token=${result.id}&click_id={click_id}&campaign_id={campaign_id}&p1={p1}&p2={p2}&p3={p3}&p4={p4}&p5={p5}&p6={p6}&p7={p7}&p8={p8}&p9={p9}&p10={p10}&gclid={gclid}&fbclid={fbclid}`;
-        const { data: updatedData, error: updateWebhookError } = await supabase
-          .from('trackier_offers')
-          .update({ webhook_url: webhookUrlWithToken })
-          .eq('id', result.id)
-          .select()
-          .single();
+        // webhook_url is already set with token, no update needed
         
         if (updateWebhookError) throw updateWebhookError;
         result = updatedData;
@@ -613,13 +605,15 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
       const result = await response.json();
 
-      // Update config with campaign IDs and tracking URLs
+      // Update config with both display and real campaign IDs
       setConfig({
         ...config,
         url1_campaign_id: result.url1_campaign_id,
+        url1_campaign_id_real: result.url1_campaign_id_real,
         url1_campaign_name: result.campaigns.url1.name,
         url1_tracking_url: result.url1_tracking_url,
         url2_campaign_id: result.url2_campaign_id,
+        url2_campaign_id_real: result.url2_campaign_id_real,
         url2_campaign_name: result.campaigns.url2.name,
         url2_tracking_url: result.url2_tracking_url,
         url2_destination_url: result.url2_destination_url || config.final_url,

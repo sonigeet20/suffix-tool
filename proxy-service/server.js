@@ -67,8 +67,10 @@ app.use(express.json({ limit: '10mb' }));
 // Trackier Dual-URL Webhook Integration (Isolated Module - Safe to disable)
 const trackierRoutes = require('./routes/trackier-webhook');
 const trackierTraceRoutes = require('./routes/trackier-trace');
+const trackierPollingRoutes = require('./routes/trackier-polling');
 app.use('/api', trackierRoutes);
 app.use('/api', trackierTraceRoutes);
+app.use('/api', trackierPollingRoutes);
 
 // Utility function to convert bytes to human-readable format
 function formatBytes(bytes) {

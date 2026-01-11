@@ -953,9 +953,21 @@ router.post('/trackier-create-campaigns', async (req, res) => {
 
     const url2Data = await url2Response.json();
     const url2CampaignId = url2Data.campaign?.id || url2Data.id;
+    
+    // Fetch campaign details to get display ID
+    const url2DetailsResponse = await fetch(`${apiBaseUrl}/v2/campaigns/${url2CampaignId}`, {
+      method: 'GET',
+      headers: {
+        'X-Api-Key': apiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+    const url2Details = url2DetailsResponse.ok ? await url2DetailsResponse.json() : {};
+    const url2DisplayId = url2Details.campaign?.campaignNo || url2CampaignId;
+    
     const url2TrackingLink = `https://nebula.gotrackier.com/click?campaign_id=${url2CampaignId}&pub_id=2`;
 
-    console.log(`[Trackier Create] ✓ URL 2 created with ID: ${url2CampaignId}`);
+    console.log(`[Trackier Create] ✓ URL 2 created with ID: ${url2CampaignId} (Display: ${url2DisplayId})`);
 
     // Step 2: Create URL 1 (Passthrough Campaign) - also uses same destination with macros
     console.log('[Trackier Create] Creating URL 1 (Passthrough Campaign)...');
@@ -992,19 +1004,33 @@ router.post('/trackier-create-campaigns', async (req, res) => {
 
     const url1Data = await url1Response.json();
     const url1CampaignId = url1Data.campaign?.id || url1Data.id;
+    
+    // Fetch campaign details to get display ID
+    const url1DetailsResponse = await fetch(`${apiBaseUrl}/v2/campaigns/${url1CampaignId}`, {
+      method: 'GET',
+      headers: {
+        'X-Api-Key': apiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+    const url1Details = url1DetailsResponse.ok ? await url1DetailsResponse.json() : {};
+    const url1DisplayId = url1Details.campaign?.campaignNo || url1CampaignId;
+    
     const url1TrackingLink = `https://nebula.gotrackier.com/click?campaign_id=${url1CampaignId}&pub_id=${publisherId}`;
 
-    console.log(`[Trackier Create] ✓ URL 1 created with ID: ${url1CampaignId}`);
+    console.log(`[Trackier Create] ✓ URL 1 created with ID: ${url1CampaignId} (Display: ${url1DisplayId})`);
 
     // Step 3: Generate Google Ads tracking template with nested URL format
     const googleAdsTemplate = generateGoogleAdsTemplate(url1CampaignId, url2CampaignId, finalUrl, publisherId);
 
-    // Return campaign details with sub_id_mapping (using snake_case for database compatibility)
+    // Return campaign details with both display and real IDs
     res.json({
       success: true,
       message: 'Campaigns created successfully (with sub_id macros for real-time updates)',
-      url1_campaign_id: url1CampaignId,
-      url2_campaign_id: url2CampaignId,
+      url1_campaign_id: url1DisplayId,
+      url1_campaign_id_real: url1CampaignId,
+      url2_campaign_id: url2DisplayId,
+      url2_campaign_id_real: url2CampaignId,
       url1_tracking_url: url1TrackingLink,
       url2_tracking_url: url2TrackingLink,
       url2_destination_url: destinationUrl,
@@ -1219,6 +1245,49 @@ router.get('/trackier-redirect', async (req, res) => {
     console.error('[Trackier Redirect] Error:', error);
     res.status(500).json({ error: 'Failed to resolve redirect', message: error.message });
   }
+});
+
+/**
+ * Background Trace Endpoint (called by Edge Function)
+ * POST /api/trackier-trace-background?offer_id=UUID&webhook_log_id=UUID
+ */
+router.post('/trackier-trace-background', async (req, res) => {
+  // Return 200 immediately - process in background
+  res.status(200).json({ status: 'processing' });
+
+  setImmediate(async () => {
+    try {
+      const { offer_id, webhook_log_id } = req.query;
+
+      if (!offer_id) {
+        console.error('[Trackier Background] Missing offer_id');
+        return;
+      }
+
+      console.log(`[Trackier Background] Triggered for offer: ${offer_id}, webhook: ${webhook_log_id}`);
+
+      // Fetch the offer
+      const { data: trackierOffer, error: findError } = await supabase
+        .from('trackier_offers')
+        .select('*')
+        .eq('id', offer_id)
+        .eq('enabled', true)
+        .single();
+
+      if (findError || !trackierOffer) {
+        console.error('[Trackier Background] Offer not found:', findError);
+        return;
+      }
+
+      console.log(`[Trackier Background] Processing: ${trackierOffer.offer_name}`);
+
+      // Trigger the update
+      await processTrackierUpdate(trackierOffer, webhook_log_id);
+
+    } catch (error) {
+      console.error('[Trackier Background] Error:', error);
+    }
+  });
 });
 
 module.exports = router;
