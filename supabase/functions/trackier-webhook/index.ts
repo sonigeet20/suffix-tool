@@ -9,11 +9,6 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-// Backend API for triggering traces - configurable via environment
-const BACKEND_BASE_URL = Deno.env.get('BACKEND_BASE_URL') || 'http://localhost:3000'
-
-console.log('🔧 Using BACKEND_BASE_URL:', BACKEND_BASE_URL)
-
 Deno.serve(async (req) => {
   console.log('===== TRACKIER WEBHOOK =====')
   console.log('Method:', req.method)
@@ -25,6 +20,18 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Fetch BACKEND_BASE_URL from settings table
+    const { data: settings, error: settingsError } = await supabase
+      .from('settings')
+      .select('aws_proxy_url')
+      .limit(1)
+      .single()
+
+    let BACKEND_BASE_URL = 'http://localhost:3000' // Fallback
+    if (settings?.aws_proxy_url) {
+      BACKEND_BASE_URL = settings.aws_proxy_url
+    }
+    console.log('🔧 Using BACKEND_BASE_URL from settings:', BACKEND_BASE_URL)
     // Parse query parameters
     const url = new URL(req.url)
     const allParams = Object.fromEntries(url.searchParams)
@@ -97,10 +104,19 @@ Deno.serve(async (req) => {
         ? new Date(trackierOffer.url2_last_updated_at) 
         : new Date(0)
       const timeSinceLastUpdate = (now.getTime() - lastUpdate.getTime()) / 1000 // seconds
+      const intervalSeconds = trackierOffer.update_interval_seconds || 300
 
-      const shouldUpdate = timeSinceLastUpdate >= (trackierOffer.update_interval_seconds || 300)
+      console.log(`DEBUG - url2_last_updated_at: ${trackierOffer.url2_last_updated_at}`)
+      console.log(`DEBUG - lastUpdate object: ${lastUpdate}`)
+      console.log(`DEBUG - now object: ${now}`)
+      console.log(`DEBUG - now.getTime(): ${now.getTime()}`)
+      console.log(`DEBUG - lastUpdate.getTime(): ${lastUpdate.getTime()}`)
+      console.log(`DEBUG - update_interval_seconds from DB: ${trackierOffer.update_interval_seconds}`)
+      console.log(`DEBUG - intervalSeconds (with default): ${intervalSeconds}`)
+      
+      const shouldUpdate = timeSinceLastUpdate >= intervalSeconds
 
-      console.log(`⏱️ Time since last update: ${timeSinceLastUpdate.toFixed(1)}s, Interval: ${trackierOffer.update_interval_seconds}s, Should update: ${shouldUpdate}`)
+      console.log(`⏱️ Time since last update: ${timeSinceLastUpdate.toFixed(1)}s, Interval: ${intervalSeconds}s, Should update: ${shouldUpdate}`)
 
       if (shouldUpdate) {
         console.log('🚀 Triggering background trace...')

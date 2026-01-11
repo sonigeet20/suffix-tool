@@ -65,21 +65,22 @@ function parseSuffixParams(suffix) {
 
 /**
  * Map suffix parameters to sub_id values based on sub_id_mapping
- * Creates param=value pairs for custom network parameters
+ * Sends JUST the values - the campaign URL template includes the param names
  * 
- * @param {Object} suffixParams - Parsed suffix params like {awc: "12345", network_id: "xyz"}
- * @param {Object} subIdMapping - Mapping like {sub1: "awc", sub2: "network_id"}
- * @returns {Object} - sub_id values like {sub1: "awc=12345", sub2: "network_id=xyz"}
+ * @param {Object} suffixParams - Parsed suffix params like {awc: "12345", utm_source: "awin"}
+ * @param {Object} subIdMapping - Mapping like {p1: "utm_source", p2: "utm_medium"}
+ * @returns {Object} - sub_id values like {p1: "awin", p2: "cpm"}
  */
 function mapParamsToSubIds(suffixParams, subIdMapping) {
   const subIdValues = {};
   
   // Iterate through sub_id_mapping and find corresponding values
-  // Build param=value pairs for each sub_id
+  // Send ONLY the value - campaign URL template has param names
+  // Template: ?utm_source={p1}&utm_medium={p2}&...
   Object.entries(subIdMapping).forEach(([subId, paramName]) => {
     if (suffixParams[paramName]) {
-      // Format: sub1=param_name=param_value
-      subIdValues[subId] = `${paramName}=${suffixParams[paramName]}`;
+      // Format: just the value, no param name
+      subIdValues[subId] = suffixParams[paramName];
     }
   });
 
@@ -88,23 +89,47 @@ function mapParamsToSubIds(suffixParams, subIdMapping) {
 
 /**
  * Build destination URL with sub_id macros for custom parameters
- * Each sub_id will contain param=value, so destination just needs {sub1}&{sub2}&{sub3}
+ * Auto-detects parameters from the URL and builds template with placeholders
+ * Format: ?param_name={p1}&another_param={p2}... for proper encoding
  * 
- * @param {string} baseUrl - Base offer URL like "https://example.com/offer"
- * @param {Object} subIdMapping - Mapping like {sub1: "awc", sub2: "network_id"}
- * @returns {string} - URL with macros like "https://example.com/offer?{sub1}&{sub2}&{sub3}"
+ * @param {string} baseUrl - Base offer URL like "https://example.com/offer?utm_source=X&utm_medium=Y"
+ * @param {Object} subIdMapping - Mapping like {p1: "utm_source", p2: "utm_medium"}
+ * @returns {string} - URL with macros like "https://example.com/offer?utm_source={p1}&utm_medium={p2}"
  */
 function buildDestinationUrlWithMacros(baseUrl, subIdMapping) {
-  // Determine if URL already has query params
-  const separator = baseUrl.includes('?') ? '&' : '?';
-  
-  // Build query string with sub_id macros only
-  // Each sub_id will resolve to param=value (e.g., {sub1} → awc=12345)
-  const macroParams = Object.keys(subIdMapping)
-    .map(subId => `{${subId}}`)
-    .join('&');
-  
-  return `${baseUrl}${separator}${macroParams}`;
+  try {
+    // Parse the base URL to extract existing parameters
+    const url = new URL(baseUrl);
+    
+    // Create a reverse mapping: param name → p number
+    const paramToPlaceholder = {};
+    Object.entries(subIdMapping).forEach(([placeholder, paramName]) => {
+      paramToPlaceholder[paramName] = placeholder;
+    });
+    
+    // Clear existing query params
+    url.search = '';
+    
+    // Build new query string with parameter names and placeholders
+    const queryParams = [];
+    Object.entries(paramToPlaceholder).forEach(([paramName, placeholder]) => {
+      queryParams.push(`${paramName}={${placeholder}}`);
+    });
+    
+    // Join with & and add to URL
+    const separator = url.href.includes('?') ? '&' : '?';
+    const templateUrl = `${url.toString()}${separator}${queryParams.join('&')}`;
+    
+    return templateUrl;
+  } catch (error) {
+    console.error('[Trackier] Failed to build destination URL with macros:', error);
+    // Fallback: just use placeholders
+    const macroParams = Object.keys(subIdMapping)
+      .map(subId => `{${subId}}`)
+      .join('&');
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}${macroParams}`;
+  }
 }
 
 /**
@@ -334,6 +359,7 @@ async function processTrackierUpdate(trackierOffer, webhookLogId) {
   let traced_suffix = null;
   let traced_url = null;
   let trace_duration_ms = 0;
+  let traceResult = null; // holds edge function response for later error context
   let params_extracted = {};
   let params_filtered = {};
   let proxy_ip = null;
@@ -370,13 +396,19 @@ async function processTrackierUpdate(trackierOffer, webhookLogId) {
         throw new Error(`Edge function failed: ${traceResponse.status} ${traceResponse.statusText} - ${errorText}`);
       }
 
-      const traceResult = await traceResponse.json();
+      traceResult = await traceResponse.json();
       trace_duration_ms = Date.now() - traceStart;
 
       console.log(`[Trackier Update] Edge function completed in ${trace_duration_ms}ms`);
+      console.log(`[Trackier Update] Edge function response:`, JSON.stringify(traceResult, null, 2).substring(0, 1000));
 
       // Extract data from edge function response
       traced_url = traceResult.final_url || traceResult.finalUrl;
+      
+      // If trace was unsuccessful but we have final_url, still use it
+      if (!traced_url && traceResult.success === false) {
+        throw new Error(`Edge function trace failed: ${traceResult.message || traceResult.error || 'Unknown error'}`);
+      }
     } catch (fetchError) {
       clearTimeout(timeout);
       if (fetchError.name === 'AbortError') {
@@ -386,8 +418,7 @@ async function processTrackierUpdate(trackierOffer, webhookLogId) {
     }
     
     if (!traced_url) {
-      console.log(`[Trackier Update] Edge function result:`, JSON.stringify(traceResult, null, 2).substring(0, 500));
-      throw new Error('Edge function failed: ' + (traceResult.error || 'No final URL in response'));
+      throw new Error('Edge function failed: No final URL in response');
     }
     
     console.log(`[Trackier Update] Final URL: ${traced_url}`);
@@ -397,7 +428,7 @@ async function processTrackierUpdate(trackierOffer, webhookLogId) {
     console.log(`[Trackier Update] Extracted suffix: ${traced_suffix.substring(0, 100)}...`);
 
     // Store extracted params if available
-    if (traceResult.extractedParams) {
+    if (traceResult && traceResult.extractedParams) {
       params_extracted = traceResult.extractedParams;
       params_filtered = traceResult.filteredParams || params_extracted;
     } else {
@@ -407,10 +438,10 @@ async function processTrackierUpdate(trackierOffer, webhookLogId) {
     }
 
     // Store proxy/geo info
-    proxy_ip = traceResult.proxyIp || null;
-    geo_country = traceResult.geoLocation?.country || null;
-    geo_city = traceResult.geoLocation?.city || null;
-    geo_region = traceResult.geoLocation?.region || null;
+    proxy_ip = (traceResult && traceResult.proxyIp) || null;
+    geo_country = (traceResult && traceResult.geoLocation && traceResult.geoLocation.country) || null;
+    geo_city = (traceResult && traceResult.geoLocation && traceResult.geoLocation.city) || null;
+    geo_region = (traceResult && traceResult.geoLocation && traceResult.geoLocation.region) || null;
 
     // Step 2: Parse suffix into parameters
     const suffixParams = parseSuffixParams(traced_suffix);
@@ -447,7 +478,20 @@ async function processTrackierUpdate(trackierOffer, webhookLogId) {
       })
       .eq('id', trackierOffer.id);
 
-    console.log(`[Trackier Update] ✅ sub_id values stored in database (real-time ready)`);
+    console.log(`[Trackier Update] ✅ sub_id values stored in database`);
+
+    // Step 5: Update Campaign 309 with subIdOverride
+    try {
+      console.log(`[Trackier Update] Calling Trackier API to update Campaign ${trackierOffer.url2_campaign_id} with subIdOverride`);
+      
+      // Call Trackier API with subIdOverride
+      await updateTrackierCampaignSubIds(trackierOffer, trackierOffer.url2_campaign_id, subIdValues);
+      
+      console.log(`[Trackier Update] ✅ Campaign ${trackierOffer.url2_campaign_id} updated with subIdOverride`);
+    } catch (apiError) {
+      console.error(`[Trackier Update] ⚠️ Failed to update Campaign 309 subIdOverride:`, apiError);
+      // Continue anyway - parameters are stored in sub_id_values
+    }
 
     // Log successful trace
     await supabase
@@ -591,19 +635,116 @@ async function updateTrackierCampaign(trackierOffer, campaignId, newUrl) {
 }
 
 /**
+ * Update Trackier Campaign via sub_id override
+ * Uses Trackier's subIdOverride feature to set p1-p10 values
+ */
+async function updateTrackierCampaignSubIds(trackierOffer, campaignId, subIdValues) {
+  const apiBaseUrl = trackierOffer.api_base_url || 'https://api.trackier.com';
+  const url = `${apiBaseUrl}/v2/campaigns/${campaignId}`;
+  
+  console.log(`[Trackier API] Updating campaign ${campaignId} with subIdOverride (p1-p10)`);
+
+  // Build subIdOverride object with p1-p10 directly
+  const subIdOverride = {};
+  for (let i = 1; i <= 10; i++) {
+    const key = `p${i}`;
+    if (subIdValues[key]) {
+      subIdOverride[key] = subIdValues[key];
+    }
+  }
+  
+  console.log(`[Trackier API] subIdOverride:`, subIdOverride);
+
+  // Build request body with subIdOverride
+  const requestBody = {
+    subIdOverride: subIdOverride
+  };
+
+  const apiStart = Date.now();
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-Api-Key': trackierOffer.api_key,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const duration_ms = Date.now() - apiStart;
+    const responseText = await response.text();
+    let responseBody = null;
+
+    try {
+      responseBody = JSON.parse(responseText);
+    } catch (e) {
+      responseBody = { raw: responseText };
+    }
+
+    // Log API call
+    await supabase
+      .from('trackier_api_calls')
+      .insert({
+        trackier_offer_id: trackierOffer.id,
+        method: 'POST',
+        endpoint: url,
+        request_body: requestBody,
+        status_code: response.status,
+        response_body: responseBody,
+        success: response.ok,
+        error: response.ok ? null : `HTTP ${response.status}`,
+        duration_ms: duration_ms
+      });
+
+    if (!response.ok) {
+      throw new Error(`Trackier API error: ${response.status} - ${responseText}`);
+    }
+
+    console.log(`[Trackier API] ✅ Success (${duration_ms}ms):`, responseBody);
+    return responseBody;
+
+  } catch (error) {
+    // Log failed API call
+    await supabase
+      .from('trackier_api_calls')
+      .insert({
+        trackier_offer_id: trackierOffer.id,
+        method: 'POST',
+        endpoint: url,
+        request_body: requestBody,
+        success: false,
+        error: error.message,
+        duration_ms: Date.now() - apiStart
+      });
+
+    throw error;
+  }
+}
+
+/**
  * Extract suffix from final URL using pattern
  */
 function extractSuffix(finalUrl, pattern) {
   try {
     const url = new URL(finalUrl);
     
-    // If pattern is like "?suffix={suffix}" or "&clickid={clickid}"
-    const paramMatch = pattern.match(/[?&](\w+)=\{(\w+)\}/);
-    if (paramMatch) {
-      const paramName = paramMatch[1];
-      const paramValue = url.searchParams.get(paramName);
-      if (paramValue) {
-        return `${paramName}=${paramValue}`;
+    // Extract all parameter names from pattern like "?aw_affid={aw_affid}&awc={awc}..."
+    const paramMatches = [...pattern.matchAll(/[?&](\w+)=\{[^}]+\}/g)];
+    
+    if (paramMatches && paramMatches.length > 0) {
+      // Extract all matched params from URL
+      const suffixParts = [];
+      paramMatches.forEach(match => {
+        const paramName = match[1];
+        const paramValue = url.searchParams.get(paramName);
+        if (paramValue) {
+          suffixParts.push(`${paramName}=${encodeURIComponent(paramValue)}`);
+        }
+      });
+      
+      if (suffixParts.length > 0) {
+        return suffixParts.join('&');
       }
     }
     
@@ -1021,7 +1162,8 @@ router.post('/trackier-create-campaigns', async (req, res) => {
     console.log(`[Trackier Create] ✓ URL 1 created with ID: ${url1CampaignId} (Display: ${url1DisplayId})`);
 
     // Step 3: Generate Google Ads tracking template with nested URL format
-    const googleAdsTemplate = generateGoogleAdsTemplate(url1CampaignId, url2CampaignId, finalUrl, publisherId);
+    // Use destinationUrl (with parameter placeholders) instead of finalUrl
+    const googleAdsTemplate = generateGoogleAdsTemplate(url1CampaignId, url2CampaignId, destinationUrl, publisherId);
 
     // Return campaign details with both display and real IDs
     res.json({

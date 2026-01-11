@@ -433,8 +433,36 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       
       const publisherId = config.publisher_id || '2'; // Default to 2 if not set
       
-      // Build URL 2 (final destination) with force_transparency, pub_id, and actual final URL
-      const url2Base = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparency=true&url=${encodeURIComponent(config.final_url)}`;
+      // Build destination URL with parameter names and placeholders
+      // Example: https://example.com/offer?utm_source={p1}&utm_medium={p2}&...
+      const subIdMapping = config.sub_id_mapping || {
+        p1: 'gclid',
+        p2: 'fbclid',
+        p3: 'msclkid',
+        p4: 'ttclid',
+        p5: 'clickid',
+        p6: 'utm_source',
+        p7: 'utm_medium',
+        p8: 'utm_campaign',
+        p9: 'custom1',
+        p10: 'custom2'
+      };
+
+      // Build parameter template
+      const paramToPlaceholder: Record<string, string> = {};
+      Object.entries(subIdMapping).forEach(([placeholder, paramName]) => {
+        paramToPlaceholder[paramName as string] = placeholder;
+      });
+
+      const queryParams = Object.entries(paramToPlaceholder)
+        .map(([paramName, placeholder]) => `${paramName}={${placeholder}}`)
+        .join('&');
+
+      const separator = config.final_url.includes('?') ? '&' : '?';
+      const destinationUrlWithParams = `${config.final_url}${separator}${queryParams}`;
+      
+      // Build URL 2 (final destination) with force_transparency, pub_id, and destination URL with params
+      const url2Base = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparency=true&url=${encodeURIComponent(destinationUrlWithParams)}`;
       const url2Encoded = encodeURIComponent(url2Base);
       
       // Build URL 1 (passthrough) wrapping URL 2 with pub_id
