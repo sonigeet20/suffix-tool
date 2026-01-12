@@ -13,6 +13,21 @@ import { autoMapParameters, formatAutoMapSummary } from '../utils/trackierAutoMa
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rfhuqenntxiqurplenjn.supabase.co';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Helper to get the correct API base URL (use load balancer in production, localhost in dev)
+const getApiBaseUrl = () => {
+  // Check if we're in development
+  if (import.meta.env.DEV) {
+    return 'http://localhost:3000';
+  }
+  
+  // In production, use the load balancer or current host
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 
+    'http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com:3000' ||
+    `http://${window.location.hostname}:3000`;
+  
+  return baseUrl;
+};
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface TrackierSetupProps {
@@ -344,7 +359,9 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
       console.log('[TrackierSetup] Sending trace request with payload:', payload);
 
-      const response = await fetch('http://localhost:3000/api/trackier-trace-once', {
+      const apiUrl = `${getApiBaseUrl()}/api/trackier-trace-once`;
+      console.log('[TrackierSetup] API URL:', apiUrl);
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -520,7 +537,8 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       }
 
       // Trigger manual update
-      const response = await fetch(`http://localhost:3000/api/trackier-trigger/${config.id}`, {
+      const apiUrl = `${getApiBaseUrl()}/api/trackier-trigger/${config.id}`;
+      const response = await fetch(apiUrl, {
         method: 'POST',
       });
 
@@ -554,7 +572,8 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       }
 
       // Validate credentials and fetch advertisers
-      const response = await fetch('http://localhost:3000/api/trackier-validate-credentials', {
+      const apiUrl = `${getApiBaseUrl()}/api/trackier-validate-credentials`;
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -604,10 +623,13 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         throw new Error('Please enter your Trackier API key first');
       }
 
-      const webhookUrl = `https://18.206.90.98:3000/api/trackier-webhook`;
+      // Use the load balancer for webhook URL
+      const webhookUrl = import.meta.env.VITE_WEBHOOK_URL || 
+        'http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com:3000/api/trackier-webhook';
 
       // Call backend to create campaigns
-      const response = await fetch('http://localhost:3000/api/trackier-create-campaigns', {
+      const apiUrl = `${getApiBaseUrl()}/api/trackier-create-campaigns`;
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
