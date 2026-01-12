@@ -202,6 +202,52 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
     }
   };
 
+  const fetchAwsProxyUrlFromSettings = async (): Promise<string> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      let settingsData = null;
+      
+      if (user) {
+        // Try to get user-specific settings first
+        const { data, error } = await supabase
+          .from('settings')
+          .select('aws_proxy_url')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (!error && data?.aws_proxy_url) {
+          settingsData = data;
+        }
+      }
+      
+      // Fallback to any available settings if user-specific not found
+      if (!settingsData) {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('aws_proxy_url')
+          .limit(1)
+          .maybeSingle();
+        
+        if (!error && data?.aws_proxy_url) {
+          settingsData = data;
+        }
+      }
+      
+      if (settingsData?.aws_proxy_url) {
+        console.log('[TrackierSetup] Using aws_proxy_url from settings:', settingsData.aws_proxy_url);
+        return settingsData.aws_proxy_url;
+      }
+      
+      // Final fallback to localhost for local development
+      console.warn('[TrackierSetup] No aws_proxy_url found in settings, using localhost fallback');
+      return 'http://localhost:3000';
+    } catch (err) {
+      console.error('Error fetching aws_proxy_url from settings:', err);
+      return 'http://localhost:3000';
+    }
+  };
+
   const loadStats = async (trackierOfferId: string) => {
     try {
       const { data, error: statsError } = await supabase
