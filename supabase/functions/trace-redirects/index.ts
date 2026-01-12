@@ -548,21 +548,9 @@ Deno.serve(async (req: Request) => {
     let proxyPassword: string | null = null;
     let effectiveUserId = user_id;
 
-    if (!effectiveUserId && authHeader) {
-      try {
-        const token = authHeader.replace("Bearer ", "");
-        if (token && token !== "undefined" && token !== "null") {
-          const { data: { user }, error: authError } = await supabase.auth
-            .getUser(token);
-          if (!authError && user) {
-            effectiveUserId = user.id;
-            console.log("✅ User ID from auth token:", effectiveUserId);
-          }
-        }
-      } catch (err) {
-        console.log("⚠️ Could not get user from auth header:", err);
-      }
-    }
+    // NO JWT VERIFICATION - PUBLIC ENDPOINT
+    console.log("📡 Public endpoint access - no JWT required");
+    console.log("User ID:", effectiveUserId);
 
     // PUBLIC ACCESS: Try to fetch settings from database
     // First try with user_id if provided, otherwise get any settings record
