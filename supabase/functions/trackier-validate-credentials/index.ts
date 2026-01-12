@@ -20,8 +20,8 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
 
-    // Forward to load balancer
-    const backendUrl = "http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com:3000/api/trackier-validate-credentials";
+    // Forward to load balancer (port 80)
+    const backendUrl = "http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com/api/trackier-validate-credentials";
 
     console.log("[Trackier Validate] Forwarding to backend:", backendUrl);
 
