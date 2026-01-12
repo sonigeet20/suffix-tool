@@ -202,13 +202,6 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
     }
   };
 
-  const fetchAwsProxyUrlFromSettings = async (): Promise<string> => {
-    // Use Supabase Edge Function as HTTPS proxy to HTTP backend
-    // This solves the mixed content issue (HTTPS frontend → HTTP backend)
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rfhuqenntxiqurplenjn.supabase.co';
-    return `${supabaseUrl}/functions/v1/proxy-trackier`;
-  };
-
   const loadStats = async (trackierOfferId: string) => {
     try {
       const { data, error: statsError } = await supabase
@@ -351,8 +344,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
       console.log('[TrackierSetup] Sending trace request with payload:', payload);
 
-      const awsProxyUrl = await fetchAwsProxyUrlFromSettings();
-      const response = await fetch(`${awsProxyUrl}?path=/api/trackier-trace-once`, {
+      const response = await fetch('http://localhost:3000/api/trackier-trace-once', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -528,8 +520,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       }
 
       // Trigger manual update
-      const awsProxyUrl = await fetchAwsProxyUrlFromSettings();
-      const response = await fetch(`${awsProxyUrl}?path=/api/trackier-trigger/${config.id}`, {
+      const response = await fetch(`http://localhost:3000/api/trackier-trigger/${config.id}`, {
         method: 'POST',
       });
 
@@ -562,10 +553,8 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         throw new Error('Please enter your Trackier API key first');
       }
 
-      // Call via edge function proxy (Trackier API blocks CORS from browsers)
-      console.log('[TrackierSetup] Validating credentials via edge function proxy...');
-      const awsProxyUrl = await fetchAwsProxyUrlFromSettings();
-      const response = await fetch(`${awsProxyUrl}?path=/api/trackier-validate-credentials`, {
+      // Validate credentials and fetch advertisers
+      const response = await fetch('http://localhost:3000/api/trackier-validate-credentials', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -618,8 +607,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       const webhookUrl = `https://18.206.90.98:3000/api/trackier-webhook`;
 
       // Call backend to create campaigns
-      const awsProxyUrl = await fetchAwsProxyUrlFromSettings();
-      const response = await fetch(`${awsProxyUrl}?path=/api/trackier-create-campaigns`, {
+      const response = await fetch('http://localhost:3000/api/trackier-create-campaigns', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

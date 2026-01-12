@@ -175,7 +175,6 @@ async function traceRedirectsInteractive(
     maxSessionTime = 8000,
     extractFromLocationHeader = false,
     locationExtractHop = null,
-    proxySettings: customProxySettings = null, // Allow custom proxy provider
   } = options;
 
   if (minSessionTime > maxSessionTime) {
@@ -222,9 +221,9 @@ async function traceRedirectsInteractive(
   }
 
   try {
-    // Load proxy settings with optional custom provider
-    const proxySettings = customProxySettings || await (loadProxySettingsFunc ? loadProxySettingsFunc() : defaultLoadProxySettings());
-    interactiveLogger.info(`✅ Proxy settings loaded${customProxySettings ? ' (custom provider)' : ''}`);
+    // Load proxy settings
+    const proxySettings = await (loadProxySettingsFunc ? loadProxySettingsFunc() : defaultLoadProxySettings());
+    interactiveLogger.info(`✅ Proxy settings loaded`);
 
     // Launch fresh browser (unique session for new IP)
     interactiveLogger.info(`🚀 Launching fresh browser for new IP...`);
