@@ -2,6 +2,8 @@
 
 A modern URL tracking application with offer management, analytics, and user authentication.
 
+_Last deployment: January 12, 2026_
+
 ## Quick Start
 
 ```bash
