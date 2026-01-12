@@ -118,7 +118,11 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       p7: 'utm_medium',
       p8: 'utm_campaign',
       p9: 'custom1',
-      p10: 'custom2'
+      p10: 'custom2',
+      erid: 'erid',
+      app_name: 'app_name',
+      app_id: 'app_id',
+      cr_name: 'cr_name'
     },
   });
 
@@ -467,7 +471,11 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         p7: 'utm_medium',
         p8: 'utm_campaign',
         p9: 'custom1',
-        p10: 'custom2'
+        p10: 'custom2',
+        erid: 'erid',
+        app_name: 'app_name',
+        app_id: 'app_id',
+        cr_name: 'cr_name'
       };
 
       // Build parameter template
@@ -488,12 +496,16 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       const url2Encoded = encodeURIComponent(url2Base);
       
       // Build URL 1 (passthrough) wrapping URL 2 with pub_id
-      const googleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}`;
+      // Add cache-busting parameter to force Trackier to serve fresh subIdOverride values
+      const googleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&_cb={timestamp}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}`;
       
       const configToSave = {
         ...config,
         google_ads_template: googleAdsTemplate,
         webhook_url: webhookUrl,
+        // Ensure _real fields are set (used by webhook function for API calls)
+        url1_campaign_id_real: config.url1_campaign_id_real || config.url1_campaign_id,
+        url2_campaign_id_real: config.url2_campaign_id_real || config.url2_campaign_id,
       };
 
       let result;
@@ -1164,7 +1176,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                   const key = `p${num}`;
                   return (
                     <div key={key} className="flex items-center gap-2">
-                      <label className="text-sm font-medium text-gray-700 whitespace-nowrap w-8">
+                      <label className="text-sm font-medium text-gray-700 whitespace-nowrap w-12">
                         {key}:
                       </label>
                       <input
@@ -1183,6 +1195,27 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                     </div>
                   );
                 })}
+
+                {["erid", "app_name", "app_id", "cr_name"].map((key) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700 whitespace-nowrap w-12">
+                      {key}:
+                    </label>
+                    <input
+                      type="text"
+                      value={config.sub_id_mapping?.[key] || ''}
+                      onChange={(e) => setConfig({
+                        ...config,
+                        sub_id_mapping: {
+                          ...config.sub_id_mapping,
+                          [key]: e.target.value
+                        }
+                      })}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 text-sm"
+                      placeholder={`param_name`}
+                    />
+                  </div>
+                ))}
               </div>
 
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">

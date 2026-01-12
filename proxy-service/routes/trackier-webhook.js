@@ -638,22 +638,32 @@ async function updateTrackierCampaign(trackierOffer, campaignId, newUrl) {
 
 /**
  * Update Trackier Campaign via sub_id override
- * Uses Trackier's subIdOverride feature to set p1-p10 values
+ * Uses Trackier's subIdOverride feature to set p1-p10, erid, app_name, app_id, cr_name
  */
 async function updateTrackierCampaignSubIds(trackierOffer, campaignId, subIdValues) {
   const apiBaseUrl = trackierOffer.api_base_url || 'https://api.trackier.com';
   const url = `${apiBaseUrl}/v2/campaigns/${campaignId}`;
   
-  console.log(`[Trackier API] Updating campaign ${campaignId} with subIdOverride (p1-p10)`);
+  console.log(`[Trackier API] Updating campaign ${campaignId} with subIdOverride (p1-p10 + app fields)`);
 
-  // Build subIdOverride object with p1-p10 directly
+  // Build subIdOverride object with all 14 Trackier fields (p1-p10, erid, app_name, app_id, cr_name)
   const subIdOverride = {};
+  
+  // Add p1-p10
   for (let i = 1; i <= 10; i++) {
     const key = `p${i}`;
     if (subIdValues[key]) {
       subIdOverride[key] = subIdValues[key];
     }
   }
+  
+  // Add app fields
+  const appFields = ['erid', 'app_name', 'app_id', 'cr_name'];
+  appFields.forEach(field => {
+    if (subIdValues[field]) {
+      subIdOverride[field] = subIdValues[field];
+    }
+  });
   
   console.log(`[Trackier API] subIdOverride:`, subIdOverride);
 
