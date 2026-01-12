@@ -20,12 +20,10 @@ const getEdgeFunctionUrl = (functionName: string) => {
   return `${supabaseUrl}/functions/v1/${functionName}`;
 };
 
-// Helper to get the correct API base URL (use localhost in dev, EC2 in prod for campaigns/validation)
+// Helper to get the correct API base URL (use Supabase edge functions to proxy to backend)
 const getApiBaseUrl = () => {
-  if (import.meta.env.DEV) {
-    return 'http://localhost:3000';
-  }
-  return 'http://localhost:3000'; // Still use local for dev/demo
+  // Always use edge functions - avoids mixed content (HTTPS to HTTP) issues
+  return supabaseUrl;
 };
 
 interface TrackierSetupProps {
@@ -347,15 +345,18 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       }
 
       const payload = {
-        final_url: urlToTrace,
-        tracer_mode: config.tracer_mode || 'http_only',
-        max_redirects: config.max_redirects || 20,
-        timeout_ms: config.timeout_ms || 45000,
-        extract_from_location_header: config.sub_id_mapping ? true : false,
-        location_extract_hop: null,
+        // offer_name triggers the get-suffix function which applies all offer settings:
+        // - Proxy configuration & rotation
+        // - Geo-targeting with strategy and weights
+        // - Tracer mode selection
+        // - Device distribution (UA rotation)
+        // - Referrer handling
+        // - Parameter filtering (all/whitelist/blacklist)
+        // This ensures traced parameters match production behavior
+        offer_name: config.offer_name,
       };
 
-      console.log('[TrackierSetup] Sending trace request with payload:', payload);
+      console.log('[TrackierSetup] Sending trace request with offer_name:', config.offer_name);
 
       // Use Supabase edge function for trace
       const edgeFunctionUrl = getEdgeFunctionUrl('trackier-trace-once');
@@ -540,8 +541,8 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         throw new Error('Please save the configuration first');
       }
 
-      // Trigger manual update
-      const apiUrl = `${getApiBaseUrl()}/api/trackier-trigger/${config.id}`;
+      // Trigger manual update via edge function
+      const apiUrl = `${getApiBaseUrl()}/functions/v1/trackier-trigger/${config.id}`;
       const response = await fetch(apiUrl, {
         method: 'POST',
       });
@@ -575,8 +576,8 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         throw new Error('Please enter your Trackier API key first');
       }
 
-      // Validate credentials and fetch advertisers
-      const apiUrl = `${getApiBaseUrl()}/api/trackier-validate-credentials`;
+      // Validate credentials via edge function
+      const apiUrl = `${getApiBaseUrl()}/functions/v1/trackier-validate-credentials`;
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -631,8 +632,8 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       const webhookUrl = import.meta.env.VITE_WEBHOOK_URL || 
         'http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com:3000/api/trackier-webhook';
 
-      // Call backend to create campaigns
-      const apiUrl = `${getApiBaseUrl()}/api/trackier-create-campaigns`;
+      // Create campaigns via edge function
+      const apiUrl = `${getApiBaseUrl()}/functions/v1/trackier-create-campaigns`;
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
