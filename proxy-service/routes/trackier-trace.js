@@ -7,10 +7,8 @@
  */
 
 const express = require('express');
+const axios = require('axios');
 const router = express.Router();
-
-// Import tracing functions from main server
-// We'll reuse the existing trace logic
 
 /**
  * POST /api/trackier-trace-once
@@ -130,14 +128,14 @@ function extractQueryParams(traceResult) {
 }
 
 /**
- * Simple HTTP-only tracer (reused from server.js logic)
+ * Simple HTTP-only tracer using axios
  */
 async function traceRedirectsHttpOnly(
   url,
-  maxRedirects,
-  timeoutMs,
-  extractFromLocationHeader,
-  locationExtractHop
+  maxRedirects = 20,
+  timeoutMs = 45000,
+  extractFromLocationHeader = false,
+  locationExtractHop = null
 ) {
   const startTime = Date.now();
   const redirect_chain = [];
@@ -146,53 +144,52 @@ async function traceRedirectsHttpOnly(
   let finalUrl = url;
   let hopCount = 0;
 
-  for (let i = 0; i < maxRedirects; i++) {
-    try {
+  try {
+    for (let i = 0; i < maxRedirects; i++) {
       redirect_chain.push(currentUrl);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-      const response = await fetch(currentUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-        redirect: 'manual',
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
       hopCount++;
 
-      // Check for Location header (redirect)
-      const location = response.headers.get('location');
-      if (location) {
-        location_headers.push(location);
+      try {
+        const response = await axios.get(currentUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+          maxRedirects: 0,  // Don't follow redirects automatically
+          validateStatus: () => true,  // Accept all status codes
+          timeout: Math.min(5000, timeoutMs),
+        });
 
-        // If we should extract from this hop
-        if (extractFromLocationHeader && (locationExtractHop === null || locationExtractHop === hopCount)) {
-          finalUrl = location;
+        // Check for redirect
+        const location = response.headers.location || response.headers.Location;
+        if (location && response.status >= 300 && response.status < 400) {
+          location_headers.push(location);
+
+          // If we should extract from this hop
+          if (extractFromLocationHeader && (locationExtractHop === null || locationExtractHop === hopCount)) {
+            finalUrl = location;
+          }
+
+          // Follow redirect
+          try {
+            currentUrl = new URL(location, currentUrl).href;
+          } catch (e) {
+            currentUrl = location;
+          }
+          continue;
         }
 
-        // Follow redirect
-        currentUrl = new URL(location, currentUrl).href;
-        continue;
-      }
-
-      // No redirect, we're done
-      if (!extractFromLocationHeader || locationExtractHop === null) {
+        // No redirect, we're done
         finalUrl = currentUrl;
-      }
-      break;
-    } catch (error) {
-      console.log('[Trackier Trace] Fetch error at hop', i + 1, ':', error.message);
-      if (!extractFromLocationHeader || locationExtractHop === null) {
+        break;
+      } catch (error) {
+        console.log('[Trackier Trace] Fetch error at hop', hopCount, ':', error.message);
         finalUrl = currentUrl;
+        break;
       }
-      break;
     }
+  } catch (error) {
+    console.error('[Trackier Trace] Critical error:', error.message);
+    finalUrl = currentUrl;
   }
 
   return {

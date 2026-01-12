@@ -14,6 +14,7 @@
  */
 
 const express = require('express');
+const axios = require('axios');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 
@@ -378,27 +379,15 @@ async function processTrackierUpdate(trackierOffer, webhookLogId) {
     // Call get-suffix edge function with offer_name
     const edgeFunctionUrl = `https://rfhuqenntxiqurplenjn.supabase.co/functions/v1/get-suffix?offer_name=${encodeURIComponent(trackierOffer.offer_name)}`;
     
-    // Add timeout controller to prevent hanging
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-    
     try {
-      const traceResponse = await fetch(edgeFunctionUrl, {
-        method: 'GET',
+      const traceResponse = await axios.get(edgeFunctionUrl, {
         headers: {
           'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY || ''}`,
         },
-        signal: controller.signal
+        timeout: 30000 // 30 second timeout
       });
 
-      clearTimeout(timeout);
-
-      if (!traceResponse.ok) {
-        const errorText = await traceResponse.text().catch(() => 'Unable to read error');
-        throw new Error(`Edge function failed: ${traceResponse.status} ${traceResponse.statusText} - ${errorText}`);
-      }
-
-      traceResult = await traceResponse.json();
+      traceResult = traceResponse.data;
       trace_duration_ms = Date.now() - traceStart;
 
       console.log(`[Trackier Update] Edge function completed in ${trace_duration_ms}ms`);
@@ -412,11 +401,10 @@ async function processTrackierUpdate(trackierOffer, webhookLogId) {
         throw new Error(`Edge function trace failed: ${traceResult.message || traceResult.error || 'Unknown error'}`);
       }
     } catch (fetchError) {
-      clearTimeout(timeout);
-      if (fetchError.name === 'AbortError') {
+      if (fetchError.code === 'ECONNABORTED') {
         throw new Error('Edge function timed out after 30 seconds');
       }
-      throw fetchError;
+      throw new Error(`Edge function failed: ${fetchError.message}`);
     }
     
     if (!traced_url) {
@@ -665,24 +653,15 @@ async function updateTrackierCampaignSubIds(trackierOffer, campaignId, subIdValu
   const apiStart = Date.now();
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
+    const response = await axios.post(url, requestBody, {
       headers: {
         'X-Api-Key': trackierOffer.api_key,
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
+      }
     });
 
     const duration_ms = Date.now() - apiStart;
-    const responseText = await response.text();
-    let responseBody = null;
-
-    try {
-      responseBody = JSON.parse(responseText);
-    } catch (e) {
-      responseBody = { raw: responseText };
-    }
+    const responseBody = response.data;
 
     // Log API call
     await supabase
@@ -694,19 +673,18 @@ async function updateTrackierCampaignSubIds(trackierOffer, campaignId, subIdValu
         request_body: requestBody,
         status_code: response.status,
         response_body: responseBody,
-        success: response.ok,
-        error: response.ok ? null : `HTTP ${response.status}`,
+        success: true,
+        error: null,
         duration_ms: duration_ms
       });
-
-    if (!response.ok) {
-      throw new Error(`Trackier API error: ${response.status} - ${responseText}`);
-    }
 
     console.log(`[Trackier API] ✅ Success (${duration_ms}ms):`, responseBody);
     return responseBody;
 
   } catch (error) {
+    const duration_ms = Date.now() - apiStart;
+    const errorMessage = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+    
     // Log failed API call
     await supabase
       .from('trackier_api_calls')
@@ -715,12 +693,14 @@ async function updateTrackierCampaignSubIds(trackierOffer, campaignId, subIdValu
         method: 'POST',
         endpoint: url,
         request_body: requestBody,
+        status_code: error.response?.status,
+        response_body: error.response?.data,
         success: false,
-        error: error.message,
-        duration_ms: Date.now() - apiStart
+        error: errorMessage,
+        duration_ms: duration_ms
       });
 
-    throw error;
+    throw new Error(`Trackier API error: ${error.response?.status || 'Network Error'} - ${errorMessage}`);
   }
 }
 
