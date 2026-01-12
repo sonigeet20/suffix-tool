@@ -13,20 +13,13 @@ import { autoMapParameters, formatAutoMapSummary } from '../utils/trackierAutoMa
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rfhuqenntxiqurplenjn.supabase.co';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Helper to get the correct API base URL (use load balancer in production, localhost in dev)
-const getApiBaseUrl = () => {
-  // Check if we're in development
-  if (import.meta.env.DEV) {
-    return 'http://localhost:3000';
-  }
-  
-  // In production, use the load balancer or current host
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 
-    'http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com:3000' ||
-    `http://${window.location.hostname}:3000`;
-  
-  return baseUrl;
+// Get the Supabase edge function URL for trace
+const getEdgeFunctionUrl = (functionName: string) => {
+  const baseUrl = supabaseUrl || 'https://rfhuqenntxiqurplenjn.supabase.co';
+  const projectId = baseUrl.split('https://')[1]?.split('.')[0] || 'rfhuqenntxiqurplenjn';
+  return `${baseUrl}/functions/v1/${functionName}`;
 };
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -359,18 +352,24 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
       console.log('[TrackierSetup] Sending trace request with payload:', payload);
 
-      const apiUrl = `${getApiBaseUrl()}/api/trackier-trace-once`;
-      console.log('[TrackierSetup] API URL:', apiUrl);
-      const response = await fetch(apiUrl, {
+      // Use Supabase edge function for trace
+      const edgeFunctionUrl = getEdgeFunctionUrl('trackier-trace-once');
+      console.log('[TrackierSetup] Edge function URL:', edgeFunctionUrl);
+      const response = await fetch(edgeFunctionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
         },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorText = await response.text();
+        console.error('[TrackierSetup] Trace error response:', errorText);
+        const errorData = response.headers.get('content-type')?.includes('application/json') 
+          ? await response.json() 
+          : { error: errorText };
         throw new Error(errorData.error || 'Trace failed');
       }
 
