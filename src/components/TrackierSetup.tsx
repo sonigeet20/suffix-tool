@@ -562,19 +562,23 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         throw new Error('Please enter your Trackier API key first');
       }
 
-      // Call Trackier API directly (no need for backend proxy)
-      console.log('[TrackierSetup] Validating credentials directly with Trackier API...');
-      const response = await fetch(`${config.api_base_url}/v2/advertisers?limit=50`, {
-        method: 'GET',
+      // Call via edge function proxy (Trackier API blocks CORS from browsers)
+      console.log('[TrackierSetup] Validating credentials via edge function proxy...');
+      const awsProxyUrl = await fetchAwsProxyUrlFromSettings();
+      const response = await fetch(`${awsProxyUrl}?path=/api/trackier-validate-credentials`, {
+        method: 'POST',
         headers: {
-          'X-Api-Key': config.api_key,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          apiKey: config.api_key,
+          apiBaseUrl: config.api_base_url,
+        }),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Validation failed: ${response.status} - ${errorText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Validation failed');
       }
 
       const result = await response.json();
