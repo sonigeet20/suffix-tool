@@ -203,49 +203,10 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
   };
 
   const fetchAwsProxyUrlFromSettings = async (): Promise<string> => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      let settingsData = null;
-      
-      if (user) {
-        // Try to get user-specific settings first
-        const { data, error } = await supabase
-          .from('settings')
-          .select('aws_proxy_url')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (!error && data?.aws_proxy_url) {
-          settingsData = data;
-        }
-      }
-      
-      // Fallback to any available settings if user-specific not found
-      if (!settingsData) {
-        const { data, error } = await supabase
-          .from('settings')
-          .select('aws_proxy_url')
-          .limit(1)
-          .maybeSingle();
-        
-        if (!error && data?.aws_proxy_url) {
-          settingsData = data;
-        }
-      }
-      
-      if (settingsData?.aws_proxy_url) {
-        console.log('[TrackierSetup] Using aws_proxy_url from settings:', settingsData.aws_proxy_url);
-        return settingsData.aws_proxy_url;
-      }
-      
-      // Final fallback to localhost for local development
-      console.warn('[TrackierSetup] No aws_proxy_url found in settings, using localhost fallback');
-      return 'http://localhost:3000';
-    } catch (err) {
-      console.error('Error fetching aws_proxy_url from settings:', err);
-      return 'http://localhost:3000';
-    }
+    // Use Supabase Edge Function as HTTPS proxy to HTTP backend
+    // This solves the mixed content issue (HTTPS frontend → HTTP backend)
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rfhuqenntxiqurplenjn.supabase.co';
+    return `${supabaseUrl}/functions/v1/proxy-trackier`;
   };
 
   const loadStats = async (trackierOfferId: string) => {
@@ -391,7 +352,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       console.log('[TrackierSetup] Sending trace request with payload:', payload);
 
       const awsProxyUrl = await fetchAwsProxyUrlFromSettings();
-      const response = await fetch(`${awsProxyUrl}/api/trackier-trace-once`, {
+      const response = await fetch(`${awsProxyUrl}?path=/api/trackier-trace-once`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -568,7 +529,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
       // Trigger manual update
       const awsProxyUrl = await fetchAwsProxyUrlFromSettings();
-      const response = await fetch(`${awsProxyUrl}/api/trackier-trigger/${config.id}`, {
+      const response = await fetch(`${awsProxyUrl}?path=/api/trackier-trigger/${config.id}`, {
         method: 'POST',
       });
 
@@ -601,22 +562,19 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         throw new Error('Please enter your Trackier API key first');
       }
 
-      // Validate credentials and fetch advertisers
-      const awsProxyUrl = await fetchAwsProxyUrlFromSettings();
-      const response = await fetch(`${awsProxyUrl}/api/trackier-validate-credentials`, {
-        method: 'POST',
+      // Call Trackier API directly (no need for backend proxy)
+      console.log('[TrackierSetup] Validating credentials directly with Trackier API...');
+      const response = await fetch(`${config.api_base_url}/v2/advertisers?limit=50`, {
+        method: 'GET',
         headers: {
+          'X-Api-Key': config.api_key,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          apiKey: config.api_key,
-          apiBaseUrl: config.api_base_url,
-        }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Validation failed');
+        const errorText = await response.text();
+        throw new Error(`Validation failed: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
@@ -657,7 +615,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
       // Call backend to create campaigns
       const awsProxyUrl = await fetchAwsProxyUrlFromSettings();
-      const response = await fetch(`${awsProxyUrl}/api/trackier-create-campaigns`, {
+      const response = await fetch(`${awsProxyUrl}?path=/api/trackier-create-campaigns`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
