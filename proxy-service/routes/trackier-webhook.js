@@ -301,15 +301,17 @@ router.post('/trackier-webhook', async (req, res) => {
       }
 
       // Check if we should trigger an update based on interval
+      // Allow force_update=true to bypass interval check for testing
+      const forceUpdate = queryParams.force_update === 'true' || payload.force_update === true;
       const now = new Date();
       const lastUpdate = trackierOffer.url2_last_updated_at 
         ? new Date(trackierOffer.url2_last_updated_at) 
         : new Date(0);
       const timeSinceLastUpdate = (now - lastUpdate) / 1000; // seconds
 
-      const shouldUpdate = timeSinceLastUpdate >= trackierOffer.update_interval_seconds;
+      const shouldUpdate = forceUpdate || timeSinceLastUpdate >= trackierOffer.update_interval_seconds;
 
-      console.log(`[Trackier Webhook] Time since last update: ${timeSinceLastUpdate.toFixed(1)}s, Interval: ${trackierOffer.update_interval_seconds}s, Should update: ${shouldUpdate}`);
+      console.log(`[Trackier Webhook] Time since last update: ${timeSinceLastUpdate.toFixed(1)}s, Interval: ${trackierOffer.update_interval_seconds}s, Force: ${forceUpdate}, Should update: ${shouldUpdate}`);
 
       if (shouldUpdate) {
         // Mark as queued

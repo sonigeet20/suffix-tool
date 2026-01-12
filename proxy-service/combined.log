@@ -7148,3 +7148,259 @@
 {"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
 {"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
 {"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"SIGINT received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"custom_proxy":"default Luna","level":"info","max_redirects":5,"message":"⚡ Trace request:","mode":"http_only","timeout_ms":10000,"url":"https://httpbin.org/redirect/2"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://httpbin.org/redirect/2... | maxRedirects: 5"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1924x1206, colorDepth=32, pixelRatio=1.25"}
+{"level":"info","message":"🔄 HTTP-only: Using Luna proxy (new connection = new IP)"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://httpbin.org/redirect/2..."}
+{"level":"info","message":"  ✅ Hop 1 (302) in 4378ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  🚀 Hop 2 (parallel, concurrent=2): https://httpbin.org/relative-redirect/1..."}
+{"level":"info","message":"  ✅ Hop 2 (302) in 4357ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  🚀 Hop 3 (parallel, concurrent=2): https://httpbin.org/get..."}
+{"level":"info","message":"  ⏱️ Hop 3 timeout after 5004ms"}
+{"level":"info","message":"✅ HTTP-only trace complete: 3 steps (3 hops launched, max concurrent=2)"}
+{"level":"info","message":"✅ Trace completed (http_only): 3 steps in 14079ms"}
+{"level":"info","message":"🌐 Proxy IP used: 85.232.219.14 | Location: Żejtun, Iż-Żejtun, Malta | Selected Geo: N/A"}
+{"custom_proxy":"p.webshare.io:80","level":"info","max_redirects":5,"message":"⚡ Trace request:","mode":"http_only","timeout_ms":10000,"url":"https://httpbin.org/redirect/2"}
+{"host":"p.webshare.io","level":"info","message":"Using custom proxy provider override:","port":80,"username":"test-webshare-user..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://httpbin.org/redirect/2... | maxRedirects: 5"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 17_6_1 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=418x916, colorDepth=24, pixelRatio=2"}
+{"level":"info","message":"🔄 HTTP-only: Using Luna proxy (new connection = new IP)"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://httpbin.org/redirect/2..."}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1137ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1210ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"custom_proxy":"pr.oxylabs.io:7777","level":"info","max_redirects":5,"message":"⚡ Trace request:","mode":"http_only","timeout_ms":10000,"url":"https://httpbin.org/redirect/2"}
+{"host":"pr.oxylabs.io","level":"info","message":"Using custom proxy provider override:","port":7777,"username":"customer-test-cc-us..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://httpbin.org/redirect/2... | maxRedirects: 5"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 26_0_1 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=398x843, colorDepth=32, pixelRatio=2.5"}
+{"level":"info","message":"🔄 HTTP-only: Using Luna proxy (new connection = new IP)"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://httpbin.org/redirect/2..."}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"  ✅ Hop 1 (407) in 3406ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 3620ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"custom_proxy":"brd.superproxy.io:33335","level":"info","max_redirects":5,"message":"⚡ Trace request:","mode":"http_only","timeout_ms":15000,"url":"https://httpbin.org/redirect/2"}
+{"host":"brd.superproxy.io","level":"info","message":"Using custom proxy provider override:","port":"33335","username":"brd-customer-hl_a908..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://httpbin.org/redirect/2... | maxRedirects: 5"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1279x715, colorDepth=24, pixelRatio=1.5"}
+{"level":"info","message":"🔄 HTTP-only: Using Luna proxy (new connection = new IP)"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://httpbin.org/redirect/2..."}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1267ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1510ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"custom_proxy":"brd.superproxy.io:33335","level":"info","max_redirects":5,"message":"⚡ Trace request:","mode":"http_only","target_country":"us","timeout_ms":15000,"url":"https://httpbin.org/redirect/2"}
+{"host":"brd.superproxy.io","level":"info","message":"Using custom proxy provider override:","port":"33335","username":"brd-customer-hl_a908..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"us"}
+{"level":"info","message":"🌍 Geo-targeting: US"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://httpbin.org/redirect/2... | maxRedirects: 5"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPad; CPU OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, lik..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=375x664, colorDepth=32, pixelRatio=2"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting US"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://httpbin.org/redirect/2..."}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1119ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1208ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: US"}
+{"custom_proxy":"brd.superproxy.io:33335","level":"info","max_redirects":5,"message":"⚡ Trace request:","mode":"http_only","target_country":"gb","timeout_ms":15000,"url":"https://httpbin.org/redirect/2"}
+{"host":"brd.superproxy.io","level":"info","message":"Using custom proxy provider override:","port":"33335","username":"brd-customer-hl_a908..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"gb"}
+{"level":"info","message":"🌍 Geo-targeting: GB"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://httpbin.org/redirect/2... | maxRedirects: 5"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=410x923, colorDepth=24, pixelRatio=2"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting GB"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://httpbin.org/redirect/2..."}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1106ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1211ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: GB"}
+{"custom_proxy":"brd.superproxy.io:33335","level":"info","max_redirects":0,"message":"⚡ Trace request:","mode":"http_only","target_country":"us","timeout_ms":20000,"url":"https://ipapi.co/json/"}
+{"host":"brd.superproxy.io","level":"info","message":"Using custom proxy provider override:","port":"33335","username":"brd-customer-hl_a908..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"us"}
+{"level":"info","message":"🌍 Geo-targeting: US"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://ipapi.co/json/... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=401x841, colorDepth=24, pixelRatio=2.5"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting US"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://ipapi.co/json/..."}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1334ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1515ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: US"}
+{"custom_proxy":"brd.superproxy.io:33335","level":"info","max_redirects":0,"message":"⚡ Trace request:","mode":"http_only","target_country":"gb","timeout_ms":20000,"url":"https://ipapi.co/json/"}
+{"host":"brd.superproxy.io","level":"info","message":"Using custom proxy provider override:","port":"33335","username":"brd-customer-hl_a908..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"gb"}
+{"level":"info","message":"🌍 Geo-targeting: GB"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://ipapi.co/json/... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1282x725, colorDepth=32, pixelRatio=1.25"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting GB"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://ipapi.co/json/..."}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1120ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1207ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: GB"}
+{"custom_proxy":"brd.superproxy.io:33335","level":"info","max_redirects":0,"message":"⚡ Trace request:","mode":"http_only","target_country":"de","timeout_ms":20000,"url":"https://ipapi.co/json/"}
+{"host":"brd.superproxy.io","level":"info","message":"Using custom proxy provider override:","port":"33335","username":"brd-customer-hl_a908..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"de"}
+{"level":"info","message":"🌍 Geo-targeting: DE"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://ipapi.co/json/... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 17_6_1 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=368x669, colorDepth=32, pixelRatio=2"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting DE"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://ipapi.co/json/..."}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1126ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1212ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: DE"}
+{"custom_proxy":"brd.superproxy.io:33335","level":"info","max_redirects":0,"message":"⚡ Trace request:","mode":"http_only","target_country":"jp","timeout_ms":20000,"url":"https://ipapi.co/json/"}
+{"host":"brd.superproxy.io","level":"info","message":"Using custom proxy provider override:","port":"33335","username":"brd-customer-hl_a908..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"jp"}
+{"level":"info","message":"🌍 Geo-targeting: JP"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://ipapi.co/json/... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 26_0_1 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=389x851, colorDepth=32, pixelRatio=3"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting JP"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://ipapi.co/json/..."}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1115ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1208ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: JP"}
+{"custom_proxy":"brd.superproxy.io:33335","level":"info","max_redirects":0,"message":"⚡ Trace request:","mode":"http_only","target_country":"us","timeout_ms":15000,"url":"https://ipapi.co/json/"}
+{"host":"brd.superproxy.io","level":"info","message":"Using custom proxy provider override:","port":"33335","username":"brd-customer-hl_a908..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"us"}
+{"level":"info","message":"🌍 Geo-targeting: US"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://ipapi.co/json/... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=382x846, colorDepth=32, pixelRatio=2"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting US"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://ipapi.co/json/..."}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1252ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1509ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: US"}
+{"custom_proxy":"brd.superproxy.io:33335","level":"info","max_redirects":0,"message":"⚡ Trace request:","mode":"http_only","target_country":"us","timeout_ms":15000,"url":"https://ipapi.co/json/"}
+{"host":"brd.superproxy.io","level":"info","message":"Using custom proxy provider override:","port":"33335","username":"brd-customer-hl_a908..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"us"}
+{"level":"info","message":"🌍 Geo-targeting: US"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://ipapi.co/json/... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHT..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=368x670, colorDepth=32, pixelRatio=2"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting US"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://ipapi.co/json/..."}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1389ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1513ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: US"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"custom_proxy":"brd.superproxy.io:33335","level":"info","max_redirects":0,"message":"⚡ Trace request:","mode":"http_only","target_country":"us","timeout_ms":15000,"url":"https://ipapi.co/json/"}
+{"host":"brd.superproxy.io","level":"info","message":"Using custom proxy provider override:","port":"33335","username":"brd-customer-hl_a908..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"us"}
+{"level":"info","message":"🌍 Geo-targeting: US"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://ipapi.co/json/... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1914x1208, colorDepth=32, pixelRatio=1"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting US"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://ipapi.co/json/..."}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1568ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1820ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: US"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"custom_proxy":"brd.superproxy.io:33335","level":"info","max_redirects":0,"message":"⚡ Trace request:","mode":"http_only","target_country":"us","timeout_ms":15000,"url":"https://ipapi.co/json/"}
+{"host":"brd.superproxy.io","level":"info","message":"Using custom proxy provider override:","port":"33335","username":"brd-customer-hl_a908..."}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"us"}
+{"level":"info","message":"🌍 Geo-targeting: US"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://ipapi.co/json/... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1526x866, colorDepth=32, pixelRatio=1"}
+{"level":"info","message":"🔐 BrightData username with geo-targeting: brd-customer-hl_a908b07a-zone-testing_softality_1-..."}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting US"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://ipapi.co/json/..."}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"  ✅ Hop 1 (407) in 1526ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  ⚠️ Error status 407 at hop 1"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1821ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: US"}

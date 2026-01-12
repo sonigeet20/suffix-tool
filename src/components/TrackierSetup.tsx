@@ -344,7 +344,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
       console.log('[TrackierSetup] Sending trace request with payload:', payload);
 
-      const response = await fetch('http://localhost:3000/api/trackier-trace-once', {
+      const response = await fetch(`${import.meta.env.VITE_PROXY_SERVICE_URL}/api/trackier-trace-once`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -520,7 +520,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       }
 
       // Trigger manual update
-      const response = await fetch(`http://localhost:3000/api/trackier-trigger/${config.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_PROXY_SERVICE_URL}/api/trackier-trigger/${config.id}`, {
         method: 'POST',
       });
 
@@ -554,7 +554,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       }
 
       // Validate credentials and fetch advertisers
-      const response = await fetch('http://localhost:3000/api/trackier-validate-credentials', {
+      const response = await fetch(`${import.meta.env.VITE_PROXY_SERVICE_URL}/api/trackier-validate-credentials`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -607,7 +607,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       const webhookUrl = `https://18.206.90.98:3000/api/trackier-webhook`;
 
       // Call backend to create campaigns
-      const response = await fetch('http://localhost:3000/api/trackier-create-campaigns', {
+      const response = await fetch(`${import.meta.env.VITE_PROXY_SERVICE_URL}/api/trackier-create-campaigns`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

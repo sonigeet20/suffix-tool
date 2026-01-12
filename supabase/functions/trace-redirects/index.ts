@@ -104,6 +104,10 @@ async function fetchThroughAWSProxy(
   deviceDistribution?: Array<{ deviceCategory: string; weight: number }> | null,
   extractFromLocationHeader?: boolean | null,
   locationExtractHop?: number | null,
+  proxyHost?: string | null,
+  proxyPort?: number | null,
+  proxyUsername?: string | null,
+  proxyPassword?: string | null,
 ): Promise<
   | { success: boolean; chain: any[]; proxy_ip?: string; geo_location?: any }
   | null
@@ -175,6 +179,15 @@ async function fetchThroughAWSProxy(
 
     if (deviceDistribution && deviceDistribution.length > 0) {
       requestBody.device_distribution = deviceDistribution;
+    }
+
+    // Pass proxy provider credentials if provided (overrides Luna defaults)
+    if (proxyHost) {
+      requestBody.proxy_host = proxyHost;
+      requestBody.proxy_provider_port = proxyPort;
+      requestBody.proxy_provider_username = proxyUsername;
+      requestBody.proxy_provider_password = proxyPassword;
+      console.log(`🔐 Using custom proxy provider: ${proxyHost}:${proxyPort}`);
     }
 
     const response = await fetch(`${awsProxyUrl}/trace`, {
@@ -1008,6 +1021,10 @@ Deno.serve(async (req: Request) => {
         device_distribution,
         extract_from_location_header,
         location_extract_hop,
+        proxyHost,
+        proxyPort,
+        proxyUsername,
+        proxyPassword,
       );
 
       if (awsResult) {
