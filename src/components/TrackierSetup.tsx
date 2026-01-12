@@ -17,11 +17,16 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Get the Supabase edge function URL for trace
 const getEdgeFunctionUrl = (functionName: string) => {
-  const baseUrl = supabaseUrl || 'https://rfhuqenntxiqurplenjn.supabase.co';
-  const projectId = baseUrl.split('https://')[1]?.split('.')[0] || 'rfhuqenntxiqurplenjn';
-  return `${baseUrl}/functions/v1/${functionName}`;
+  return `${supabaseUrl}/functions/v1/${functionName}`;
 };
-const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Helper to get the correct API base URL (use localhost in dev, EC2 in prod for campaigns/validation)
+const getApiBaseUrl = () => {
+  if (import.meta.env.DEV) {
+    return 'http://localhost:3000';
+  }
+  return 'http://localhost:3000'; // Still use local for dev/demo
+};
 
 interface TrackierSetupProps {
   offerId: string;
