@@ -1205,9 +1205,9 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                   </div>
                 </div>
 
-                <div className="border-t border-gray-200 pt-6">
+                <div className="border-t border-gray-200 dark:border-neutral-700 pt-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Referrers</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-neutral-100">Referrers</h3>
                     <button
                       type="button"
                       onClick={addReferrer}
@@ -1219,13 +1219,13 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                   </div>
 
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-2">
                       Referrer Rotation Mode
                     </label>
                     <select
                       value={formData.referrer_rotation_mode}
                       onChange={(e) => setFormData({ ...formData, referrer_rotation_mode: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                     >
                       <option value="sequential">Sequential (rotates in order)</option>
                       <option value="random">Random (picks randomly)</option>
@@ -1235,35 +1235,35 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
 
                   <div className="space-y-3">
                     {referrers.map((entry, index) => (
-                      <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <div key={index} className="bg-gray-50 dark:bg-neutral-800 p-4 rounded-lg border border-gray-200 dark:border-neutral-700">
                         <div className="grid grid-cols-12 gap-3 mb-3">
                           <div className="col-span-5">
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Referrer URL</label>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-neutral-400 mb-1">Referrer URL</label>
                             <input
                               type="url"
                               value={entry.url}
                               onChange={(e) => updateReferrer(index, 'url', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 text-sm placeholder:text-gray-400 dark:placeholder:text-neutral-500"
                               placeholder="https://example.com/landing"
                             />
                           </div>
                           <div className="col-span-3">
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-neutral-400 mb-1">Label</label>
                             <input
                               type="text"
                               value={entry.label}
                               onChange={(e) => updateReferrer(index, 'label', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 text-sm placeholder:text-gray-400 dark:placeholder:text-neutral-500"
                               placeholder="Landing Page 1"
                             />
                           </div>
                           <div className="col-span-2">
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Weight</label>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-neutral-400 mb-1">Weight</label>
                             <input
                               type="number"
                               value={entry.weight}
                               onChange={(e) => updateReferrer(index, 'weight', parseInt(e.target.value) || 1)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 text-sm"
                               min="1"
                               max="100"
                             />
@@ -1291,9 +1291,9 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                           </div>
                         </div>
                         <div className="mt-2">
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                          <label className="block text-xs font-medium text-gray-600 dark:text-neutral-400 mb-1">
                             Apply to Hops (optional)
-                            <span className="ml-1 text-gray-500 font-normal">- Leave empty for all hops, or specify: 1,2,3</span>
+                            <span className="ml-1 text-gray-500 dark:text-neutral-500 font-normal">- Leave empty for all hops, or specify: 1,2,3</span>
                           </label>
                           <input
                             type="text"
@@ -1303,7 +1303,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                               const hops = value ? value.split(',').map(h => parseInt(h.trim())).filter(h => !isNaN(h) && h > 0) : [];
                               updateReferrer(index, 'hops', hops.length > 0 ? hops : undefined);
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 text-sm placeholder:text-gray-400 dark:placeholder:text-neutral-500"
                             placeholder="e.g., 1,2,3 (empty = all hops)"
                           />
                         </div>
@@ -1626,29 +1626,29 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
               {traceResult && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-gray-900">Trace Results</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-neutral-100">Trace Results</h4>
                     <div className="flex items-center gap-4 text-sm">
                       <div className="flex items-center gap-2">
-                        <Clock size={16} className="text-gray-400" />
-                        <span className="text-gray-600">
+                        <Clock size={16} className="text-gray-400 dark:text-neutral-500" />
+                        <span className="text-gray-600 dark:text-neutral-400">
                           {traceResult.total_timing_ms}ms
                         </span>
                       </div>
-                      <span className="text-gray-600">
+                      <span className="text-gray-600 dark:text-neutral-400">
                         {traceResult.total_steps} steps
                       </span>
                       {(traceResult as any).bandwidth_bytes && (
-                        <span className="text-gray-600 text-xs font-medium">
+                        <span className="text-gray-600 dark:text-neutral-400 text-xs font-medium">
                           📊 {((traceResult as any).bandwidth_bytes).toLocaleString()} B
                         </span>
                       )}
                       {(traceResult as any).selected_geo && (
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
+                        <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-semibold">
                           🌍 {(traceResult as any).selected_geo.toUpperCase()}
                         </span>
                       )}
                       {(traceResult as any).total_popups > 0 && (
-                        <span className="text-green-600 font-semibold">
+                        <span className="text-green-600 dark:text-green-400 font-semibold">
                           {(traceResult as any).total_popups} popups
                         </span>
                       )}
@@ -1656,16 +1656,16 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                   </div>
 
                   {traceResult.user_agent && (
-                    <div className="bg-white border border-gray-200 rounded-lg p-3">
-                      <div className="text-xs font-semibold text-gray-600 mb-2">User Agent (full)</div>
+                    <div className="bg-white dark:bg-neutral-850 border border-gray-200 dark:border-neutral-700 rounded-lg p-3">
+                      <div className="text-xs font-semibold text-gray-600 dark:text-neutral-400 mb-2">User Agent (full)</div>
                       <div className="flex items-start gap-2">
-                        <code className="flex-1 bg-gray-50 rounded px-3 py-2 text-xs font-mono text-gray-900 break-all">
+                        <code className="flex-1 bg-gray-50 dark:bg-neutral-800 rounded px-3 py-2 text-xs font-mono text-gray-900 dark:text-neutral-100 break-all">
                           {traceResult.user_agent}
                         </code>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(traceResult.user_agent || '')}
-                          className="p-2 text-gray-400 hover:text-gray-600"
+                          className="p-2 text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300"
                         >
                           <Copy size={14} />
                         </button>

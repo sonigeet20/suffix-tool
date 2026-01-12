@@ -703,8 +703,8 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-8">
-          <p>Loading Trackier configuration...</p>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-8">
+          <p className="text-gray-900 dark:text-white">Loading Trackier configuration...</p>
         </div>
       </div>
     );
@@ -712,16 +712,16 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl m-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl m-4 max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Trackier Dual-URL Setup</h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Trackier Dual-URL Setup</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                 Configure automatic suffix updates via Trackier webhooks
               </p>
-              <p className="text-xs text-gray-500 mt-2">
-                Offer: <strong>{offerName}</strong>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Offer: <strong className="dark:text-white">{offerName}</strong>
               </p>
             </div>
             <button
@@ -757,13 +757,13 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                   <div className="flex gap-2 mt-2">
                     <button
                       onClick={() => loadConfig()}
-                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                      className="text-xs text-blue-600 dark:text-blue-300 hover:text-blue-800 underline"
                     >
                       🔄 Refresh
                     </button>
                     <button
                       onClick={() => setAutoRefresh(!autoRefresh)}
-                      className={`text-xs ${autoRefresh ? 'text-green-600' : 'text-gray-600'} hover:text-green-800 underline`}
+                      className={`text-xs ${autoRefresh ? 'text-green-600' : 'text-gray-600'} hover:text-green-800 dark:text-green-200 underline`}
                     >
                       {autoRefresh ? '⏸️ Auto' : '▶️ Auto'}
                     </button>
@@ -779,39 +779,39 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
           )}
 
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 text-sm">{error}</p>
+            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
+              <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-800 text-sm">{success}</p>
+            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
+              <p className="text-green-800 dark:text-green-200 text-sm">{success}</p>
             </div>
           )}
 
           {/* Stats Summary */}
           {config.id && stats && (
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="text-sm font-semibold text-blue-900 mb-2">Statistics</h3>
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+              <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">Statistics</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p className="text-blue-600">Webhooks</p>
-                  <p className="text-blue-900 font-bold">{stats.webhook_count || 0}</p>
+                  <p className="text-blue-600 dark:text-blue-300">Webhooks</p>
+                  <p className="text-blue-900 dark:text-blue-100 font-bold">{stats.webhook_count || 0}</p>
                 </div>
                 <div>
-                  <p className="text-blue-600">Updates</p>
-                  <p className="text-blue-900 font-bold">{stats.update_count || 0}</p>
+                  <p className="text-blue-600 dark:text-blue-300">Updates</p>
+                  <p className="text-blue-900 dark:text-blue-100 font-bold">{stats.update_count || 0}</p>
                 </div>
                 <div>
-                  <p className="text-blue-600">Success Rate</p>
-                  <p className="text-blue-900 font-bold">
+                  <p className="text-blue-600 dark:text-blue-300">Success Rate</p>
+                  <p className="text-blue-900 dark:text-blue-100 font-bold">
                     {stats.success_rate ? `${stats.success_rate.toFixed(1)}%` : 'N/A'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-blue-600">Avg Duration</p>
-                  <p className="text-blue-900 font-bold">
+                  <p className="text-blue-600 dark:text-blue-300">Avg Duration</p>
+                  <p className="text-blue-900 dark:text-blue-100 font-bold">
                     {stats.avg_trace_duration ? `${(stats.avg_trace_duration / 1000).toFixed(1)}s` : 'N/A'}
                   </p>
                 </div>
@@ -826,10 +826,10 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
           <div className="space-y-6">
             {/* Enable/Disable Toggle */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
-                <label className="text-sm font-medium text-gray-900">Enable Trackier Integration</label>
-                <p className="text-xs text-gray-600">
+                <label className="text-sm font-medium text-gray-900 dark:text-white">Enable Trackier Integration</label>
+                <p className="text-xs text-gray-600 dark:text-gray-300">
                   Turn on automatic suffix updates via webhooks
                 </p>
               </div>
@@ -840,18 +840,18 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                   checked={config.enabled}
                   onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 dark:border-gray-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
               </label>
             </div>
 
             {/* Trackier API Configuration */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-600 pb-2">
                 Trackier API Configuration
               </h3>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   API Key <span className="text-red-500">*</span>
                 </label>
                 <div className="flex flex-col gap-2">
@@ -860,7 +860,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                       type="password"
                       value={config.api_key}
                       onChange={(e) => setConfig({ ...config, api_key: e.target.value })}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Your Trackier API key"
                     />
                     <button
@@ -876,7 +876,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                       type="button"
                       onClick={handleLoadApiKeyFromSettings}
                       disabled={loadingApiKey}
-                      className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loadingApiKey ? 'Loading from Settings...' : 'Load API Key from Settings'}
                     </button>
@@ -888,26 +888,26 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   API Base URL
                 </label>
                 <input
                   type="text"
                   value={config.api_base_url}
                   onChange={(e) => setConfig({ ...config, api_base_url: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Advertiser <span className="text-red-500">*</span>
                 </label>
                 {advertisers.length > 0 ? (
                   <select
                     value={config.advertiser_id}
                     onChange={(e) => setConfig({ ...config, advertiser_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select an advertiser</option>
                     {advertisers.map((adv) => (
@@ -922,7 +922,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                       type="text"
                       value={config.advertiser_id}
                       onChange={(e) => setConfig({ ...config, advertiser_id: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter advertiser ID or validate credentials to load list"
                     />
                     <p className="text-xs text-gray-600 mt-1">
@@ -933,14 +933,14 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Publisher ID
                 </label>
                 <input
                   type="text"
                   value={config.publisher_id || '2'}
                   onChange={(e) => setConfig({ ...config, publisher_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="2"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -951,11 +951,11 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
             {/* Campaign Configuration */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-600 pb-2">
                 Campaign Configuration
               </h3>
 
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <p className="text-sm text-blue-800 font-semibold mb-2">
@@ -984,28 +984,28 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     URL 1 Campaign ID <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={config.url1_campaign_id}
                     onChange={(e) => setConfig({ ...config, url1_campaign_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="abc123"
                   />
                   <p className="text-xs text-gray-500 mt-1">Passthrough campaign (triggers webhook)</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     URL 2 Campaign ID <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={config.url2_campaign_id}
                     onChange={(e) => setConfig({ ...config, url2_campaign_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="xyz789"
                   />
                   <p className="text-xs text-gray-500 mt-1">Final campaign (gets updated suffix)</p>
@@ -1013,14 +1013,14 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Update Interval (seconds)
                 </label>
                 <input
                   type="number"
                   value={config.update_interval_seconds}
                   onChange={(e) => setConfig({ ...config, update_interval_seconds: parseInt(e.target.value) || 1 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                   min="1"
                   step="1"
                 />
@@ -1032,31 +1032,31 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
             {/* Tracer Configuration */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-600 pb-2">
                 Tracer Configuration
               </h3>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Final URL
                 </label>
                 <input
                   type="text"
                   value={config.final_url}
                   onChange={(e) => setConfig({ ...config, final_url: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Tracer Mode
                   </label>
                   <select
                     value={config.tracer_mode}
                     onChange={(e) => setConfig({ ...config, tracer_mode: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="http_only">HTTP Only (Fast)</option>
                     <option value="browser">Browser (Full Rendering)</option>
@@ -1065,14 +1065,14 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Max Redirects
                   </label>
                   <input
                     type="number"
                     value={config.max_redirects}
                     onChange={(e) => setConfig({ ...config, max_redirects: parseInt(e.target.value) || 20 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                     min="5"
                     max="50"
                   />
@@ -1080,7 +1080,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Suffix Pattern
                 </label>
                 <div className="flex flex-col gap-2">
@@ -1088,14 +1088,14 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                     type="text"
                     value={config.suffix_pattern}
                     onChange={(e) => setConfig({ ...config, suffix_pattern: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="?clickid={clickid}"
                   />
                   <div className="flex gap-2 items-center">
                     <button
                       type="button"
                       onClick={handleAutoFillSuffixAndMap}
-                      className="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-md text-sm hover:bg-blue-100"
+                      className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 text-blue-700 rounded-md text-sm hover:bg-blue-100"
                     >
                       Auto-build from Final URL
                     </button>
@@ -1113,7 +1113,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
             {/* P1-P10 Parameter Mapping */}
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-600 pb-2 flex-1">
                   Parameter Mapping (p1-p10)
                 </h3>
                 <div className="flex gap-2 flex-wrap">
@@ -1135,14 +1135,14 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
               </div>
               
               {tracedParams && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm font-semibold text-blue-900 mb-2">✅ Traced URL Parameters:</p>
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">✅ Traced URL Parameters:</p>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
                     {Object.entries(tracedParams).map(([key, value]) => (
-                      <div key={key} className="bg-white p-2 rounded border border-blue-100">
-                        <code className="text-blue-600">{key}</code>
-                        <span className="text-gray-500"> = </span>
-                        <code className="text-gray-600">{String(value).substring(0, 15)}...</code>
+                      <div key={key} className="bg-white dark:bg-gray-700 p-2 rounded border border-blue-100 dark:border-blue-800">
+                        <code className="text-blue-600 dark:text-blue-300">{key}</code>
+                        <span className="text-gray-500 dark:text-gray-400"> = </span>
+                        <code className="text-gray-600 dark:text-gray-300">{String(value).substring(0, 15)}...</code>
                       </div>
                     ))}
                   </div>
@@ -1150,23 +1150,23 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
               )}
               
               {autoMapResult && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-800 whitespace-pre-wrap font-mono text-xs">
+                <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
+                  <p className="text-sm text-green-800 dark:text-green-200 whitespace-pre-wrap font-mono text-xs">
                     {autoMapResult}
                   </p>
                 </div>
               )}
               
-              <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                <p className="text-sm text-purple-800 mb-2">
+              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg">
+                <p className="text-sm text-purple-800 dark:text-purple-200 mb-2">
                   <strong>Map tracked parameters to Trackier's p1-p10 fields:</strong> Define which URL parameters 
-                  should be passed through Trackier's sub_id fields. For example, map <code className="bg-purple-100 px-1 rounded">gclid</code> to 
-                  <code className="bg-purple-100 px-1 rounded">p1</code>, so Trackier receives it as <code className="bg-purple-100 px-1 rounded">p1=gclid_value</code>.
+                  should be passed through Trackier's sub_id fields. For example, map <code className="bg-purple-100 dark:bg-purple-800 px-1 rounded">gclid</code> to 
+                  <code className="bg-purple-100 dark:bg-purple-800 px-1 rounded">p1</code>, so Trackier receives it as <code className="bg-purple-100 dark:bg-purple-800 px-1 rounded">p1=gclid_value</code>.
                 </p>
-                <p className="text-xs text-purple-700">
+                <p className="text-xs text-purple-700 dark:text-purple-300">
                   These mappings control how parameters flow through URL 1 → URL 2 in your Trackier campaigns.
                 </p>
-                <p className="text-xs text-purple-600 mt-2">
+                <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">
                   💡 <strong>Tip:</strong> Click "Run Trace & Auto-Map" to trace your URL and automatically detect parameters, or "Auto-Map from URLs" to use existing final URL.
                 </p>
               </div>
@@ -1176,7 +1176,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                   const key = `p${num}`;
                   return (
                     <div key={key} className="flex items-center gap-2">
-                      <label className="text-sm font-medium text-gray-700 whitespace-nowrap w-12">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap w-12">
                         {key}:
                       </label>
                       <input
@@ -1189,7 +1189,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                             [key]: e.target.value
                           }
                         })}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 text-sm"
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-purple-500 focus:border-purple-500 text-sm"
                         placeholder={`param_name`}
                       />
                     </div>
@@ -1198,7 +1198,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
                 {["erid", "app_name", "app_id", "cr_name"].map((key) => (
                   <div key={key} className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-gray-700 whitespace-nowrap w-12">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap w-12">
                       {key}:
                     </label>
                     <input
@@ -1211,15 +1211,15 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                           [key]: e.target.value
                         }
                       })}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 text-sm"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-purple-500 focus:border-purple-500 text-sm"
                       placeholder={`param_name`}
                     />
                   </div>
                 ))}
               </div>
 
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-xs text-gray-700">
+              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200">
+                <p className="text-xs text-gray-700 dark:text-gray-300">
                   <strong>Example:</strong> If p1 maps to "gclid" and traced URL has <code className="bg-gray-200 px-1">gclid=xyz789</code>, 
                   Trackier will receive <code className="bg-green-100 px-1">p1=gclid=xyz789</code> and can pass it to your destination URL.
                 </p>
@@ -1234,80 +1234,80 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
             {/* Macro Mapping Configuration */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-600 pb-2">
                 Macro Mapping (Advanced)
               </h3>
               
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800 mb-2">
-                  <strong>How it works:</strong> When a traced suffix is found (e.g., <code className="bg-blue-100 px-1 rounded">clickid=abc123</code>), 
-                  the actual value is replaced with Trackier macros (e.g., <code className="bg-blue-100 px-1 rounded">clickid={`{clickid}`}</code>). 
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                  <strong>How it works:</strong> When a traced suffix is found (e.g., <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">clickid=abc123</code>), 
+                  the actual value is replaced with Trackier macros (e.g., <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">clickid={`{clickid}`}</code>). 
                   Trackier then resolves these macros on each click with fresh tracking IDs.
                 </p>
-                <p className="text-xs text-blue-700">
+                <p className="text-xs text-blue-700 dark:text-blue-300">
                   This ensures every click gets a unique tracking ID from Trackier, not a static value from the traced URL.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="text-xs font-semibold text-gray-700 uppercase">URL Parameter</div>
-                <div className="text-xs font-semibold text-gray-700 uppercase">Trackier Macro</div>
+                <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">URL Parameter</div>
+                <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Trackier Macro</div>
                 
                 <div className="col-span-2 border-t border-gray-200"></div>
                 
                 <div className="flex items-center gap-2">
-                  <code className="bg-gray-100 px-2 py-1 rounded text-sm">clickid</code>
+                  <code className="bg-gray-100 dark:bg-gray-700 dark:text-gray-200 px-2 py-1 rounded text-sm">clickid</code>
                 </div>
                 <div>
-                  <code className="bg-green-100 px-2 py-1 rounded text-sm text-green-800">{`{clickid}`}</code>
-                  <span className="text-xs text-gray-500 ml-2">Trackier's unique click ID</span>
+                  <code className="bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded text-sm text-green-800 dark:text-green-200">{`{clickid}`}</code>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">Trackier's unique click ID</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <code className="bg-gray-100 px-2 py-1 rounded text-sm">gclid</code>
+                  <code className="bg-gray-100 dark:bg-gray-700 dark:text-gray-200 px-2 py-1 rounded text-sm">gclid</code>
                 </div>
                 <div>
-                  <code className="bg-green-100 px-2 py-1 rounded text-sm text-green-800">{`{gclid}`}</code>
-                  <span className="text-xs text-gray-500 ml-2">Google Click ID</span>
+                  <code className="bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded text-sm text-green-800 dark:text-green-200">{`{gclid}`}</code>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">Google Click ID</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <code className="bg-gray-100 px-2 py-1 rounded text-sm">fbclid</code>
+                  <code className="bg-gray-100 dark:bg-gray-700 dark:text-gray-200 px-2 py-1 rounded text-sm">fbclid</code>
                 </div>
                 <div>
-                  <code className="bg-green-100 px-2 py-1 rounded text-sm text-green-800">{`{fbclid}`}</code>
-                  <span className="text-xs text-gray-500 ml-2">Facebook Click ID</span>
+                  <code className="bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded text-sm text-green-800 dark:text-green-200">{`{fbclid}`}</code>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">Facebook Click ID</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <code className="bg-gray-100 px-2 py-1 rounded text-sm">campaign</code>
+                  <code className="bg-gray-100 dark:bg-gray-700 dark:text-gray-200 px-2 py-1 rounded text-sm">campaign</code>
                 </div>
                 <div>
-                  <code className="bg-green-100 px-2 py-1 rounded text-sm text-green-800">{`{campaign_id}`}</code>
-                  <span className="text-xs text-gray-500 ml-2">Trackier campaign ID</span>
+                  <code className="bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded text-sm text-green-800 dark:text-green-200">{`{campaign_id}`}</code>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">Trackier campaign ID</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <code className="bg-gray-100 px-2 py-1 rounded text-sm">source</code>
+                  <code className="bg-gray-100 dark:bg-gray-700 dark:text-gray-200 px-2 py-1 rounded text-sm">source</code>
                 </div>
                 <div>
-                  <code className="bg-green-100 px-2 py-1 rounded text-sm text-green-800">{`{source}`}</code>
-                  <span className="text-xs text-gray-500 ml-2">Traffic source</span>
+                  <code className="bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded text-sm text-green-800 dark:text-green-200">{`{source}`}</code>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">Traffic source</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <code className="bg-gray-100 px-2 py-1 rounded text-sm">publisher</code>
+                  <code className="bg-gray-100 dark:bg-gray-700 dark:text-gray-200 px-2 py-1 rounded text-sm">publisher</code>
                 </div>
                 <div>
-                  <code className="bg-green-100 px-2 py-1 rounded text-sm text-green-800">{`{publisher_id}`}</code>
-                  <span className="text-xs text-gray-500 ml-2">Publisher/Affiliate ID</span>
+                  <code className="bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded text-sm text-green-800 dark:text-green-200">{`{publisher_id}`}</code>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">Publisher/Affiliate ID</span>
                 </div>
               </div>
 
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-xs text-gray-700">
-                  <strong>Example:</strong> If traced URL has <code className="bg-gray-200 px-1">clickid=abc123&gclid=xyz789</code>, 
-                  it becomes <code className="bg-green-100 px-1">clickid={`{clickid}`}&gclid={`{gclid}`}</code> in Trackier. 
+              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                <p className="text-xs text-gray-700 dark:text-gray-300">
+                  <strong>Example:</strong> If traced URL has <code className="bg-gray-200 dark:bg-gray-600 px-1">clickid=abc123&gclid=xyz789</code>, 
+                  it becomes <code className="bg-green-100 dark:bg-green-900/30 dark:text-green-200 px-1">clickid={`{clickid}`}&gclid={`{gclid}`}</code> in Trackier. 
                   When users click, Trackier replaces <code className="bg-gray-200 px-1">{`{clickid}`}</code> with a fresh unique ID.
                 </p>
               </div>
@@ -1316,7 +1316,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
             {/* Google Ads Template */}
             {config.url1_campaign_id && config.id && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-600 pb-2">
                   Google Ads Setup
                 </h3>
 
@@ -1349,7 +1349,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                               type="text"
                               value={config.webhook_url}
                               readOnly
-                              className="flex-1 px-3 py-2 border border-orange-300 rounded-md bg-white text-sm font-mono"
+                              className="flex-1 px-3 py-2 border border-orange-300 dark:border-orange-700 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono"
                             />
                             <button
                               onClick={() => copyToClipboard(config.webhook_url || '', 'S2S Push URL')}
@@ -1365,7 +1365,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Tracking Template
                   </label>
                   <div className="flex gap-2">
@@ -1373,7 +1373,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                       type="text"
                       value={config.google_ads_template}
                       readOnly
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm font-mono"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-sm font-mono"
                     />
                     <button
                       onClick={() => copyToClipboard(config.google_ads_template, 'Template')}
@@ -1389,14 +1389,14 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
                 {config.url2_last_suffix && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Current Suffix (URL 2)
                     </label>
                     <textarea
                       value={config.url2_last_suffix}
                       readOnly
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-xs font-mono"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-xs font-mono"
                     />
                   </div>
                 )}
@@ -1425,7 +1425,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
               <button
                 onClick={onClose}
-                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 font-medium"
+                className="px-6 py-3 bg-gray-200 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 font-medium"
               >
                 Close
               </button>
@@ -1433,7 +1433,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
           </div>
 
           {/* Help Section */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <h3 className="text-sm font-semibold text-gray-900 mb-2">How It Works</h3>
             <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
               <li>Create 2 campaigns in Trackier (URL 1 and URL 2)</li>

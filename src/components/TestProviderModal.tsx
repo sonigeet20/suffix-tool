@@ -167,15 +167,15 @@ export default function TestProviderModal({ provider, onClose }: TestProviderMod
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <div className="bg-white dark:bg-neutral-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Test Provider Connection</h2>
-            <p className="text-sm text-gray-600 mt-1">{provider.name}</p>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-neutral-100">Test Provider Connection</h2>
+            <p className="text-sm text-gray-600 dark:text-neutral-400 mt-1">{provider.name}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
           >
             <X size={20} />
           </button>
