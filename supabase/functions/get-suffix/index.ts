@@ -339,14 +339,12 @@ Deno.serve(async (req: Request) => {
       const retryLimit = offer.retry_limit || 3;
       const retryDelay = offer.retry_delay_ms || 2000;
 
-      console.log(`🚀 Starting trace attempts for tracking URL: ${trackingUrlToUse}`);
-      console.log(`   Campaign count: ${campaignCount}, Referrer: ${referrerToUse || 'none'}, Retry limit: ${retryLimit}, Delay: ${retryDelay}ms`);
+      console.log(`\n🚀 PARALLEL TRACE MODE - Starting ${campaignCount} campaigns simultaneously`);
+      console.log(`   Tracking URL: ${trackingUrlToUse.substring(0, 80)}`);
+      console.log(`   Referrer: ${referrerToUse || 'none'}, Retry limit: ${retryLimit}`);
 
-      // Loop for each campaign that needs unique params
-      for (let campaignIndex = 0; campaignIndex < campaignCount; campaignIndex++) {
-        console.log(`\n📍 Generating unique suffix ${campaignIndex + 1}/${campaignCount}`);
-        
-        // Reset per-campaign variables
+      // Create async function for individual campaign tracing
+      const traceIndividualCampaign = async (campaignIndex: number): Promise<any> => {
         let campaignSuffix = '';
         let campaignParams: Record<string, string> = {};
         let campaignFiltered: Record<string, string> = {};
@@ -355,313 +353,218 @@ Deno.serve(async (req: Request) => {
         let campaignGeo: string | null = null;
         let campaignGeoLocation: any = null;
         let campaignTraceSuccess = false;
+        let lastError = '';
+        let campaignTracedFinalUrl: string | null = null;
 
-      for (let attempt = 0; attempt <= retryLimit; attempt++) {
-        attemptCount = attempt + 1;
+        console.log(`[Campaign ${campaignIndex + 1}/${campaignCount}] Starting parallel trace`);
 
-        if (attempt > 0) {
-          console.log(`Retry attempt ${attempt}/${retryLimit} after ${retryDelay}ms delay`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-        }
-
-        try {
-          // Extract hostname from final_url if it's a full URL
-          let expectedFinalUrl = offer.expected_final_url || offer.final_url || null;
-          if (expectedFinalUrl) {
-            try {
-              const urlObj = new URL(expectedFinalUrl);
-              expectedFinalUrl = urlObj.hostname.replace(/^www\./, '');
-            } catch (e) {
-              // If it's already just a hostname, keep it as is
-              expectedFinalUrl = expectedFinalUrl.replace(/^www\./, '');
+        for (let attempt = 0; attempt <= retryLimit; attempt++) {
+          try {
+            if (attempt > 0) {
+              console.log(`[Campaign ${campaignIndex + 1}] Retry ${attempt}/${retryLimit}`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
             }
-          }
 
-          const traceRequestBody: any = {
-            url: trackingUrlToUse,
-            max_redirects: 20,
-            timeout_ms: 45000,
-            // user_agent removed - let proxy service handle rotation
-            user_id: offer.user_id,
-            use_proxy: true,
-            target_country: offer.target_country || null,
-            tracer_mode: offer.tracer_mode || 'auto',
-            suffix_step: offer.redirect_chain_step || null,
-            expected_final_url: expectedFinalUrl,
-            // Pass interval_used for tracking
-            interval_used_ms: intervalUsed > 0 ? intervalUsed : null,
-            offer_id: offer.id,
-            account_id: accountId,
-          };
-
-          // Add geo rotation parameters if configured
-          if (offer.geo_pool && offer.geo_pool.length > 0) {
-            traceRequestBody.geo_pool = offer.geo_pool;
-            traceRequestBody.geo_strategy = offer.geo_strategy || 'round_robin';
-            if (offer.geo_weights) {
-              traceRequestBody.geo_weights = offer.geo_weights;
+            // Extract hostname from final_url if it's a full URL
+            let expectedFinalUrl = offer.expected_final_url || offer.final_url || null;
+            if (expectedFinalUrl) {
+              try {
+                const urlObj = new URL(expectedFinalUrl);
+                expectedFinalUrl = urlObj.hostname.replace(/^www\./, '');
+              } catch (e) {
+                expectedFinalUrl = expectedFinalUrl.replace(/^www\./, '');
+              }
             }
-            console.log(`🌍 Geo rotation: pool=${offer.geo_pool.join(',')}, strategy=${traceRequestBody.geo_strategy}`);
-          }
 
-          // Add device distribution if configured (for user agent generation)
-          if (offer.device_distribution && Array.isArray(offer.device_distribution) && offer.device_distribution.length > 0) {
-            traceRequestBody.device_distribution = offer.device_distribution;
-            console.log(`📱 Device distribution: ${JSON.stringify(offer.device_distribution)}`);
-          }
+            const traceRequestBody: any = {
+              url: trackingUrlToUse,
+              max_redirects: 20,
+              timeout_ms: 45000,
+              user_id: offer.user_id,
+              use_proxy: true,
+              target_country: offer.target_country || null,
+              tracer_mode: offer.tracer_mode || 'auto',
+              suffix_step: offer.redirect_chain_step || null,
+              expected_final_url: expectedFinalUrl,
+              interval_used_ms: intervalUsed > 0 ? intervalUsed : null,
+              offer_id: offer.id,
+              account_id: accountId,
+            };
 
-          // Add location header extraction configuration
-          if (offer.extract_from_location_header) {
-            traceRequestBody.extract_from_location_header = true;
-            if (offer.location_extract_hop) {
-              traceRequestBody.location_extract_hop = offer.location_extract_hop;
-              console.log(`📍 Location extraction enabled: hop ${offer.location_extract_hop}`);
-            } else {
-              console.log(`📍 Location extraction enabled: last redirect`);
+            if (offer.geo_pool && offer.geo_pool.length > 0) {
+              traceRequestBody.geo_pool = offer.geo_pool;
+              traceRequestBody.geo_strategy = offer.geo_strategy || 'round_robin';
+              if (offer.geo_weights) {
+                traceRequestBody.geo_weights = offer.geo_weights;
+              }
             }
-          }
 
-          console.log(`📡 Trace request - tracer_mode: ${traceRequestBody.tracer_mode}, url: ${trackingUrlToUse.substring(0, 80)}`);
-
-          if (referrerToUse) {
-            traceRequestBody.referrer = referrerToUse;
-            console.log(`🔗 Referrer being sent: ${referrerToUse}`);
-            console.log(`🔗 referrerHops value: ${JSON.stringify(referrerHops)}`);
-            console.log(`🔗 referrerHops type: ${typeof referrerHops}`);
-            console.log(`🔗 referrerHops check: hops=${referrerHops}, length=${referrerHops?.length}`);
-            
-            if (referrerHops && referrerHops.length > 0) {
-              traceRequestBody.referrer_hops = referrerHops;
-              console.log(`✅ Referrer will be applied to hops: ${referrerHops.join(',')}`);
-            } else {
-              console.log(`⚠️ No referrer_hops to send (hops=${referrerHops})`);
+            if (offer.device_distribution && Array.isArray(offer.device_distribution) && offer.device_distribution.length > 0) {
+              traceRequestBody.device_distribution = offer.device_distribution;
             }
-          }
 
-          console.log(`🚀 Final trace request body: ${JSON.stringify(traceRequestBody)}`);
-
-          const traceResponse = await fetch(`${supabaseUrl}/functions/v1/trace-redirects`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseKey}`,
-            },
-            body: JSON.stringify(traceRequestBody),
-          });
-
-          if (traceResponse.ok) {
-            const traceResult = await traceResponse.json();
-            if (traceResult.bandwidth_bytes) {
-              traceBandwidth_bytes = Math.max(traceBandwidth_bytes, traceResult.bandwidth_bytes);  // Track peak bandwidth
+            if (offer.extract_from_location_header) {
+              traceRequestBody.extract_from_location_header = true;
+              if (offer.location_extract_hop) {
+                traceRequestBody.location_extract_hop = offer.location_extract_hop;
+              }
             }
-            console.log('📦 Trace result:', JSON.stringify({
-              success: traceResult.success,
-              chain_length: traceResult.chain?.length,
-              proxy_used: traceResult.proxy_used,
-              proxy_ip: traceResult.proxy_ip,
-              bandwidth_bytes: traceResult.bandwidth_bytes,
-              geo_location: traceResult.geo_location,
-            }));
 
-            if (traceResult.success && traceResult.chain && traceResult.chain.length > 0) {
-              const chain = traceResult.chain;
-              let stepIndex = offer.redirect_chain_step || 0;
+            if (referrerToUse) {
+              traceRequestBody.referrer = referrerToUse;
+              if (referrerHops && referrerHops.length > 0) {
+                traceRequestBody.referrer_hops = referrerHops;
+              }
+            }
+
+            const traceResponse = await fetch(`${supabaseUrl}/functions/v1/trace-redirects`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseKey}`,
+              },
+              body: JSON.stringify(traceRequestBody),
+            });
+
+            if (traceResponse.ok) {
+              const traceResult = await traceResponse.json();
               
-              // Capture the actual final URL from the trace
-              tracedFinalUrl = chain[chain.length - 1].url;
+              if (traceResult.bandwidth_bytes) {
+                traceBandwidth_bytes = Math.max(traceBandwidth_bytes, traceResult.bandwidth_bytes);
+              }
 
-              // Try to extract params from the configured step, but fallback to final step if empty
-              let paramsFound = false;
-              let selectedStep = null;
-              let usedStepIndex = stepIndex;
+              if (traceResult.success && traceResult.chain && traceResult.chain.length > 0) {
+                const chain = traceResult.chain;
+                let stepIndex = offer.redirect_chain_step || 0;
 
-              // First try the configured step
-              if (stepIndex < chain.length) {
-                selectedStep = chain[stepIndex];
-                let paramsToUse = selectedStep.params || {};
+                campaignTracedFinalUrl = chain[chain.length - 1].url;
 
-                if (Object.keys(paramsToUse).length === 0 && selectedStep.url) {
-                  try {
-                    const urlObj = new URL(selectedStep.url);
-                    const urlParams: Record<string, string> = {};
-                    urlObj.searchParams.forEach((value, key) => {
-                      urlParams[key] = value;
-                    });
-                    if (Object.keys(urlParams).length > 0) {
-                      paramsToUse = urlParams;
-                      console.log(`Extracted params from URL query string of step ${stepIndex + 1}`);
-                    }
-                  } catch (e) {
-                    console.log(`Could not parse URL for step ${stepIndex + 1}`);
-                  }
-                }
+                // Try to extract params from configured step, fallback to final step
+                let paramsFound = false;
+                let selectedStep = null;
+                let usedStepIndex = stepIndex;
 
-                if (Object.keys(paramsToUse).length === 0 && stepIndex > 0) {
-                  const prevStep = chain[stepIndex - 1];
-                  if (prevStep.headers && prevStep.headers.location) {
+                // First try configured step
+                if (stepIndex < chain.length) {
+                  selectedStep = chain[stepIndex];
+                  let paramsToUse = selectedStep.params || {};
+
+                  if (Object.keys(paramsToUse).length === 0 && selectedStep.url) {
                     try {
-                      const locationUrl = new URL(prevStep.headers.location, selectedStep.url);
-                      const locationParams: Record<string, string> = {};
-                      locationUrl.searchParams.forEach((value, key) => {
-                        locationParams[key] = value;
+                      const urlObj = new URL(selectedStep.url);
+                      const urlParams: Record<string, string> = {};
+                      urlObj.searchParams.forEach((value, key) => {
+                        urlParams[key] = value;
                       });
-                      if (Object.keys(locationParams).length > 0) {
-                        paramsToUse = locationParams;
-                        console.log(`Extracted params from Location header of step ${stepIndex}`);
+                      if (Object.keys(urlParams).length > 0) {
+                        paramsToUse = urlParams;
                       }
                     } catch (e) {
-                      console.log(`Could not parse Location header from step ${stepIndex}`);
+                      // Silent fail
                     }
+                  }
+
+                  if (Object.keys(paramsToUse).length > 0) {
+                    campaignParams = paramsToUse;
+                    paramsFound = true;
                   }
                 }
 
-                if (Object.keys(paramsToUse).length > 0) {
-                  campaignParams = paramsToUse;
-                  paramsFound = true;
+                // Fallback to final step if no params found
+                if (!paramsFound && chain.length > 1) {
+                  usedStepIndex = chain.length - 1;
+                  selectedStep = chain[usedStepIndex];
+                  let paramsToUse = selectedStep.params || {};
+
+                  if (Object.keys(paramsToUse).length === 0 && selectedStep.url) {
+                    try {
+                      const urlObj = new URL(selectedStep.url);
+                      const urlParams: Record<string, string> = {};
+                      urlObj.searchParams.forEach((value, key) => {
+                        urlParams[key] = value;
+                      });
+                      if (Object.keys(urlParams).length > 0) {
+                        paramsToUse = urlParams;
+                      }
+                    } catch (e) {
+                      // Silent fail
+                    }
+                  }
+
+                  if (Object.keys(paramsToUse).length > 0) {
+                    campaignParams = paramsToUse;
+                    paramsFound = true;
+                  }
                 }
-              }
 
-              // If no params found at configured step, try final step
-              if (!paramsFound && chain.length > 1) {
-                console.log(`⚠️ No params at step ${stepIndex + 1}, trying final step...`);
-                usedStepIndex = chain.length - 1;
-                selectedStep = chain[usedStepIndex];
-                let paramsToUse = selectedStep.params || {};
+                if (paramsFound && selectedStep) {
+                  const paramFilterMode = offer.param_filter_mode || 'all';
+                  const paramFilter = offer.param_filter || [];
+                  campaignFiltered = filterParams(campaignParams, paramFilterMode, paramFilter);
 
-                if (Object.keys(paramsToUse).length === 0 && selectedStep.url) {
+                  const params = new URLSearchParams(campaignFiltered);
+                  campaignSuffix = params.toString();
+                  campaignTraceSuccess = true;
+                  console.log(`✅ [Campaign ${campaignIndex + 1}] Success: ${Object.keys(campaignParams).length} → ${Object.keys(campaignFiltered).length} filtered`);
+                } else {
+                  lastError = 'No params extracted';
+                }
+
+                if (traceResult.proxy_ip) {
+                  campaignProxyIp = traceResult.proxy_ip;
+                }
+                if (traceResult.user_agent) {
+                  campaignUserAgent = traceResult.user_agent;
+                }
+                if (traceResult.selected_geo) {
+                  campaignGeo = traceResult.selected_geo;
+                }
+                if (traceResult.geo_location) {
+                  campaignGeoLocation = traceResult.geo_location;
+                }
+
+                // Store individual trace for monitoring
+                if (campaignTraceSuccess && traceResult.proxy_ip) {
                   try {
-                    const urlObj = new URL(selectedStep.url);
-                    const urlParams: Record<string, string> = {};
-                    urlObj.searchParams.forEach((value, key) => {
-                      urlParams[key] = value;
+                    await supabase.from('url_traces').insert({
+                      offer_id: offer.id,
+                      user_id: offer.user_id,
+                      account_id: accountId,
+                      redirect_chain: chain,
+                      final_url: chain[chain.length - 1].url,
+                      proxy_ip: traceResult.proxy_ip,
+                      geo_country: traceResult.geo_location?.country,
+                      geo_city: traceResult.geo_location?.city,
+                      geo_region: traceResult.geo_location?.region,
+                      geo_data: traceResult.geo_location,
+                      device_type: 'bot',
+                      user_agent: traceResult.user_agent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                      visited_at: new Date().toISOString(),
+                      tracking_url_used: trackingUrlToUse,
+                      referrer_used: referrerToUse,
+                      interval_used_ms: intervalUsed > 0 ? intervalUsed : null,
                     });
-                    if (Object.keys(urlParams).length > 0) {
-                      paramsToUse = urlParams;
-                      console.log(`Extracted params from final step URL query string`);
-                    }
                   } catch (e) {
-                    console.log(`Could not parse final step URL`);
+                    console.error(`[Campaign ${campaignIndex + 1}] Failed to store trace:`, e);
                   }
                 }
 
-                if (Object.keys(paramsToUse).length > 0) {
-                  campaignParams = paramsToUse;
-                  paramsFound = true;
-                }
-              }
-
-              if (paramsFound && selectedStep) {
-                const paramFilterMode = offer.param_filter_mode || 'all';
-                const paramFilter = offer.param_filter || [];
-                campaignFiltered = filterParams(campaignParams, paramFilterMode, paramFilter);
-
-                const params = new URLSearchParams(campaignFiltered);
-                campaignSuffix = params.toString();
-                campaignTraceSuccess = true;
-                const status = selectedStep.error ? 'error' : `status ${selectedStep.status}`;
-                console.log(`✅ Campaign ${campaignIndex + 1}: Extracted ${Object.keys(campaignParams).length} params, filtered to ${Object.keys(campaignFiltered).length} params from step ${usedStepIndex + 1}/${chain.length} (${status})`);
-                
-                // Store for first campaign (backward compatibility)
-                if (campaignIndex === 0) {
-                  extractedParams = campaignParams;
-                  filteredParams = campaignFiltered;
-                  finalSuffix = campaignSuffix;
-                  traceSuccessful = true;
-                }
-              } else if (stepIndex < chain.length) {
-                console.error(`No params extracted from step ${stepIndex + 1} or fallback final step`);
+                break; // Success - exit retry loop
               } else {
-                console.error(`Configured step ${stepIndex + 1} exceeds chain length ${chain.length}`);
+                lastError = `Empty chain`;
               }
-
-              if (traceResult.proxy_ip) {
-                campaignProxyIp = traceResult.proxy_ip;
-                console.log('✅ Campaign proxy IP:', campaignProxyIp);
-                if (campaignIndex === 0) proxyIp = campaignProxyIp;
-              }
-
-              if (traceResult.user_agent) {
-                campaignUserAgent = traceResult.user_agent;
-                console.log('✅ Campaign user agent:', campaignUserAgent);
-                if (campaignIndex === 0) usedUserAgent = campaignUserAgent;
-              }
-
-              if (traceResult.selected_geo) {
-                campaignGeo = traceResult.selected_geo;
-                console.log('✅ Campaign geo:', campaignGeo);
-                if (campaignIndex === 0) selectedGeo = campaignGeo;
-              }
-
-              if (traceResult.geo_location) {
-                campaignGeoLocation = traceResult.geo_location;
-                console.log('✅ Campaign geo location:', campaignGeoLocation);
-                if (campaignIndex === 0) geoLocation = campaignGeoLocation;
-              }
-
-              if (traceSuccessful && traceResult.proxy_ip) {
-                // Store individual trace for monitoring (last 10 kept via trigger)
-                // Note: daily_trace_counts is incremented in trace-redirects on success
-                try {
-                  await supabase.from('url_traces').insert({
-                    offer_id: offer.id,
-                    user_id: offer.user_id,
-                    account_id: accountId,
-                    redirect_chain: chain,
-                    final_url: chain[chain.length - 1].url,
-                    proxy_ip: traceResult.proxy_ip,
-                    geo_country: traceResult.geo_location?.country,
-                    geo_city: traceResult.geo_location?.city,
-                    geo_region: traceResult.geo_location?.region,
-                    geo_data: traceResult.geo_location,
-                    device_type: 'bot',
-                    user_agent: traceResult.user_agent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    visited_at: new Date().toISOString(),
-                    tracking_url_used: trackingUrlToUse,
-                    referrer_used: referrerToUse,
-                    interval_used_ms: intervalUsed > 0 ? intervalUsed : null,
-                  });
-                  console.log('✅ Stored trace for monitoring');
-                } catch (e) {
-                  console.error('⚠️ Failed to store trace:', e);
-                }
-              }
-
-              // Only update offer chain for first campaign
-              if (campaignIndex === 0) {
-                await supabase.from('offers').update({
-                  last_traced_chain: chain,
-                  last_trace_date: new Date().toISOString(),
-                }).eq('id', offer.id);
-              }
-
-              break;
             } else {
-              console.error(`Trace attempt ${attemptCount} returned empty chain`);
+              const errorText = await traceResponse.text();
+              lastError = `Status ${traceResponse.status}`;
             }
-          } else {
-            const errorText = await traceResponse.text();
-            lastTraceError = errorText;
-            lastTraceStatus = traceResponse.status;
-            console.error(`❌ Trace attempt ${attemptCount} failed with status ${traceResponse.status}:`, errorText);
-            console.error(`   Request was: POST ${supabaseUrl}/functions/v1/trace-redirects`);
-          }
-
-          if (attempt === retryLimit) {
-            console.error(`❌ All retry attempts exhausted for ${trackingUrlToUse}, no trace completed`);
-          }
-        } catch (traceError: any) {
-          lastTraceError = traceError.message;
-          console.error(`Trace attempt ${attemptCount} failed:`, traceError.message);
-
-          if (attempt === retryLimit) {
-            console.error(`Campaign ${campaignIndex + 1}: All retry attempts exhausted, no params extracted`);
+          } catch (traceError: any) {
+            lastError = traceError.message;
           }
         }
-      }
-      
-      // Store this campaign's result
-      if (campaignTraceSuccess && campaignSuffix) {
-        multipleSuffixes.push({
+
+        return {
+          campaignIndex,
+          success: campaignTraceSuccess && !!campaignSuffix,
           suffix: campaignSuffix,
           params_extracted: campaignParams,
           params_filtered: campaignFiltered,
@@ -669,19 +572,85 @@ Deno.serve(async (req: Request) => {
           user_agent: campaignUserAgent,
           selected_geo: campaignGeo,
           geo_location: campaignGeoLocation,
-        });
-        console.log(`✅ Campaign ${campaignIndex + 1}: Suffix stored (${campaignSuffix.substring(0, 50)}...)`);
-      } else {
-        console.error(`❌ Campaign ${campaignIndex + 1}: Failed to generate suffix`);
+          final_url: campaignTracedFinalUrl,
+          error: lastError,
+        };
+      };
+
+      // Execute all campaign traces in PARALLEL using Promise.allSettled
+      const startTime = Date.now();
+      const campaignPromises = Array.from({ length: campaignCount }, (_, i) => 
+        traceIndividualCampaign(i)
+      );
+
+      const traceResults = await Promise.allSettled(campaignPromises);
+      const parallelTime = Date.now() - startTime;
+
+      console.log(`\n⏱️ Parallel execution completed in ${parallelTime}ms`);
+      console.log(`📊 Processing results...`);
+
+      // Process all results
+      let successCount = 0;
+      const tracedFinalUrls: string[] = [];
+
+      traceResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const campaignResult = result.value;
+
+          if (campaignResult.success && campaignResult.suffix) {
+            multipleSuffixes.push({
+              suffix: campaignResult.suffix,
+              params_extracted: campaignResult.params_extracted,
+              params_filtered: campaignResult.params_filtered,
+              proxy_ip: campaignResult.proxy_ip,
+              user_agent: campaignResult.user_agent,
+              selected_geo: campaignResult.selected_geo,
+              geo_location: campaignResult.geo_location,
+            });
+            successCount++;
+            console.log(`  ✅ Campaign ${campaignResult.campaignIndex + 1}: ${campaignResult.suffix.substring(0, 50)}...`);
+
+            if (campaignResult.final_url) {
+              tracedFinalUrls.push(campaignResult.final_url);
+            }
+
+            // Store for first campaign (backward compatibility)
+            if (campaignResult.campaignIndex === 0) {
+              extractedParams = campaignResult.params_extracted;
+              filteredParams = campaignResult.params_filtered;
+              finalSuffix = campaignResult.suffix;
+              traceSuccessful = true;
+              proxyIp = campaignResult.proxy_ip;
+              usedUserAgent = campaignResult.user_agent;
+              selectedGeo = campaignResult.selected_geo;
+              geoLocation = campaignResult.geo_location;
+              if (campaignResult.final_url) {
+                tracedFinalUrl = campaignResult.final_url;
+              }
+            }
+          } else {
+            console.warn(`  ❌ Campaign ${campaignResult.campaignIndex + 1}: ${campaignResult.error || 'Failed'}`);
+            lastTraceError = campaignResult.error;
+          }
+        } else {
+          console.error(`  ❌ Campaign trace rejected:`, result.reason);
+          lastTraceError = result.reason?.message || 'Unknown error';
+        }
+      });
+
+      console.log(`\n✅ PARALLEL COMPLETE: ${successCount}/${campaignCount} campaigns successful (${parallelTime}ms)`);
+
+      // Update offer with latest trace (from first campaign)
+      if (traceSuccessful && tracedFinalUrls.length > 0) {
+        try {
+          await supabase.from('offers').update({
+            last_traced_chain: extractedParams,
+            last_trace_date: new Date().toISOString(),
+          }).eq('id', offer.id);
+        } catch (e) {
+          console.error('Failed to update offer:', e);
+        }
       }
-      
-      // Add delay between campaigns to avoid rate limits (except after last one)
-      if (campaignIndex < campaignCount - 1) {
-        const delayCampaigns = 1000; // 1 second between campaigns
-        console.log(`⏳ Waiting ${delayCampaigns}ms before next campaign...`);
-        await new Promise(resolve => setTimeout(resolve, delayCampaigns));
-      }
-    }
 
       if (trackingUrlToUse) {
         await updateUsageStats(
