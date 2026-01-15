@@ -185,6 +185,12 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
             : 1
         };
         setConfig(mergedConfig);
+        
+        // Load additional_pairs into pairsData if they exist
+        if (data.additional_pairs && Array.isArray(data.additional_pairs) && data.additional_pairs.length > 0) {
+          setPairsData(data.additional_pairs);
+        }
+        
         await loadStats(data.id);
       } else if (settingsApiKey) {
         setConfig((prev) => ({ ...prev, api_key: settingsApiKey }));
