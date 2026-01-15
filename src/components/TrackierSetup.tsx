@@ -605,9 +605,17 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       // Regenerate Google Ads template with current suffix pattern and mappings
       const publisherId = config.publisher_id || '2';
       
-      // Build query params from sub_id_mapping
-      const queryParams = Object.entries(config.sub_id_mapping)
-        .filter(([_, placeholder]) => placeholder)
+      // Build parameter template from sub_id_mapping
+      // sub_id_mapping format: { p1: 'utm_source', p2: 'utm_medium', ... }
+      // We need to reverse it to: { utm_source: 'p1', utm_medium: 'p2', ... }
+      const paramToPlaceholder: Record<string, string> = {};
+      Object.entries(config.sub_id_mapping).forEach(([placeholder, paramName]) => {
+        if (paramName) {
+          paramToPlaceholder[paramName as string] = placeholder;
+        }
+      });
+
+      const queryParams = Object.entries(paramToPlaceholder)
         .map(([paramName, placeholder]) => `${paramName}={${placeholder}}`)
         .join('&');
 
