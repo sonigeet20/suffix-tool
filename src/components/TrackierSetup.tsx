@@ -538,7 +538,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
       console.log('Saving config with pairsData:', pairsData.length, 'pairs');
       console.log('configToSave.additional_pairs:', configToSave.additional_pairs);
-      console.log('configToSave.update_interval_seconds:', configToSave.update_interval_seconds);
+      console.log('configToSave.update_interval_seconds:', configToSave.update_interval_seconds, 'type:', typeof configToSave.update_interval_seconds);
 
       let result;
       if (config.id) {
