@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase, Offer } from '../lib/supabase';
-import { Plus, Edit, Trash2, Link2, ExternalLink, Copy, CheckCircle, ChevronDown, ChevronUp, ArrowRight, Webhook } from 'lucide-react';
+import { Plus, Edit, Trash2, Link2, ExternalLink, Copy, CheckCircle, ChevronDown, ChevronUp, ArrowRight, Webhook, Files } from 'lucide-react';
 import OfferForm from './OfferForm';
 import TrackierSetup from './TrackierSetup';
 import SearchBar from './ui/SearchBar';
@@ -49,6 +49,27 @@ export default function OfferList() {
   const handleEdit = (offer: Offer) => {
     setEditingOffer(offer);
     setShowForm(true);
+  };
+
+  const handleDuplicate = async (offer: Offer) => {
+    try {
+      const { id, created_at, updated_at, ...offerData } = offer;
+      
+      const duplicatedOffer = {
+        ...offerData,
+        offer_name: `${offer.offer_name} (Copy)`,
+      };
+      
+      const { error } = await supabase.from('offers').insert([duplicatedOffer]);
+      
+      if (error) {
+        alert('Failed to duplicate offer: ' + error.message);
+      } else {
+        fetchOffers();
+      }
+    } catch (err) {
+      alert('An error occurred while duplicating the offer');
+    }
   };
 
   const handleCloseForm = () => {
@@ -234,6 +255,34 @@ export default function OfferList() {
                         </span>
                       </div>
                     )}
+
+                    {/* Tracer Mode Badge */}
+                    {(offer as any).tracer_mode && (
+                      <div className="mb-2">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          (offer as any).tracer_mode === 'http_only'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800/50'
+                            : (offer as any).tracer_mode === 'browser' 
+                            ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800/50'
+                            : (offer as any).tracer_mode === 'anti_cloaking'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50'
+                            : (offer as any).tracer_mode === 'interactive'
+                            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50'
+                            : (offer as any).tracer_mode === 'brightdata_browser'
+                            ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50'
+                            : 'bg-brand-100 dark:bg-brand-900/30 text-brand-800 dark:text-brand-300 border border-brand-200 dark:border-brand-800/50'
+                        }`}>
+                          🔍 {
+                            (offer as any).tracer_mode === 'http_only' ? 'HTTP Only' :
+                            (offer as any).tracer_mode === 'browser' ? 'Browser' :
+                            (offer as any).tracer_mode === 'anti_cloaking' ? 'Anti-Cloaking' :
+                            (offer as any).tracer_mode === 'interactive' ? 'Interactive' :
+                            (offer as any).tracer_mode === 'brightdata_browser' ? 'Bright Data' :
+                            'Auto'
+                          }
+                        </span>
+                      </div>
+                    )}
                     
                     <div className="flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">
                       <ExternalLink size={12} />
@@ -256,14 +305,23 @@ export default function OfferList() {
                       <Webhook size={16} />
                     </button>
                     <button
+                      onClick={() => handleDuplicate(offer)}
+                      className="p-1.5 text-neutral-500 hover:text-purple-600 dark:text-neutral-400 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/10 rounded-md transition-smooth"
+                      title="Duplicate Offer"
+                    >
+                      <Files size={16} />
+                    </button>
+                    <button
                       onClick={() => handleEdit(offer)}
                       className="p-1.5 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-smooth"
+                      title="Edit Offer"
                     >
                       <Edit size={16} />
                     </button>
                     <button
                       onClick={() => handleDelete(offer.id)}
                       className="p-1.5 text-neutral-500 hover:text-error-600 dark:text-neutral-400 dark:hover:text-error-400 hover:bg-error-50 dark:hover:bg-error-500/10 rounded-md transition-smooth"
+                      title="Delete Offer"
                     >
                       <Trash2 size={16} />
                     </button>
