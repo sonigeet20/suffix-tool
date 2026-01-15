@@ -79,6 +79,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
   const [validating, setValidating] = useState(false);
   const [loadingApiKey, setLoadingApiKey] = useState(false);
   const [autoMapping, setAutoMapping] = useState(false);
+  const [updatingTemplates, setUpdatingTemplates] = useState(false);
   const [autoMapResult, setAutoMapResult] = useState<string | null>(null);
   const [tracing, setTracing] = useState(false);
   const [tracedParams, setTracedParams] = useState<Record<string, string> | null>(null);
@@ -577,6 +578,85 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       setError(err.message);
     } finally {
       setTesting(false);
+    }
+  };
+
+  const handleUpdateTemplates = async () => {
+    try {
+      setUpdatingTemplates(true);
+      setError(null);
+      setSuccess(null);
+
+      if (!config.id) {
+        throw new Error('Please save configuration first');
+      }
+
+      if (!config.sub_id_mapping || Object.keys(config.sub_id_mapping).length === 0) {
+        throw new Error('Please configure parameter mapping (p1-p10) first. Run "Trace & Auto-Map" or "Auto-Map" to generate mappings.');
+      }
+
+      // Regenerate Google Ads template with current suffix pattern and mappings
+      const publisherId = config.publisher_id || '2';
+      
+      // Build query params from sub_id_mapping
+      const queryParams = Object.entries(config.sub_id_mapping)
+        .filter(([_, placeholder]) => placeholder)
+        .map(([paramName, placeholder]) => `${paramName}={${placeholder}}`)
+        .join('&');
+
+      const separator = config.final_url.includes('?') ? '&' : '?';
+      const destinationUrlWithParams = `${config.final_url}${separator}${queryParams}`;
+      
+      // Build URL 2 (final destination) 
+      const url2Base = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparency=true&url=${encodeURIComponent(destinationUrlWithParams)}`;
+      const url2Encoded = encodeURIComponent(url2Base);
+      
+      // Build URL 1 (passthrough)
+      const updatedGoogleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&_cb={timestamp}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}`;
+
+      // Update pairs if they exist
+      let updatedPairs = pairsData;
+      if (pairsData && pairsData.length > 0) {
+        updatedPairs = pairsData.map(pair => {
+          const pairUrl2Base = `https://nebula.gotrackier.com/click?campaign_id=${pair.url2_campaign_id}&pub_id=${publisherId}&force_transparency=true&url=${encodeURIComponent(destinationUrlWithParams)}`;
+          const pairUrl2Encoded = encodeURIComponent(pairUrl2Base);
+          const pairTemplate = `https://nebula.gotrackier.com/click?campaign_id=${pair.url1_campaign_id}&_cb={timestamp}&pub_id=${publisherId}&force_transparent=true&url=${pairUrl2Encoded}`;
+          
+          return {
+            ...pair,
+            google_ads_template: pairTemplate,
+            url2_destination_url: destinationUrlWithParams
+          };
+        });
+        setPairsData(updatedPairs);
+      }
+      
+      // Update config
+      const updatedConfig = {
+        ...config,
+        google_ads_template: updatedGoogleAdsTemplate,
+        url2_destination_url: destinationUrlWithParams,
+        additional_pairs: updatedPairs.length > 0 ? updatedPairs : config.additional_pairs
+      };
+
+      // Save to database
+      const { data, error: updateError } = await supabase
+        .from('trackier_offers')
+        .update(updatedConfig)
+        .eq('id', config.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      setConfig(data);
+      setSuccess('✅ Templates updated successfully with current parameter mappings!');
+      
+    } catch (err: any) {
+      console.error('Error updating templates:', err);
+      setError(err.message);
+    } finally {
+      setUpdatingTemplates(false);
     }
   };
 
@@ -1556,13 +1636,23 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
               </button>
 
               {config.id && (
-                <button
-                  onClick={handleTestWebhook}
-                  disabled={testing || !config.enabled}
-                  className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                >
-                  {testing ? 'Testing...' : 'Test Update'}
-                </button>
+                <>
+                  <button
+                    onClick={handleUpdateTemplates}
+                    disabled={updatingTemplates || !config.sub_id_mapping || Object.keys(config.sub_id_mapping || {}).length === 0}
+                    className="px-6 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    title={!config.sub_id_mapping || Object.keys(config.sub_id_mapping || {}).length === 0 ? 'Please configure parameter mappings first' : 'Regenerate templates with current mappings'}
+                  >
+                    {updatingTemplates ? '⚙️ Updating...' : '🔄 Update Templates'}
+                  </button>
+                  <button
+                    onClick={handleTestWebhook}
+                    disabled={testing || !config.enabled}
+                    className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  >
+                    {testing ? 'Testing...' : 'Test Update'}
+                  </button>
+                </>
               )}
 
               <button
