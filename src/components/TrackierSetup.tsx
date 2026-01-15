@@ -1170,13 +1170,17 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                 <input
                   type="number"
                   value={config.update_interval_seconds}
-                  onChange={(e) => setConfig({ ...config, update_interval_seconds: parseInt(e.target.value) || 1 })}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    const validVal = (!isNaN(val) && val >= 1) ? val : 1;
+                    setConfig({ ...config, update_interval_seconds: validVal });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                   min="1"
                   step="1"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Update interval in seconds (1 second for fast dynamic updates)
+                  Update interval in seconds (minimum 1 second)
                 </p>
               </div>
             </div>
