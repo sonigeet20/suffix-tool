@@ -69,6 +69,7 @@ interface TrackierOffer {
   last_webhook_at?: string;
   publisher_id?: string;
   webhook_url?: string;
+  additional_pairs?: any[];
 }
 
 export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTemplate, onClose }: TrackierSetupProps) {
