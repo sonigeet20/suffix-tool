@@ -467,9 +467,14 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       if (!config.url2_campaign_id) {
         throw new Error('URL 2 Campaign ID is required');
       }
-      if (config.update_interval_seconds < 1) {
+      
+      // Ensure update_interval_seconds is a valid number >= 1
+      const updateInterval = parseInt(String(config.update_interval_seconds)) || 1;
+      if (updateInterval < 1) {
         throw new Error('Update interval must be at least 1 second');
       }
+      
+      console.log('Validating update_interval_seconds:', config.update_interval_seconds, '-> normalized to:', updateInterval);
 
       // Generate webhook URL with token parameter for offer mapping
       // Token is the offer UUID, Trackier will append {campaign_id} and {click_id}
@@ -525,12 +530,15 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         // Ensure _real fields are set (used by webhook function for API calls)
         url1_campaign_id_real: config.url1_campaign_id_real || config.url1_campaign_id,
         url2_campaign_id_real: config.url2_campaign_id_real || config.url2_campaign_id,
+        // Ensure update_interval_seconds is a valid number >= 1
+        update_interval_seconds: updateInterval,
         // Save pairsData to additional_pairs
         additional_pairs: pairsData.length > 0 ? pairsData : null,
       };
 
       console.log('Saving config with pairsData:', pairsData.length, 'pairs');
       console.log('configToSave.additional_pairs:', configToSave.additional_pairs);
+      console.log('configToSave.update_interval_seconds:', configToSave.update_interval_seconds);
 
       let result;
       if (config.id) {
