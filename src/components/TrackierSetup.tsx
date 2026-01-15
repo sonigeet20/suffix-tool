@@ -177,7 +177,11 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
           ...config,
           ...data,
           api_key: data.api_key || settingsApiKey || config.api_key,
-          sub_id_mapping: data.sub_id_mapping || config.sub_id_mapping
+          sub_id_mapping: data.sub_id_mapping || config.sub_id_mapping,
+          // Ensure update_interval_seconds is at least 1
+          update_interval_seconds: (data.update_interval_seconds && data.update_interval_seconds >= 1) 
+            ? data.update_interval_seconds 
+            : 1
         };
         setConfig(mergedConfig);
         await loadStats(data.id);
@@ -453,6 +457,9 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       }
       if (!config.url2_campaign_id) {
         throw new Error('URL 2 Campaign ID is required');
+      }
+      if (config.update_interval_seconds < 1) {
+        throw new Error('Update interval must be at least 1 second');
       }
 
       // Generate webhook URL with token parameter for offer mapping
