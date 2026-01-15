@@ -7404,3 +7404,162 @@
 {"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
 {"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1821ms"}
 {"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: US"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"SIGINT received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","max_redirects":10,"message":"⚡ Trace request:","mode":"http","url":"https://httpbin.org/redirect-to?url=https://example.com"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Browser: Fresh Luna connection (session: og0f26z7...)"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=395x837, colorDepth=32, pixelRatio=3"}
+{"level":"info","message":"📄 Browser document request #1: https://httpbin.org/redirect-to?url=https://example.com"}
+{"level":"info","message":"🔍 Browser Mode - Hop 1: referrer=null, referrerHops=null, shouldApply=null"}
+{"level":"info","message":"   📋 Current request headers Referer: NOT SET"}
+{"level":"info","message":"   ⛔ No Referer header to apply"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"📄 Browser document request #2: https://example.com/"}
+{"level":"info","message":"🔍 Browser Mode - Hop 2: referrer=null, referrerHops=null, shouldApply=null"}
+{"level":"info","message":"   📋 Current request headers Referer: NOT SET"}
+{"level":"info","message":"   ⛔ No Referer header to apply"}
+{"level":"warn","message":"⚠️ Browser navigation failed (no retry): net::ERR_CONNECTION_CLOSED at https://httpbin.org/redirect-to?url=https://example.com"}
+{"level":"info","message":"⏳ Browser: Waiting for response 2/2 before closing"}
+{"level":"info","message":"📊 Browser Mode Network Summary:\n  ├─ Document requests: 2\n  ├─ Total network clicks: 5\n  ├─ Retry attempts detected: 0\n  ├─ JS redirects detected: 0\n  ├─ Form submissions: 0\n  ├─ Request ratio (clicks/docs): 2.50x\n  └─ Duration: 9654ms"}
+{"level":"info","message":"✅ Trace completed (http): 2 steps in 10888ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","max_redirects":10,"message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://httpbin.org/redirect-to?url=https://example.com"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: jtzff2xj...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=401x844, colorDepth=32, pixelRatio=3"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://httpbin.org/redirect-to?url=https://example.com"}
+{"level":"info","message":"🔍 Anti-cloaking Mode - Hop 1: referrer=null, referrerHops=null, shouldApply=null"}
+{"level":"info","message":"   📋 Current request headers Referer: NOT SET"}
+{"level":"info","message":"   ⛔ No Referer header to apply"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 3.5s"}
+{"level":"warn","message":"⚠️ Anti-cloaking navigation failed (no retry): net::ERR_TIMED_OUT at https://httpbin.org/redirect-to?url=https://example.com"}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 4\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 4.00x\n  └─ Duration: 31401ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 1 steps in 36945ms"}
+{"level":"info","message":"🌐 Proxy IP used: 102.209.132.64 | Location: Dar es Salaam, Dar es Salaam Region, Tanzania | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"brightdata_browser","url":"https://example.com"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Bright Data Browser API mode (cloud browser with geo-targeting)"}
+{"level":"error","message":"Failed to load Bright Data API key: No enabled Bright Data Browser provider found","stack":"Error: No enabled Bright Data Browser provider found\n    at loadBrightDataApiKey (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:501:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:3239:18"}
+{"level":"error","message":"❌ Failed to load Bright Data API key:"}
+{"level":"info","message":"⚡ Trace request:","mode":"brightdata_browser","url":"https://example.com"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Bright Data Browser API mode (cloud browser with geo-targeting)"}
+{"level":"error","message":"Failed to load Bright Data API key: No enabled Bright Data Browser provider found","stack":"Error: No enabled Bright Data Browser provider found\n    at loadBrightDataApiKey (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:501:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:3239:18"}
+{"level":"error","message":"❌ Failed to load Bright Data API key:"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","max_redirects":1,"message":"⚡ Trace request:","mode":"brightdata_browser","timeout_ms":45000,"url":"https://httpbin.org/ip"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Bright Data Browser API mode (cloud browser with geo-targeting)"}
+{"level":"info","message":"✅ Loaded Bright Data API key from user provider"}
+{"level":"info","message":"🌐 Bright Data Browser: Device=mobile, viewport=375x659"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🔐 Bright Data user context set: f9a22630-9c70-4f4c-b3ac-421d1fd4ad2b"}
+{"level":"info","message":"🔄 Bright Data hop 1: https://httpbin.org/ip..."}
+{"level":"error","message":"❌ Bright Data hop 1 failed: Bright Data API error 400: {\"error\":\"Request validation failed\",\"error_code\":\"validation\",\"details\":[{\"message\":\"\\\"user_context\\\" is not allowed\",\"path\":[\"user_context\"],\"type\":\"object.unknown\",\"context\":{\"child\":\"user_context\""}
+{"level":"info","message":"✅ Bright Data Browser trace complete: 2 steps, 0 B"}
+{"level":"info","message":"✅ Trace completed (brightdata_browser): 2 steps in 3970ms | 0 B transferred"}
+{"level":"info","max_redirects":1,"message":"⚡ Trace request:","mode":"browser","timeout_ms":30000,"url":"https://httpbin.org/ip"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Browser: Fresh Luna connection (session: 88z3vagq...)"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=395x851, colorDepth=24, pixelRatio=3"}
+{"level":"info","message":"📄 Browser document request #1: https://httpbin.org/ip"}
+{"level":"info","message":"🔍 Browser Mode - Hop 1: referrer=null, referrerHops=null, shouldApply=null"}
+{"level":"info","message":"   📋 Current request headers Referer: NOT SET"}
+{"level":"info","message":"   ⛔ No Referer header to apply"}
+{"level":"info","message":"📄 Browser final URL: https://httpbin.org/ip - Downloaded: 33 bytes"}
+{"level":"info","message":"🛑 Browser: Detected final URL, closing page to save bandwidth"}
+{"level":"warn","message":"⚠️ Could not retrieve JS redirect log: Protocol error (Runtime.callFunctionOn): Target closed"}
+{"level":"info","message":"📊 Browser Mode Network Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 2\n  ├─ Retry attempts detected: 0\n  ├─ JS redirects detected: 0\n  ├─ Form submissions: 0\n  ├─ Request ratio (clicks/docs): 2.00x\n  └─ Duration: 3509ms"}
+{"level":"error","message":"Failed to close page: Protocol error: Connection closed. Most likely the page has been closed.","stack":"Error: Protocol error: Connection closed. Most likely the page has been closed.\n    at assert (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/util/assert.js:18:15)\n    at CdpPage.close (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Page.js:848:32)\n    at traceRedirectsBrowser (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:2240:18)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async Promise.all (index 0)\n    at async /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:3333:31"}
+{"level":"info","message":"✅ Trace completed (browser): 1 steps in 5059ms"}
+{"level":"info","message":"🌐 Proxy IP used: 58.147.157.74 | Location: Kabul, Kabul, Afghanistan | Selected Geo: N/A"}
+{"level":"warn","message":"⚠️ Error searching for hidden redirects: Requesting main frame too early!"}
+{"level":"info","message":"⚡ Browser: Early stop - no more redirects found"}
+{"level":"info","max_redirects":1,"message":"⚡ Trace request:","mode":"browser","timeout_ms":45000,"url":"https://httpbin.org/ip"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Browser: Fresh Luna connection (session: 99bqfkeg...)"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1373x771, colorDepth=32, pixelRatio=1.25"}
+{"level":"info","message":"📄 Browser document request #1: https://httpbin.org/ip"}
+{"level":"info","message":"🔍 Browser Mode - Hop 1: referrer=null, referrerHops=null, shouldApply=null"}
+{"level":"info","message":"   📋 Current request headers Referer: NOT SET"}
+{"level":"info","message":"   ⛔ No Referer header to apply"}
+{"level":"warn","message":"⚠️ Error searching for hidden redirects: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"⏳ Browser: Waiting for response 1/1 before closing"}
+{"level":"info","message":"📄 Browser final URL: https://httpbin.org/ip - Downloaded: 34 bytes"}
+{"level":"info","message":"🛑 Browser: Detected final URL, closing page to save bandwidth"}
+{"level":"info","message":"📊 Browser Mode Network Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 2\n  ├─ Retry attempts detected: 0\n  ├─ JS redirects detected: 0\n  ├─ Form submissions: 0\n  ├─ Request ratio (clicks/docs): 2.00x\n  └─ Duration: 9204ms"}
+{"level":"error","message":"Failed to close page: Protocol error (Target.closeTarget): No target with given id found","name":"ProtocolError","stack":"ProtocolError: Protocol error (Target.closeTarget): No target with given id found\n    at <instance_members_initializer> (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/common/CallbackRegistry.js:96:14)\n    at new Callback (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/common/CallbackRegistry.js:100:16)\n    at CallbackRegistry.create (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/common/CallbackRegistry.js:22:26)\n    at Connection._rawSend (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Connection.js:80:26)\n    at Connection.send (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Connection.js:74:21)\n    at CdpPage.close (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Page.js:854:30)\n    at traceRedirectsBrowser (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:2240:18)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async Promise.all (index 0)\n    at async /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:3333:31"}
+{"level":"info","message":"✅ Trace completed (browser): 1 steps in 10409ms"}
+{"level":"info","message":"🌐 Proxy IP used: 37.212.54.150 | Location: Minsk, Minsk City, Belarus | Selected Geo: N/A"}
+{"level":"info","max_redirects":1,"message":"⚡ Trace request:","mode":"anti_cloaking","timeout_ms":45000,"url":"https://httpbin.org/ip"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: vz0poyhe...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHT..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=372x673, colorDepth=24, pixelRatio=3"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://httpbin.org/ip"}
+{"level":"info","message":"🔍 Anti-cloaking Mode - Hop 1: referrer=null, referrerHops=null, shouldApply=null"}
+{"level":"info","message":"   📋 Current request headers Referer: NOT SET"}
+{"level":"info","message":"   ⛔ No Referer header to apply"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 3.5s"}
+{"level":"warn","message":"Script redirect detection error: Execution context was destroyed, most likely because of a navigation."}
+{"level":"info","message":"📄 Anti-cloaking final URL: https://httpbin.org/ip - Downloaded: 31 bytes"}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 2\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 2.00x\n  └─ Duration: 4038ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 1 steps in 5136ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","max_redirects":1,"message":"⚡ Trace request:","mode":"browser","target_country":"us","timeout_ms":45000,"url":"https://httpbin.org/ip"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"us"}
+{"level":"info","message":"🌍 Geo-targeting: US"}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🌍 Browser: Geo-targeting US (session: ddkbkjbk...)"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1928x1205, colorDepth=24, pixelRatio=1.25"}
+{"level":"info","message":"📄 Browser document request #1: https://httpbin.org/ip"}
+{"level":"info","message":"🔍 Browser Mode - Hop 1: referrer=null, referrerHops=null, shouldApply=null"}
+{"level":"info","message":"   📋 Current request headers Referer: NOT SET"}
+{"level":"info","message":"   ⛔ No Referer header to apply"}
+{"level":"info","message":"📄 Browser final URL: https://httpbin.org/ip - Downloaded: 32 bytes"}
+{"level":"info","message":"🛑 Browser: Detected final URL, closing page to save bandwidth"}
+{"level":"info","message":"📊 Browser Mode Network Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 2\n  ├─ Retry attempts detected: 0\n  ├─ JS redirects detected: 0\n  ├─ Form submissions: 0\n  ├─ Request ratio (clicks/docs): 2.00x\n  └─ Duration: 3267ms"}
+{"level":"error","message":"Failed to close page: Protocol error (Target.closeTarget): No target with given id found","name":"ProtocolError","stack":"ProtocolError: Protocol error (Target.closeTarget): No target with given id found\n    at <instance_members_initializer> (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/common/CallbackRegistry.js:96:14)\n    at new Callback (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/common/CallbackRegistry.js:100:16)\n    at CallbackRegistry.create (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/common/CallbackRegistry.js:22:26)\n    at Connection._rawSend (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Connection.js:80:26)\n    at Connection.send (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Connection.js:74:21)\n    at CdpPage.close (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/Page.js:854:30)\n    at traceRedirectsBrowser (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:2240:18)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async Promise.all (index 0)\n    at async /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:3333:31"}
+{"level":"info","message":"✅ Trace completed (browser): 1 steps in 3942ms"}
+{"level":"info","message":"🌐 Proxy IP used: 45.49.35.155 | Location: Los Angeles, California, United States | Selected Geo: US"}
+{"level":"warn","message":"⚠️ Error searching for hidden redirects: Requesting main frame too early!"}
+{"level":"info","message":"⚡ Browser: Early stop - no more redirects found"}

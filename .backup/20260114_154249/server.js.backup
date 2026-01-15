@@ -13,7 +13,6 @@ const { createClient } = require('@supabase/supabase-js');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const { traceRedirectsInteractive } = require('./trace-interactive');
 const GeoRotator = require('./lib/geo-rotator');
-const { getProxyProviderForOffer } = require('./lib/proxy-providers-handler');
 const dns = require('dns').promises;
 require('dotenv').config();
 
@@ -69,11 +68,9 @@ app.use(express.json({ limit: '10mb' }));
 const trackierRoutes = require('./routes/trackier-webhook');
 const trackierTraceRoutes = require('./routes/trackier-trace');
 const trackierPollingRoutes = require('./routes/trackier-polling');
-const trackierPairManagement = require('./routes/trackier-pair-management');
 app.use('/api', trackierRoutes);
 app.use('/api', trackierTraceRoutes);
 app.use('/api', trackierPollingRoutes);
-app.use('/api', trackierPairManagement);
 
 // Utility function to convert bytes to human-readable format
 function formatBytes(bytes) {
@@ -1177,9 +1174,15 @@ async function traceRedirectsBrightDataBrowser(url, options = {}) {
       payload.country = targetCountry.toLowerCase();
     }
 
-    // Log user_context for tracking but DON'T send to Bright Data API (not supported)
+    // CRITICAL: Add user_context to fix "user context" error
     if (userContext && userContext.user_id) {
-      logger.info(`🔐 User context tracked: ${userContext.user_id} (session: ${userContext.session_id || 'none'})`);
+      payload.user_context = {
+        user_id: userContext.user_id,
+        account_id: userContext.account_id || userContext.user_id,
+        session_id: userContext.session_id || `session-${Date.now()}`,
+        provider_id: userContext.provider_id,
+      };
+      logger.info(`🔐 Bright Data user context set: ${userContext.user_id}`);
     }
 
     // Apply fingerprint-matched headers
@@ -1384,7 +1387,6 @@ async function traceRedirectsBrowser(url, options = {}) {
     suffixStep = null,
     extractFromLocationHeader = false,
     locationExtractHop = null,
-    proxySettings: customProxySettings = null, // NEW: Accept custom proxy settings
   } = options;
 
   const chain = [];
@@ -1397,17 +1399,15 @@ async function traceRedirectsBrowser(url, options = {}) {
     traceBrowser = await initBrowser(true);
     page = await traceBrowser.newPage();
 
-    // Use custom proxy settings if provided, otherwise fall back to global
-    const activeProxy = customProxySettings || proxySettings;
-    if (!activeProxy) {
+    if (!proxySettings) {
       await loadProxySettings();
     }
 
     // CRITICAL: Generate UNIQUE random ID per trace to force fresh Luna connection
     // This matches HTTP-only's approach: new agent/credentials = new IP
     const traceSessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    let proxyUsername = buildProxyUsername(activeProxy.username, targetCountry || null);
-    const proxyPassword = activeProxy.password;
+    let proxyUsername = buildProxyUsername(proxySettings.username, targetCountry || null);
+    const proxyPassword = proxySettings.password;
 
     // Apply geo-targeting via Luna region parameter
     if (targetCountry && targetCountry.length === 2) {
@@ -3148,19 +3148,6 @@ app.post('/trace', async (req, res) => {
       return res.status(400).json({ error: 'URL is required' });
     }
 
-    // ✅ PROXY PROVIDER SELECTION: Check if user has configured a specific provider for this offer
-    let selectedProvider = null;
-    if (user_id && offer_id) {
-      try {
-        selectedProvider = await getProxyProviderForOffer(supabase, user_id, offer_id, 'luna');
-        if (selectedProvider && selectedProvider.success) {
-          logger.info(`🎯 Provider selected for offer: ${selectedProvider.name} (${selectedProvider.provider_type})`);
-        }
-      } catch (providerErr) {
-        logger.warn(`⚠️ Failed to load provider for offer: ${providerErr.message}`);
-      }
-    }
-
     // Debug logging for referrer_hops
     if (referrer) {
       logger.info(`🔗 Trace request received - referrer: ${referrer}, referrer_hops: ${JSON.stringify(referrer_hops)}`);
@@ -3183,36 +3170,6 @@ app.post('/trace', async (req, res) => {
 
     if (!proxySettings) {
       await loadProxySettings();
-    }
-
-    // ✅ OVERRIDE PROXY SETTINGS: If provider selected, use its credentials
-    let activeProxySettings = { ...proxySettings };
-    if (selectedProvider && selectedProvider.success) {
-      if (selectedProvider.provider_type === 'luna') {
-        activeProxySettings = {
-          username: selectedProvider.username,
-          password: selectedProvider.password,
-          host: selectedProvider.host || 'geo.lunaproxy.net',
-          port: selectedProvider.port || 8080,
-        };
-        logger.info(`🔧 Using Luna provider credentials: ${selectedProvider.name}`);
-      } else if (selectedProvider.provider_type === 'brightdata') {
-        activeProxySettings = {
-          username: selectedProvider.username,
-          password: selectedProvider.password,
-          host: selectedProvider.host || 'brd.superproxy.io',
-          port: selectedProvider.port || 22225,
-        };
-        logger.info(`🔧 Using Bright Data datacenter credentials: ${selectedProvider.name}`);
-      } else if (selectedProvider.provider_type === 'brightdata_residential') {
-        activeProxySettings = {
-          username: selectedProvider.username,
-          password: selectedProvider.password,
-          host: selectedProvider.host || 'brd.superproxy.io',
-          port: selectedProvider.port || 22225,
-        };
-        logger.info(`🔧 Using Bright Data residential credentials: ${selectedProvider.name}`);
-      }
     }
 
     const normalizeCountry = (c) => {
@@ -3248,12 +3205,12 @@ app.post('/trace', async (req, res) => {
       geo_pool_size: sanitizedPool.length,
     });
 
-    const geoUsername = buildProxyUsername(proxy_ip || activeProxySettings.username, selectedCountry || null, !!proxy_ip);
+    const geoUsername = buildProxyUsername(proxy_ip || proxySettings.username, selectedCountry || null, !!proxy_ip);
     if (selectedCountry) {
       logger.info(`🌍 Geo-targeting: ${selectedCountry.toUpperCase()}`);
     }
 
-    const geoPromise = fetchGeolocation(geoUsername, activeProxySettings.password);
+    const geoPromise = fetchGeolocation(geoUsername, proxySettings.password);
 
     let tracePromise;
     if (mode === 'http_only') {
@@ -3267,7 +3224,6 @@ app.post('/trace', async (req, res) => {
         referrerHops: referrer_hops || null,
         proxyIp: proxy_ip || null,
         proxyPort: proxy_port || null,
-        proxySettings: activeProxySettings,
         extractFromLocationHeader: false,
         locationExtractHop: null,
         expectedFinalUrl: expected_final_url || null,
@@ -3371,7 +3327,6 @@ app.post('/trace', async (req, res) => {
         suffixStep: suffix_step || null,
         extractFromLocationHeader: extract_from_location_header || false,
         locationExtractHop: normalizedLocationExtractHop || null,
-        proxySettings: activeProxySettings, // NEW: Pass selected provider credentials
       });
     }
 

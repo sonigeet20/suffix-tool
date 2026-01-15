@@ -882,10 +882,17 @@ Deno.serve(async (req: Request) => {
     // If tracer_mode explicitly requests Bright Data Browser, try to find a provider and short-circuit AWS
     if (tracer_mode === "brightdata_browser") {
       if (!effectiveUserId) {
-        console.log("⚠️ Bright Data Browser mode without user_id - falling back to AWS proxy");
-        // Fall back to AWS proxy service which will handle provider selection
-        // Don't return error - let it continue to AWS proxy flow below
-      } else {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Bright Data Browser tracer requires user context",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
 
       try {
         console.log("🔍 Looking up Bright Data Browser provider for user");
@@ -1000,7 +1007,6 @@ Deno.serve(async (req: Request) => {
           },
         );
       }
-      } // Close else block for effectiveUserId check
     }
 
     if (awsProxyUrl) {

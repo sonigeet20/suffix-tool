@@ -260,21 +260,61 @@ router.post('/trackier-webhook', async (req, res) => {
         return;
       }
 
-      // Find trackier offer by token (which is the offer ID)
-      const { data: trackierOffer, error: findError } = await supabase
+      // Multi-route webhook resolution (backwards compatible with edge function)
+      let trackierOffer = null;
+      let activePair = null;
+      let pairIndex = 1;
+
+      // ROUTE 1: Token matches offer ID (LEGACY single-pair)
+      console.log('[Trackier Webhook] Route 1: Checking if token is offer ID...');
+      const { data: offerById, error: offerError } = await supabase
         .from('trackier_offers')
         .select('*')
         .eq('id', token)
         .eq('enabled', true)
         .single();
+      
+      if (offerById && !offerError) {
+        trackierOffer = offerById;
+        // Extract pair 1 from additional_pairs if exists
+        if (offerById.additional_pairs && offerById.additional_pairs.length > 0) {
+          activePair = offerById.additional_pairs[0];
+          pairIndex = 1;
+        }
+        console.log(`[Trackier Webhook] ✅ Route 1: Found legacy offer ${offerById.offer_name}`);
+      }
 
-      if (findError || !trackierOffer) {
+      // ROUTE 2: Token matches pair webhook_token (NEW multi-pair)
+      if (!trackierOffer) {
+        console.log('[Trackier Webhook] Route 2: Searching for pair webhook_token...');
+        const { data: allOffers } = await supabase
+          .from('trackier_offers')
+          .select('*')
+          .eq('enabled', true);
+        
+        // Search for matching webhook_token in additional_pairs
+        for (const offer of allOffers || []) {
+          if (offer.additional_pairs && Array.isArray(offer.additional_pairs)) {
+            const pair = offer.additional_pairs.find(
+              p => p.webhook_token === token && p.enabled !== false
+            );
+            if (pair) {
+              trackierOffer = offer;
+              activePair = pair;
+              pairIndex = pair.pair_index;
+              console.log(`[Trackier Webhook] ✅ Route 2: Found pair ${pairIndex} for offer ${offer.offer_name}`);
+              break;
+            }
+          }
+        }
+      }
+
+      if (!trackierOffer) {
         console.error('[Trackier Webhook] No active Trackier offer found for token:', token);
-        console.error('[Trackier Webhook] Error:', findError);
         return;
       }
 
-      console.log(`[Trackier Webhook] Found offer: ${trackierOffer.offer_name} (ID: ${trackierOffer.id})`);
+      console.log(`[Trackier Webhook] Found offer: ${trackierOffer.offer_name} (Pair ${pairIndex})`);
 
       // Merge query parameters with payload body (query params take precedence for Trackier macros)
       const fullPayload = {
@@ -302,6 +342,8 @@ router.post('/trackier-webhook', async (req, res) => {
           os: queryParams.os || payload.os || null,
           browser: queryParams.browser || payload.browser || null,
           payload: fullPayload,
+          pair_index: pairIndex,
+          pair_webhook_token: token,
           processed: false,
           queued_for_update: false
         })
@@ -366,10 +408,11 @@ router.post('/trackier-webhook', async (req, res) => {
  * 2. Update Trackier URL 2 via API
  * 3. Log results
  */
-async function processTrackierUpdate(trackierOffer, webhookLogId) {
+async function processTrackierUpdate(trackierOffer, webhookLogId, pairConfig = null) {
   const startTime = Date.now();
   
-  console.log(`[Trackier Update] Starting for offer: ${trackierOffer.offer_name}`);
+  const pairInfo = pairConfig ? `pair ${pairConfig.pairIndex}` : 'legacy mode';
+  console.log(`[Trackier Update] Starting for offer: ${trackierOffer.offer_name} (${pairInfo})`);
 
   let traced_suffix = null;
   let traced_url = null;
@@ -466,32 +509,63 @@ async function processTrackierUpdate(trackierOffer, webhookLogId) {
     const subIdValues = mapParamsToSubIds(suffixParams, subIdMapping);
     console.log(`[Trackier Update] Mapped to sub_id values:`, subIdValues);
 
-    // Step 4: Update database with sub_id values (NO Trackier API call needed!)
-    await supabase
-      .from('trackier_offers')
-      .update({
-        sub_id_values: subIdValues, // Store sub_id values for URL 2 generation
-        url2_last_suffix: traced_suffix,
-        url2_last_updated_at: new Date().toISOString(),
-        update_count: (trackierOffer.update_count || 0) + 1,
-        last_update_duration_ms: Date.now() - startTime,
-        total_update_time_ms: (trackierOffer.total_update_time_ms || 0) + (Date.now() - startTime),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', trackierOffer.id);
+    // Step 4: Update database with sub_id values (pair-specific or legacy)
+    if (pairConfig && pairConfig.isAdditionalPair) {
+      // Update specific pair in additional_pairs array
+      console.log(`[Trackier Update] Updating pair ${pairConfig.pairIndex} in additional_pairs array`);
+      const { error: pairUpdateError } = await supabase.rpc('update_trackier_pair_stats', {
+        p_offer_id: trackierOffer.id,
+        p_pair_idx: pairConfig.pairIndex - 1, // Array is 0-indexed
+        p_new_sub_id_values: subIdValues,
+        p_trace_duration: trace_duration_ms,
+        p_update_duration: Date.now() - startTime
+      });
+      
+      if (pairUpdateError) {
+        console.error('[Trackier Update] Failed to update pair stats:', pairUpdateError);
+      }
+    } else {
+      // Update legacy top-level columns
+      console.log('[Trackier Update] Updating legacy offer columns');
+      await supabase
+        .from('trackier_offers')
+        .update({
+          sub_id_values: subIdValues,
+          url2_last_suffix: traced_suffix,
+          url2_last_updated_at: new Date().toISOString(),
+          update_count: (trackierOffer.update_count || 0) + 1,
+          last_update_duration_ms: Date.now() - startTime,
+          total_update_time_ms: (trackierOffer.total_update_time_ms || 0) + (Date.now() - startTime),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', trackierOffer.id);
+      
+      // Also update pair 1 in additional_pairs if it exists
+      if (trackierOffer.additional_pairs && trackierOffer.additional_pairs.length > 0) {
+        await supabase.rpc('update_trackier_pair_stats', {
+          p_offer_id: trackierOffer.id,
+          p_pair_idx: 0,
+          p_new_sub_id_values: subIdValues,
+          p_trace_duration: trace_duration_ms,
+          p_update_duration: Date.now() - startTime
+        });
+      }
+    }
 
-    console.log(`[Trackier Update] ✅ sub_id values stored in database`);
+    console.log(`[Trackier Update] ✅ sub_id values stored in database (${pairInfo})`);
 
-    // Step 5: Update Campaign 309 with subIdOverride
+    // Step 5: Update Campaign with subIdOverride (pair-specific or legacy)
+    const targetCampaignId = pairConfig?.url2_campaign_id_real || trackierOffer.url2_campaign_id_real;
+    
     try {
-      console.log(`[Trackier Update] Calling Trackier API to update Campaign ${trackierOffer.url2_campaign_id} with subIdOverride`);
+      console.log(`[Trackier Update] Calling Trackier API to update Campaign ${targetCampaignId} with subIdOverride (${pairInfo})`);
       
       // Call Trackier API with subIdOverride
-      await updateTrackierCampaignSubIds(trackierOffer, trackierOffer.url2_campaign_id, subIdValues);
+      await updateTrackierCampaignSubIds(trackierOffer, targetCampaignId, subIdValues);
       
-      console.log(`[Trackier Update] ✅ Campaign ${trackierOffer.url2_campaign_id} updated with subIdOverride`);
+      console.log(`[Trackier Update] ✅ Campaign ${targetCampaignId} updated with subIdOverride`);
     } catch (apiError) {
-      console.error(`[Trackier Update] ⚠️ Failed to update Campaign 309 subIdOverride:`, apiError);
+      console.error(`[Trackier Update] ⚠️ Failed to update Campaign ${targetCampaignId} subIdOverride:`, apiError);
       // Continue anyway - parameters are stored in sub_id_values
     }
 
@@ -1026,7 +1100,8 @@ router.post('/trackier-create-campaigns', async (req, res) => {
       finalUrl,
       webhookUrl,
       publisherId = '2', // Default publisher ID
-      subIdMapping = null // Optional: custom sub_id mapping
+      subIdMapping = null, // Optional: custom sub_id mapping
+      campaign_count = 1 // NEW: Number of campaign pairs to create
     } = req.body;
 
     // Validate required fields
@@ -1043,7 +1118,13 @@ router.post('/trackier-create-campaigns', async (req, res) => {
       return res.status(400).json({ error: 'Advertiser ID is required' });
     }
 
-    console.log(`[Trackier Create] Creating campaigns for: ${offerName}`);
+    // Validate campaign_count
+    const campaignCount = parseInt(campaign_count) || 1;
+    if (campaignCount < 1 || campaignCount > 20) {
+      return res.status(400).json({ error: 'campaign_count must be between 1 and 20' });
+    }
+
+    console.log(`[Trackier Create] Creating ${campaignCount} campaign pair(s) for: ${offerName}`);
 
     // Generate sub_id_mapping (use provided or default)
     const finalSubIdMapping = subIdMapping || {
@@ -1063,158 +1144,214 @@ router.post('/trackier-create-campaigns', async (req, res) => {
     const destinationUrl = buildDestinationUrlWithMacros(finalUrl, finalSubIdMapping);
     console.log(`[Trackier Create] Destination URL with macros: ${destinationUrl}`);
 
-    // Step 1: Create URL 2 (Final Campaign) first with sub_id macros
-    console.log('[Trackier Create] Creating URL 2 (Final Campaign) with sub_id macros...');
-    
-    const url2Response = await fetch(`${apiBaseUrl}/v2/campaigns`, {
-      method: 'POST',
+    // Array to store all created pairs
+    const allPairs = [];
+
+    // Loop to create N campaign pairs
+    for (let i = 0; i < campaignCount; i++) {
+      const pairIndex = i + 1;
+      const pairName = `Pair ${pairIndex}`;
+      
+      // Generate unique webhook token for this pair
+      const { randomUUID } = require('crypto');
+      const pairWebhookToken = randomUUID();
+      
+      console.log(`[Trackier Create] Creating ${pairName} (${i + 1}/${campaignCount})...`);
+
+      // Step 1: Create URL 2 (Final Campaign) first with sub_id macros
+      console.log(`[Trackier Create] Creating URL 2 for ${pairName}...`);
+      
+      const url2Response = await fetch(`${apiBaseUrl}/v2/campaigns`, {
+        method: 'POST',
       headers: {
         'X-Api-Key': apiKey,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        title: `${offerName} - Final (URL 2)`,
-        url: destinationUrl, // Use destination with sub_id macros
-        status: 'active',
-        advertiserId: parseInt(advertiserId),
-        currency: 'USD',
-        device: 'all',
-        convTracking: 'iframe_https',
-        convTrackingDomain: 'nebula.gotrackier.com',
-        payouts: [{
+        body: JSON.stringify({
+          title: `${offerName} - ${pairName} - Final (URL 2)`,
+          url: destinationUrl,
+          status: 'active',
+          advertiserId: parseInt(advertiserId),
           currency: 'USD',
-          revenue: 0,
-          payout: 0,
-          geo: ['ALL']
-        }],
-        description: `Auto-created final campaign for ${offerName}. Uses sub_id macros for real-time parameter passthrough (no cache delay).`
-      })
-    });
+          device: 'all',
+          convTracking: 'iframe_https',
+          convTrackingDomain: 'nebula.gotrackier.com',
+          payouts: [{
+            currency: 'USD',
+            revenue: 0,
+            payout: 0,
+            geo: ['ALL']
+          }],
+          description: `Auto-created final campaign for ${offerName} ${pairName}. Uses sub_id macros for real-time parameter passthrough.`
+        })
+      });
 
-    if (!url2Response.ok) {
-      const errorText = await url2Response.text();
-      throw new Error(`Failed to create URL 2 campaign: ${url2Response.status} - ${errorText}`);
+      if (!url2Response.ok) {
+        const errorText = await url2Response.text();
+        throw new Error(`Failed to create URL 2 campaign for ${pairName}: ${url2Response.status} - ${errorText}`);
+      }
+
+      const url2Data = await url2Response.json();
+      const url2CampaignId = url2Data.campaign?.id || url2Data.id;
+      
+      // Fetch campaign details to get display ID
+      const url2DetailsResponse = await fetch(`${apiBaseUrl}/v2/campaigns/${url2CampaignId}`, {
+        method: 'GET',
+        headers: {
+          'X-Api-Key': apiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+      const url2Details = url2DetailsResponse.ok ? await url2DetailsResponse.json() : {};
+      const url2DisplayId = url2Details.campaign?.campaignNo || url2CampaignId;
+      
+      const url2TrackingLink = `https://nebula.gotrackier.com/click?campaign_id=${url2CampaignId}&pub_id=2`;
+
+      console.log(`[Trackier Create] ✓ URL 2 created for ${pairName}: ${url2CampaignId} (Display: ${url2DisplayId})`);
+
+      // Step 2: Create URL 1 (Passthrough Campaign)
+      console.log(`[Trackier Create] Creating URL 1 for ${pairName}...`);
+
+      const url1Response = await fetch(`${apiBaseUrl}/v2/campaigns`, {
+        method: 'POST',
+        headers: {
+          'X-Api-Key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: `${offerName} - ${pairName} - Passthrough (URL 1)`,
+          url: destinationUrl,
+          status: 'active',
+          advertiserId: parseInt(advertiserId),
+          currency: 'USD',
+          device: 'all',
+          convTracking: 'postback',
+          convTrackingDomain: 'nebula.gotrackier.com',
+          payouts: [{
+            currency: 'USD',
+            revenue: 0,
+            payout: 0,
+            geo: ['ALL']
+          }],
+          description: `Auto-created passthrough campaign for ${offerName} ${pairName}. Webhook token: ${pairWebhookToken}`
+        })
+      });
+
+      if (!url1Response.ok) {
+        const errorText = await url1Response.text();
+        throw new Error(`Failed to create URL 1 campaign for ${pairName}: ${url1Response.status} - ${errorText}`);
+      }
+
+      const url1Data = await url1Response.json();
+      const url1CampaignId = url1Data.campaign?.id || url1Data.id;
+      
+      // Fetch campaign details to get display ID
+      const url1DetailsResponse = await fetch(`${apiBaseUrl}/v2/campaigns/${url1CampaignId}`, {
+        method: 'GET',
+        headers: {
+          'X-Api-Key': apiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+      const url1Details = url1DetailsResponse.ok ? await url1DetailsResponse.json() : {};
+      const url1DisplayId = url1Details.campaign?.campaignNo || url1CampaignId;
+      
+      const url1TrackingLink = `https://nebula.gotrackier.com/click?campaign_id=${url1CampaignId}&pub_id=${publisherId}`;
+
+      console.log(`[Trackier Create] ✓ URL 1 created for ${pairName}: ${url1CampaignId} (Display: ${url1DisplayId})`);
+
+      // Step 3: Build pair-specific webhook URL with unique token
+      const pairWebhookUrl = `https://rfhuqenntxiqurplenjn.supabase.co/functions/v1/trackier-webhook?token=${pairWebhookToken}&campaign_id={campaign_id}&click_id={click_id}`;
+
+      // Step 4: Generate Google Ads tracking template for this pair
+      const googleAdsTemplate = generateGoogleAdsTemplate(url1CampaignId, url2CampaignId, destinationUrl, publisherId);
+
+      // Store pair data
+      const pairData = {
+        pair_index: pairIndex,
+        pair_name: pairName,
+        webhook_token: pairWebhookToken,
+        url1_campaign_id: url1DisplayId,
+        url1_campaign_id_real: url1CampaignId,
+        url1_campaign_name: `${offerName} - ${pairName} - Passthrough (URL 1)`,
+        url1_tracking_url: url1TrackingLink,
+        url2_campaign_id: url2DisplayId,
+        url2_campaign_id_real: url2CampaignId,
+        url2_campaign_name: `${offerName} - ${pairName} - Final (URL 2)`,
+        url2_tracking_url: url2TrackingLink,
+        webhook_url: pairWebhookUrl,
+        google_ads_template: googleAdsTemplate,
+        sub_id_values: {},
+        enabled: true,
+        webhook_count: 0,
+        update_count: 0,
+        last_webhook_at: null,
+        last_update_duration_ms: null,
+        created_at: new Date().toISOString()
+      };
+
+      allPairs.push(pairData);
+
+      console.log(`[Trackier Create] ✅ ${pairName} complete! Webhook token: ${pairWebhookToken}`);
+
+      // Add delay between pairs to avoid rate limiting (except for last pair)
+      if (i < campaignCount - 1) {
+        console.log('[Trackier Create] Waiting 500ms before next pair...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
 
-    const url2Data = await url2Response.json();
-    const url2CampaignId = url2Data.campaign?.id || url2Data.id;
-    
-    // Fetch campaign details to get display ID
-    const url2DetailsResponse = await fetch(`${apiBaseUrl}/v2/campaigns/${url2CampaignId}`, {
-      method: 'GET',
-      headers: {
-        'X-Api-Key': apiKey,
-        'Content-Type': 'application/json'
-      }
-    });
-    const url2Details = url2DetailsResponse.ok ? await url2DetailsResponse.json() : {};
-    const url2DisplayId = url2Details.campaign?.campaignNo || url2CampaignId;
-    
-    const url2TrackingLink = `https://nebula.gotrackier.com/click?campaign_id=${url2CampaignId}&pub_id=2`;
+    console.log(`[Trackier Create] ✅ All ${campaignCount} pairs created successfully!`);
 
-    console.log(`[Trackier Create] ✓ URL 2 created with ID: ${url2CampaignId} (Display: ${url2DisplayId})`);
-
-    // Step 2: Create URL 1 (Passthrough Campaign) - also uses same destination with macros
-    console.log('[Trackier Create] Creating URL 1 (Passthrough Campaign)...');
-
-    const url1Response = await fetch(`${apiBaseUrl}/v2/campaigns`, {
-      method: 'POST',
-      headers: {
-        'X-Api-Key': apiKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        title: `${offerName} - Passthrough (URL 1)`,
-        url: destinationUrl, // Same destination with sub_id macros
-        status: 'active',
-        advertiserId: parseInt(advertiserId),
-        currency: 'USD',
-        device: 'all',
-        convTracking: 'postback',
-        convTrackingDomain: 'nebula.gotrackier.com',
-        payouts: [{
-          currency: 'USD',
-          revenue: 0,
-          payout: 0,
-          geo: ['ALL']
-        }],
-        description: `Auto-created passthrough campaign for ${offerName}. ⚠️ IMPORTANT: Manually configure S2S Push URL in Trackier dashboard: ${webhookUrl}`
-      })
-    });
-
-    if (!url1Response.ok) {
-      const errorText = await url1Response.text();
-      throw new Error(`Failed to create URL 1 campaign: ${url1Response.status} - ${errorText}`);
-    }
-
-    const url1Data = await url1Response.json();
-    const url1CampaignId = url1Data.campaign?.id || url1Data.id;
-    
-    // Fetch campaign details to get display ID
-    const url1DetailsResponse = await fetch(`${apiBaseUrl}/v2/campaigns/${url1CampaignId}`, {
-      method: 'GET',
-      headers: {
-        'X-Api-Key': apiKey,
-        'Content-Type': 'application/json'
-      }
-    });
-    const url1Details = url1DetailsResponse.ok ? await url1DetailsResponse.json() : {};
-    const url1DisplayId = url1Details.campaign?.campaignNo || url1CampaignId;
-    
-    const url1TrackingLink = `https://nebula.gotrackier.com/click?campaign_id=${url1CampaignId}&pub_id=${publisherId}`;
-
-    console.log(`[Trackier Create] ✓ URL 1 created with ID: ${url1CampaignId} (Display: ${url1DisplayId})`);
-
-    // Step 3: Generate Google Ads tracking template with nested URL format
-    // Use destinationUrl (with parameter placeholders) instead of finalUrl
-    const googleAdsTemplate = generateGoogleAdsTemplate(url1CampaignId, url2CampaignId, destinationUrl, publisherId);
-
-    // Return campaign details with both display and real IDs
+    // Return campaign details
     res.json({
       success: true,
-      message: 'Campaigns created successfully (with sub_id macros for real-time updates)',
-      url1_campaign_id: url1DisplayId,
-      url1_campaign_id_real: url1CampaignId,
-      url2_campaign_id: url2DisplayId,
-      url2_campaign_id_real: url2CampaignId,
-      url1_tracking_url: url1TrackingLink,
-      url2_tracking_url: url2TrackingLink,
+      message: `Created ${campaignCount} campaign pair(s) successfully with sub_id macros for real-time updates`,
+      campaign_count: campaignCount,
+      pairs: allPairs,
+      primary_pair: allPairs[0], // First pair for backwards compatibility
+      // Legacy fields for backwards compatibility (from first pair)
+      url1_campaign_id: allPairs[0].url1_campaign_id,
+      url1_campaign_id_real: allPairs[0].url1_campaign_id_real,
+      url2_campaign_id: allPairs[0].url2_campaign_id,
+      url2_campaign_id_real: allPairs[0].url2_campaign_id_real,
+      url1_tracking_url: allPairs[0].url1_tracking_url,
+      url2_tracking_url: allPairs[0].url2_tracking_url,
       url2_destination_url: destinationUrl,
-      webhook_url: webhookUrl,
+      webhook_url: allPairs[0].webhook_url,
       sub_id_mapping: finalSubIdMapping,
       destination_url: destinationUrl,
+      googleAdsTemplate: allPairs[0].google_ads_template,
       campaigns: {
         url1: {
-          id: url1CampaignId,
-          name: `${offerName} - Passthrough (URL 1)`,
-          tracking_link: url1TrackingLink,
+          id: allPairs[0].url1_campaign_id_real,
+          name: allPairs[0].url1_campaign_name,
+          tracking_link: allPairs[0].url1_tracking_url,
           destination: destinationUrl,
           purpose: 'Fires webhook, uses sub_id macros for real-time parameter resolution'
         },
         url2: {
-          id: url2CampaignId,
-          name: `${offerName} - Final (URL 2)`,
-          tracking_link: url2TrackingLink,
+          id: allPairs[0].url2_campaign_id_real,
+          name: allPairs[0].url2_campaign_name,
+          tracking_link: allPairs[0].url2_tracking_url,
           destination: destinationUrl,
           purpose: 'Receives traced suffix values via sub_id parameters, resolves macros in real-time'
         }
       },
-      googleAdsTemplate: googleAdsTemplate,
-      note: 'Campaigns use sub_id macros for real-time parameter passthrough (no cache delay)',
+      note: `Created ${campaignCount} campaign pair(s). Each pair has unique webhook token for independent routing.`,
       how_it_works: {
-        step1: 'User clicks URL 1, webhook fires',
-        step2: 'Backend traces suffix and extracts parameters (gclid, fbclid, etc.)',
-        step3: 'Parameters mapped to sub_id values based on sub_id_mapping',
-        step4: 'URL 2 constructed with sub_id parameters: ...&sub1=value&sub2=value',
-        step5: 'Trackier resolves macros {sub1}, {sub2} in real-time (no cache)',
-        result: 'User gets fresh traced parameters instantly'
+        step1: 'User clicks URL 1, webhook fires with unique token',
+        step2: 'Webhook routes to specific pair based on token',
+        step3: 'Backend traces suffix and extracts parameters (gclid, fbclid, etc.)',
+        step4: 'Parameters mapped to sub_id values for that specific pair',
+        step5: 'Only that pair\'s URL 2 gets updated via Trackier API',
+        result: 'Each pair operates independently with fresh traced parameters'
       },
       setup: {
-        nextStep: 'Use the Google Ads template in your campaign settings',
-        webhook: webhookUrl,
-        s2sPushUrl: webhookUrl,
-        s2sInstructions: '⚠️ IMPORTANT: Go to Trackier dashboard → Edit URL 1 campaign → Server Side Clicks section → Set S2S Push URL to the webhook URL above',
-        updateInterval: 'Real-time via sub_id parameters (no delay)'
+        nextStep: `Configure S2S Push URL for each URL 1 campaign in Trackier dashboard`,
+        s2sInstructions: '⚠️ IMPORTANT: For each pair, go to Trackier dashboard → Edit URL 1 campaign → Server Side Clicks section → Set S2S Push URL to that pair\'s webhook_url',
+        updateInterval: 'Real-time via sub_id parameters (no delay)',
+        multi_pair_note: `Each pair has unique webhook URL - configure separately for independent operation`
       }
     });
 

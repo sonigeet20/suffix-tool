@@ -1,0 +1,186 @@
+╔═══════════════════════════════════════════════════════════════╗
+║     DEPLOYMENT QUICK REFERENCE - Bright Data Fix             ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📅 Date: January 14, 2026
+🎯 Strategy: Incremental with rollback at each step
+⏱️  Total Time: ~75 minutes
+🔄 Rollback: Available at every phase
+
+═══════════════════════════════════════════════════════════════
+🚀 AUTOMATED DEPLOYMENT (RECOMMENDED)
+═══════════════════════════════════════════════════════════════
+
+cd /Users/geetsoni/Downloads/suffix-tool-main\ 2
+./deploy-incremental.sh
+
+This script will:
+✓ Create backups automatically
+✓ Deploy Supabase edge function with --no-verify-jwt
+✓ Test on single instance first (44.193.24.197)
+✓ Run 10-minute soak test
+✓ Deploy to remaining instances only if test passes
+✓ Validate all components
+✓ Stop at any failure with instructions
+
+═══════════════════════════════════════════════════════════════
+📖 MANUAL DEPLOYMENT (Step-by-step)
+═══════════════════════════════════════════════════════════════
+
+Follow: INCREMENTAL-DEPLOYMENT.md
+
+Key Phases:
+1. Backup & Preparation (5 min)
+2. Supabase Edge Function (5 min) - with --no-verify-jwt
+3. Test Instance Validation (20 min)
+4. Remaining Instances (15 min)
+5. Monitoring (30 min)
+
+═══════════════════════════════════════════════════════════════
+🔴 EMERGENCY ROLLBACK
+═══════════════════════════════════════════════════════════════
+
+SUPABASE:
+cd /Users/geetsoni/Downloads/suffix-tool-main\ 2
+git checkout HEAD~1 supabase/functions/trace-redirects/index.ts
+supabase functions deploy trace-redirects \
+  --project-id rfhuqenntxiqurplenjn --no-verify-jwt
+
+AWS EC2 (per instance):
+ssh -i suffix-server.pem ec2-user@44.193.24.197
+cd suffix-tool && git checkout HEAD~1
+pm2 restart proxy-service
+
+Full rollback guide: ROLLBACK-PLAN.md
+
+═══════════════════════════════════════════════════════════════
+🧪 CRITICAL TESTS
+═══════════════════════════════════════════════════════════════
+
+Edge Function:
+curl -X POST https://rfhuqenntxiqurplenjn.supabase.co/functions/v1/trace-redirects \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://httpbin.org/ip","mode":"http","max_redirects":5}' | jq .
+
+EC2 Health:
+ssh -i suffix-server.pem ec2-user@44.193.24.197 \
+  "curl http://localhost:3000/health | jq .status"
+
+Bright Data Fix Verification:
+curl -X POST https://rfhuqenntxiqurplenjn.supabase.co/functions/v1/trace-redirects \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://httpbin.org/ip","mode":"brightdata_browser","user_id":"test","offer_id":"test"}' \
+  | jq .error
+
+Expected: "No enabled Bright Data Browser provider found"
+NOT: "requires user context" (would mean fix failed)
+
+═══════════════════════════════════════════════════════════════
+✅ SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════
+
+✓ Supabase edge function deployed with --no-verify-jwt
+✓ All 3 EC2 instances healthy
+✓ HTTP mode working
+✓ Browser mode working (Luna proxy)
+✓ Bright Data error changed (fix verified)
+✓ No critical errors in logs
+✓ 10-minute soak test passed
+✓ Error rate stable
+✓ Response times normal
+
+═══════════════════════════════════════════════════════════════
+⚠️  STOP DEPLOYMENT IF
+═══════════════════════════════════════════════════════════════
+
+❌ Edge function returns 500 errors
+❌ PM2 service crashes
+❌ Health check fails
+❌ Error rate increases >50%
+❌ Test instance shows critical errors
+❌ Proxy connections fail
+
+→ Execute immediate rollback (see ROLLBACK-PLAN.md)
+
+═══════════════════════════════════════════════════════════════
+📊 POST-DEPLOYMENT MONITORING
+═══════════════════════════════════════════════════════════════
+
+Monitor for 24 hours:
+
+Error Logs:
+ssh -i suffix-server.pem ec2-user@44.193.24.197
+pm2 logs proxy-service --lines 100 | grep -i error
+
+Proxy IPs:
+pm2 logs proxy-service --lines 100 | grep "Proxy IP used"
+
+Health Status:
+watch -n 60 'curl -s http://localhost:3000/health | jq .status'
+
+═══════════════════════════════════════════════════════════════
+📁 FILES REFERENCE
+═══════════════════════════════════════════════════════════════
+
+Deployment Plans:
+  ├─ INCREMENTAL-DEPLOYMENT.md   (detailed step-by-step)
+  ├─ ROLLBACK-PLAN.md            (emergency procedures)
+  ├─ deploy-incremental.sh       (automated script)
+  └─ DEPLOYMENT-QUICK-REF.txt    (this file)
+
+Test Reports:
+  ├─ DEPLOYMENT-CHECKLIST.txt    (pre-deployment validation)
+  └─ PROXY-PROVIDERS-TEST-REPORT.txt (local test results)
+
+Code Changes:
+  ├─ NEW: proxy-service/lib/proxy-providers-handler.js
+  ├─ MODIFIED: proxy-service/server.js
+  └─ MODIFIED: supabase/functions/trace-redirects/index.ts
+
+═══════════════════════════════════════════════════════════════
+🔑 KEY POINTS
+═══════════════════════════════════════════════════════════════
+
+✓ Deploy edge function with --no-verify-jwt to keep public
+✓ Test on 1 instance first (44.193.24.197)
+✓ Run 10-minute soak test before proceeding
+✓ Deploy to other instances only if test passes
+✓ Rollback available at every step
+✓ Backups created automatically
+✓ All changes are backward compatible
+✓ Zero breaking changes to existing functionality
+
+═══════════════════════════════════════════════════════════════
+📞 INSTANCES
+═══════════════════════════════════════════════════════════════
+
+Test Instance (deploy first):
+  IP: 44.193.24.197
+  SSH: ssh -i suffix-server.pem ec2-user@44.193.24.197
+
+Instance 2 (deploy after test):
+  IP: 3.215.185.91
+  SSH: ssh -i suffix-server.pem ec2-user@3.215.185.91
+
+Instance 3 (deploy last):
+  IP: 18.209.212.159
+  SSH: ssh -i suffix-server.pem ec2-user@18.209.212.159
+
+Supabase Project:
+  ID: rfhuqenntxiqurplenjn
+  Dashboard: https://app.supabase.com/project/rfhuqenntxiqurplenjn
+
+═══════════════════════════════════════════════════════════════
+✨ READY TO DEPLOY
+═══════════════════════════════════════════════════════════════
+
+Run automated deployment:
+  cd /Users/geetsoni/Downloads/suffix-tool-main\ 2
+  ./deploy-incremental.sh
+
+Or follow manual steps:
+  Read INCREMENTAL-DEPLOYMENT.md
+
+Keep this file open during deployment for quick reference!
+
+═══════════════════════════════════════════════════════════════

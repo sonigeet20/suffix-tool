@@ -1,0 +1,275 @@
+#!/bin/bash
+# MANUAL TESTING GUIDE - All Tracing Methods
+# Run each test one by one and verify results
+
+cat << 'EOF'
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                 MANUAL TESTING GUIDE - ALL TRACING METHODS                    ║
+║                  Copy & Paste Commands to Test Each Method                    ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+BEFORE TESTING:
+1. Make sure proxy-service is running:
+   cd proxy-service && node server.js
+   (or in background: pm2 start proxy-service)
+
+2. Open a new terminal for testing
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 1: Health Check
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Purpose: Verify proxy-service is running
+Expected: {"status":"ok"}
+
+curl http://localhost:3000/health
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 2: Basic HTTP Trace (No Proxy) - MUST WORK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Purpose: Test basic redirect tracing without any proxy
+Expected: Success with redirect chain
+Status: MUST NOT BE AFFECTED by our changes
+
+curl -X POST http://localhost:3000/trace \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://httpbin.org/redirect-to?url=https://example.com",
+    "mode": "http",
+    "max_redirects": 10
+  }' | jq
+
+Expected Output:
+- "chain": [array of redirect hops]
+- "final_url": "https://example.com"
+- "total_steps": 2 or more
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 3: Browser Mode with Luna Proxy - MUST WORK (UNCHANGED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Purpose: Test Puppeteer browser with Luna proxy
+Expected: Success if Luna proxy configured, error if not
+Status: CRITICAL - Must remain unchanged and working
+
+curl -X POST http://localhost:3000/trace \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://httpbin.org/redirect-to?url=https://example.com",
+    "mode": "browser",
+    "max_redirects": 10,
+    "target_country": "us"
+  }' | jq
+
+Expected Output (if Luna configured):
+- "chain": [redirect chain]
+- "proxy_used": true
+- "proxy_type": "luna" or similar
+- "final_url": "https://example.com"
+
+Expected Output (if Luna NOT configured):
+- "error": "proxy settings not found" or similar
+- This is NORMAL if you haven't set up Luna proxy
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 4: Anti-Cloaking Mode - MUST WORK (UNCHANGED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Purpose: Test advanced stealth mode
+Expected: Success with stealth features
+Status: MUST NOT BE AFFECTED by our changes
+
+curl -X POST http://localhost:3000/trace \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://httpbin.org/redirect-to?url=https://example.com",
+    "mode": "anti_cloaking",
+    "max_redirects": 10,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  }' | jq
+
+Expected Output:
+- "chain": [redirect chain]
+- "final_url": "https://example.com"
+- "mode_used": "anti_cloaking"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 5: Interactive Mode (Puppeteer) - MUST WORK (UNCHANGED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Purpose: Test full browser automation with session engagement
+Expected: Success with browser features
+Status: CRITICAL - Full Puppeteer functionality must work
+
+curl -X POST http://localhost:3000/trace \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://httpbin.org/redirect-to?url=https://example.com",
+    "mode": "interactive",
+    "max_redirects": 10,
+    "timeout_ms": 60000
+  }' | jq
+
+Expected Output:
+- "chain": [redirect chain with browser details]
+- "final_url": "https://example.com"
+- "mode_used": "interactive"
+- Browser should handle JS redirects, meta refresh, etc.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 6: Bright Data Browser API - THE FIX (THIS IS WHAT WE FIXED!)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Purpose: Test Bright Data Browser API with user_context fix
+Expected: Should NOT show "requires user context" error anymore
+Status: NEWLY FIXED - Critical to verify
+
+curl -X POST http://localhost:3000/trace \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://httpbin.org/redirect-to?url=https://example.com",
+    "mode": "brightdata_browser",
+    "user_id": "test-user-123",
+    "offer_id": "test-offer-456",
+    "max_redirects": 10,
+    "target_country": "us"
+  }' | jq
+
+✅ GOOD Response (if Bright Data configured):
+- "chain": [redirect chain]
+- "final_url": "https://example.com"
+- "proxy_type": "brightdata_browser"
+- NO "requires user context" error
+
+✅ ACCEPTABLE Response (if Bright Data NOT configured):
+- "error": "api key required" or "provider not found"
+- This is NORMAL if you haven't set up Bright Data
+
+❌ BAD Response (means fix didn't work):
+- "error": "Bright Data Browser tracer requires user context"
+- If you see this, the fix FAILED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 7: Trackier Integration - MUST WORK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Purpose: Test via Supabase edge function (simulating Trackier flow)
+Expected: Success (edge function should work)
+Status: MUST NOT BE AFFECTED
+
+# First check edge function is deployed
+curl -X POST https://rfhuqenntxiqurplenjn.supabase.co/functions/v1/trace-redirects \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ANON_KEY" \
+  -d '{
+    "url": "https://httpbin.org/redirect-to?url=https://example.com",
+    "max_redirects": 10
+  }' | jq
+
+Note: Replace YOUR_ANON_KEY with actual anon key if testing edge function
+
+Expected Output:
+- "chain": [redirect chain]
+- "final_url": "https://example.com"
+- Should work exactly as before
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 8: Check Logs for user_context (Verify Fix is Active)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Purpose: Verify that user_context is being set in Bright Data requests
+Expected: See log messages confirming user_context
+
+# If using PM2:
+pm2 logs proxy-service | grep -i "user_context\|bright data"
+
+# If running directly, check console output for:
+Look for: "🔐 Bright Data user context set: test-user-123"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 9: Test with Real Offer (If You Have One)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Purpose: Test with actual offer that has provider_id set
+Expected: Routes to correct provider (Bright Data or Luna)
+
+curl -X POST http://localhost:3000/trace \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "YOUR_OFFER_URL",
+    "mode": "browser",
+    "user_id": "YOUR_USER_ID",
+    "offer_id": "YOUR_OFFER_ID",
+    "max_redirects": 20
+  }' | jq
+
+Expected:
+- If offer.provider_id is Bright Data: uses Bright Data Browser
+- If offer.provider_id is Luna: uses Luna proxy
+- If offer.provider_id is null: uses default (Luna)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 10: Backward Compatibility (Old-Style Calls)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Purpose: Verify old API calls still work (no user_id, no offer_id)
+Expected: Success with default behavior
+Status: CRITICAL - Backward compatibility
+
+curl -X POST http://localhost:3000/trace \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://httpbin.org/redirect-to?url=https://example.com",
+    "mode": "http"
+  }' | jq
+
+Expected Output:
+- Should work EXACTLY as before
+- No errors about missing user_id or offer_id
+- Uses default settings
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If you get "Connection refused":
+→ Proxy-service is not running
+→ Start it: cd proxy-service && node server.js
+
+If you get "proxy settings not found":
+→ Normal if Luna proxy not configured
+→ Other modes (http, anti_cloaking) should still work
+
+If you get "Bright Data... requires user context":
+→ THE FIX DIDN'T WORK
+→ Check that changes were saved to server.js
+
+If you get "api key required" for Bright Data:
+→ Normal if no Bright Data provider configured
+→ Good news: No "requires user context" error means fix worked!
+
+If old trace modes don't work:
+→ CRITICAL ISSUE - rollback needed
+→ Check server.js for syntax errors
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CHECKLIST - Mark as you test
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] TEST 1: Health check passes
+[ ] TEST 2: Basic HTTP trace works
+[ ] TEST 3: Browser mode (Luna) works or skips gracefully
+[ ] TEST 4: Anti-cloaking mode works
+[ ] TEST 5: Interactive mode (Puppeteer) works
+[ ] TEST 6: Bright Data does NOT show "requires user context" error
+[ ] TEST 7: Trackier integration works (edge function)
+[ ] TEST 8: Logs show "user_context set" for Bright Data
+[ ] TEST 9: Real offer routing works (if applicable)
+[ ] TEST 10: Old-style API calls still work
+
+PASS CRITERIA:
+✅ At least 5 tests pass
+✅ No "requires user context" error for Bright Data
+✅ Old trace modes (http, browser, anti_cloaking) still work
+✅ No regression in existing functionality
+
+READY TO DEPLOY IF:
+✅ All critical tests pass (1-6, 10)
+✅ No breaking changes detected
+✅ Bright Data fix confirmed working
+
+═══════════════════════════════════════════════════════════════════════════════
+Once all tests pass, proceed with deployment to AWS
+═══════════════════════════════════════════════════════════════════════════════
+EOF

@@ -1,0 +1,338 @@
+🚀 Deploying Trackier subIdOverride Integration
+================================================
+
+📋 Deployment Plan:
+  • Update 3 EC2 instances
+  • Pull latest code from GitHub
+  • Restart services with pm2
+  • Monitor for stability (no restart loops)
+  • Create AMI if all stable
+  • Update Launch Template
+  • Update Auto Scaling Group
+
+
+
+═══════════════════════════════════════════════════
+  STEP 1: Deploying to EC2 Instances
+═══════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Instance 1 of 3: 44.193.24.197
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 Testing connectivity...
+Connected
+[0;32m✓ Connected[0m
+
+📋 Copying updated trackier-webhook.js...
+[0;32m✓ File copied[0m
+
+📊 PM2 status before restart...
+   Current restart count: 5
+
+🔄 Restarting PM2 services...
+[PM2] Applying action restartProcessId on app [all](ids: [ 0 ])
+[PM2] [proxy-service](0) ✓
+┌────┬──────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name             │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼──────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ proxy-service    │ default     │ 1.0.0   │ fork    │ 309385   │ 0s     │ 6    │ online    │ 0%       │ 14.3mb   │ ec2-user │ disabled │
+└────┴──────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[0;32m✓ Services restarted[0m
+
+⏳ Waiting 10 seconds for services to stabilize...
+
+📊 Checking service health...
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+
+A newer release of "Amazon Linux" is available.
+  Version 2023.10.20260105:
+Run "/usr/bin/dnf check-release-update" for full release and version update info
+   ,     #_
+   ~\_  ####_        Amazon Linux 2023
+  ~~  \_#####\
+  ~~     \###|
+  ~~       \#/ ___   https://aws.amazon.com/linux/amazon-linux-2023
+   ~~       V~' '->
+    ~~~         /
+      ~~._.   _/
+         _/ _/
+       _/m/'
+PM2 Status:
+┌────┬──────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name             │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼──────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ proxy-service    │ default     │ 1.0.0   │ fork    │ 309385   │ 14s    │ 6    │ online    │ 0%       │ 141.6mb  │ ec2-user │ disabled │
+└────┴──────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+
+Recent logs:
+[TAILING] Tailing last 10 lines for [all] processes (change the value with --lines option)
+/home/ec2-user/.pm2/pm2.log last 10 lines:
+PM2        | 2026-01-12T16:47:18: PM2 log: Stopping app:proxy-service id:0
+PM2        | 2026-01-12T16:47:18: PM2 log: App [proxy-service:0] exited with code [0] via signal [SIGINT]
+PM2        | 2026-01-12T16:47:19: PM2 log: pid=256432 msg=process killed
+PM2        | 2026-01-12T16:47:19: PM2 log: App [proxy-service:0] starting in -fork mode-
+PM2        | 2026-01-12T16:47:19: PM2 log: App [proxy-service:0] online
+PM2        | 2026-01-12T16:48:17: PM2 log: Stopping app:proxy-service id:0
+PM2        | 2026-01-12T16:48:17: PM2 log: App [proxy-service:0] exited with code [0] via signal [SIGINT]
+PM2        | 2026-01-12T16:48:17: PM2 log: pid=309040 msg=process killed
+PM2        | 2026-01-12T16:48:17: PM2 log: App [proxy-service:0] starting in -fork mode-
+PM2        | 2026-01-12T16:48:17: PM2 log: App [proxy-service:0] online
+
+/home/ec2-user/.pm2/logs/proxy-service-error.log last 10 lines:
+0|proxy-se | [Trackier Update] ❌ Failed: Error: Edge function timed out after 30 seconds
+0|proxy-se |     at processTrackierUpdate (/home/ec2-user/proxy-service/routes/trackier-webhook.js:417:15)
+0|proxy-se |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|proxy-se |     at async Immediate.<anonymous> (/home/ec2-user/proxy-service/routes/trackier-webhook.js:1421:7)
+0|proxy-se | [Trackier Background] Error: Error: Edge function timed out after 30 seconds
+0|proxy-se |     at processTrackierUpdate (/home/ec2-user/proxy-service/routes/trackier-webhook.js:417:15)
+0|proxy-se |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|proxy-se |     at async Immediate.<anonymous> (/home/ec2-user/proxy-service/routes/trackier-webhook.js:1421:7)
+0|proxy-se | ⚠️  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217
+0|proxy-se | ⚠️  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217
+
+/home/ec2-user/.pm2/logs/proxy-service-out.log last 10 lines:
+0|proxy-se | info: ⚡ Trace request: {"max_redirects":20,"mode":"http_only","referrer":"https://zouton.com/","target_country":"IT","timeout_ms":45000,"url":"https://www.awin1.com/cread.php?awinmid=110876&awinaffid=885207&clickref=4301&ued=https%3A%2F%2Fwww.flixbus.it%2F"}
+0|proxy-se | info: 🌍 Geo selection {"geo_pool_size":0,"geo_strategy":"round_robin","selected_geo":"it"}
+0|proxy-se | info: 🌍 Geo-targeting: IT
+0|proxy-se | info: ⚡ Using HTTP-only mode (fast)
+0|proxy-se | info: ⚡ HTTP-only INSTANT (GET + stream headers): https://www.awin1.com/cread.php?awinmid=110876&awinaffid=885207&clickref=4301&ue... | maxRedirects: 20
+0|proxy-se | info: 📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K...
+0|proxy-se | info: 🖥️ Unique fingerprint: mobile | viewport=398x841, colorDepth=24, pixelRatio=2.5
+0|proxy-se | info: 🎯 HTTP-only: Will stop at hostname match: flixbus.it
+0|proxy-se | info: 🌍 HTTP-only: Geo-targeting IT
+0|proxy-se | info:   🚀 Hop 1 (parallel, concurrent=1): https://www.awin1.com/cread.php?awinmid=110876&awinaffid=885...
+
+
+🔍 Checking for restart loops...
+[0;32m✓ No restart loop detected (restarts: 5 → 6)[0m
+
+[0;32m✅ Instance 1 deployment complete[0m
+
+⏸  Pausing 5 seconds before next instance...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Instance 2 of 3: 3.215.185.91
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 Testing connectivity...
+Connected
+[0;32m✓ Connected[0m
+
+📋 Copying updated trackier-webhook.js...
+[0;32m✓ File copied[0m
+
+📊 PM2 status before restart...
+   Current restart count: 3
+
+🔄 Restarting PM2 services...
+[PM2] Applying action restartProcessId on app [all](ids: [ 0 ])
+[PM2] [proxy-service](0) ✓
+┌────┬──────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name             │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼──────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ proxy-service    │ default     │ 1.0.0   │ fork    │ 83063    │ 0s     │ 4    │ online    │ 0%       │ 18.0mb   │ ec2-user │ disabled │
+└────┴──────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[0;32m✓ Services restarted[0m
+
+⏳ Waiting 10 seconds for services to stabilize...
+
+📊 Checking service health...
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+
+A newer release of "Amazon Linux" is available.
+  Version 2023.10.20260105:
+Run "/usr/bin/dnf check-release-update" for full release and version update info
+   ,     #_
+   ~\_  ####_        Amazon Linux 2023
+  ~~  \_#####\
+  ~~     \###|
+  ~~       \#/ ___   https://aws.amazon.com/linux/amazon-linux-2023
+   ~~       V~' '->
+    ~~~         /
+      ~~._.   _/
+         _/ _/
+       _/m/'
+PM2 Status:
+┌────┬──────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name             │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼──────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ proxy-service    │ default     │ 1.0.0   │ fork    │ 83063    │ 15s    │ 4    │ online    │ 0%       │ 131.5mb  │ ec2-user │ disabled │
+└────┴──────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+
+Recent logs:
+[TAILING] Tailing last 10 lines for [all] processes (change the value with --lines option)
+/home/ec2-user/.pm2/pm2.log last 10 lines:
+PM2        | 2026-01-12T13:10:59: PM2 log: Stopping app:proxy-service id:0
+PM2        | 2026-01-12T13:10:59: PM2 log: App [proxy-service:0] exited with code [0] via signal [SIGINT]
+PM2        | 2026-01-12T13:10:59: PM2 log: pid=28391 msg=process killed
+PM2        | 2026-01-12T13:10:59: PM2 log: App [proxy-service:0] starting in -fork mode-
+PM2        | 2026-01-12T13:10:59: PM2 log: App [proxy-service:0] online
+PM2        | 2026-01-12T16:49:03: PM2 log: Stopping app:proxy-service id:0
+PM2        | 2026-01-12T16:49:03: PM2 log: App [proxy-service:0] exited with code [0] via signal [SIGINT]
+PM2        | 2026-01-12T16:49:03: PM2 log: pid=29870 msg=process killed
+PM2        | 2026-01-12T16:49:03: PM2 log: App [proxy-service:0] starting in -fork mode-
+PM2        | 2026-01-12T16:49:03: PM2 log: App [proxy-service:0] online
+
+/home/ec2-user/.pm2/logs/proxy-service-error.log last 10 lines:
+0|proxy-se | ⚠️  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217
+0|proxy-se | [Trackier Update] ❌ Failed: Error: Edge function timed out after 30 seconds
+0|proxy-se |     at processTrackierUpdate (/home/ec2-user/proxy-service/routes/trackier-webhook.js:417:15)
+0|proxy-se |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|proxy-se |     at async Immediate.<anonymous> (/home/ec2-user/proxy-service/routes/trackier-webhook.js:1421:7)
+0|proxy-se | [Trackier Background] Error: Error: Edge function timed out after 30 seconds
+0|proxy-se |     at processTrackierUpdate (/home/ec2-user/proxy-service/routes/trackier-webhook.js:417:15)
+0|proxy-se |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|proxy-se |     at async Immediate.<anonymous> (/home/ec2-user/proxy-service/routes/trackier-webhook.js:1421:7)
+0|proxy-se | ⚠️  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217
+
+/home/ec2-user/.pm2/logs/proxy-service-out.log last 10 lines:
+0|proxy-se | info: ✅ HTTP-only trace complete: 3 steps (3 hops launched, max concurrent=2)
+0|proxy-se | info: ✅ Trace completed (http_only): 3 steps in 6349ms
+0|proxy-se | info: 🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: ES
+0|proxy-se | info: ⚡ Anti-cloaking: Early stop - no URL changes for 3.5s
+0|proxy-se | info:   ✅ Hop 1 (301) in 1333ms  [parallel, concurrent=1]
+0|proxy-se | info:   🚀 Hop 2 (parallel, concurrent=2): https://track.omguk.com/c?AID=2356686&PID=56722...
+0|proxy-se | info:   ⏱️ Hop 2 timeout after 5002ms
+0|proxy-se | info: ✅ HTTP-only trace complete: 2 steps (2 hops launched, max concurrent=2)
+0|proxy-se | info: ✅ Trace completed (http_only): 2 steps in 6615ms
+0|proxy-se | info: 🌐 Proxy IP used: 86.134.50.111 | Location: Harrogate, England, United Kingdom | Selected Geo: GB
+
+
+🔍 Checking for restart loops...
+[0;32m✓ No restart loop detected (restarts: 3 → 4)[0m
+
+[0;32m✅ Instance 2 deployment complete[0m
+
+⏸  Pausing 5 seconds before next instance...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Instance 3 of 3: 18.209.212.159
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 Testing connectivity...
+Connected
+[0;32m✓ Connected[0m
+
+📋 Copying updated trackier-webhook.js...
+[0;32m✓ File copied[0m
+
+📊 PM2 status before restart...
+   Current restart count: 18
+
+🔄 Restarting PM2 services...
+[PM2] Applying action restartProcessId on app [all](ids: [ 0 ])
+[PM2] [proxy-service](0) ✓
+┌────┬──────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name             │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼──────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ proxy-service    │ default     │ 1.0.0   │ fork    │ 355339   │ 0s     │ 19   │ online    │ 0%       │ 21.4mb   │ ec2-user │ disabled │
+└────┴──────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[0;32m✓ Services restarted[0m
+
+⏳ Waiting 10 seconds for services to stabilize...
+
+📊 Checking service health...
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+
+A newer release of "Amazon Linux" is available.
+  Version 2023.10.20260105:
+Run "/usr/bin/dnf check-release-update" for full release and version update info
+   ,     #_
+   ~\_  ####_        Amazon Linux 2023
+  ~~  \_#####\
+  ~~     \###|
+  ~~       \#/ ___   https://aws.amazon.com/linux/amazon-linux-2023
+   ~~       V~' '->
+    ~~~         /
+      ~~._.   _/
+         _/ _/
+       _/m/'
+PM2 Status:
+┌────┬──────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name             │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼──────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ proxy-service    │ default     │ 1.0.0   │ fork    │ 355339   │ 14s    │ 19   │ online    │ 0%       │ 134.9mb  │ ec2-user │ disabled │
+└────┴──────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+
+Recent logs:
+[TAILING] Tailing last 10 lines for [all] processes (change the value with --lines option)
+/home/ec2-user/.pm2/pm2.log last 10 lines:
+PM2        | 2026-01-12T13:11:12: PM2 log: Stopping app:proxy-service id:0
+PM2        | 2026-01-12T13:11:12: PM2 log: App [proxy-service:0] exited with code [0] via signal [SIGINT]
+PM2        | 2026-01-12T13:11:12: PM2 log: pid=303770 msg=process killed
+PM2        | 2026-01-12T13:11:12: PM2 log: App [proxy-service:0] starting in -fork mode-
+PM2        | 2026-01-12T13:11:12: PM2 log: App [proxy-service:0] online
+PM2        | 2026-01-12T16:49:45: PM2 log: Stopping app:proxy-service id:0
+PM2        | 2026-01-12T16:49:45: PM2 log: App [proxy-service:0] exited with code [0] via signal [SIGINT]
+PM2        | 2026-01-12T16:49:46: PM2 log: pid=305029 msg=process killed
+PM2        | 2026-01-12T16:49:46: PM2 log: App [proxy-service:0] starting in -fork mode-
+PM2        | 2026-01-12T16:49:46: PM2 log: App [proxy-service:0] online
+
+/home/ec2-user/.pm2/logs/proxy-service-error.log last 10 lines:
+0|proxy-se |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|proxy-se |     at async Immediate.<anonymous> (/home/ec2-user/proxy-service/routes/trackier-webhook.js:1427:7)
+0|proxy-se | [Trackier Validate] Error: Error: Validation failed: 400 - {"success":false,"errors":[{"statusCode":400,"code":"102","codeMsg":"INVALID_API_KEY","message":"API Key supplied with the request is invalid. Please cross verify the API Key!"}]}
+0|proxy-se |     at /home/ec2-user/proxy-service/routes/trackier-webhook.js:1254:13
+0|proxy-se |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|proxy-se | ⚠️  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217
+0|proxy-se | ⚠️  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217
+0|proxy-se | ⚠️  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217
+0|proxy-se | ⚠️  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217
+0|proxy-se | ⚠️  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217
+
+/home/ec2-user/.pm2/logs/proxy-service-out.log last 10 lines:
+0|proxy-se | info: ⚡ HTTP-only INSTANT (GET + stream headers): https://www.awin1.com/cread.php?awinmid=110876&awinaffid=885207&clickref=4301&ue... | maxRedirects: 20
+0|proxy-se | info: 📱 User-Agent: Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) ...
+0|proxy-se | info: 🖥️ Unique fingerprint: desktop | viewport=1925x1203, colorDepth=24, pixelRatio=1
+0|proxy-se | info: 🎯 HTTP-only: Will stop at hostname match: flixbus.it
+0|proxy-se | info: 🌍 HTTP-only: Geo-targeting IT
+0|proxy-se | info:   🚀 Hop 1 (parallel, concurrent=1): https://www.awin1.com/cread.php?awinmid=110876&awinaffid=885...
+0|proxy-se | info:   ⏱️ Hop 1 timeout after 8003ms
+0|proxy-se | info: ✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)
+0|proxy-se | info: ✅ Trace completed (http_only): 1 steps in 8135ms
+0|proxy-se | info: 🌐 Proxy IP used: 158.47.217.39 | Location: Rome, Lazio, Italy | Selected Geo: IT
+
+
+🔍 Checking for restart loops...
+[0;32m✓ No restart loop detected (restarts: 18 → 19)[0m
+
+[0;32m✅ Instance 3 deployment complete[0m
+
+
+═══════════════════════════════════════════════════
+  DEPLOYMENT SUMMARY
+═══════════════════════════════════════════════════
+
+Total instances: 3
+[0;32mSuccessfully deployed: 3[0m
+[0;31mFailed: 0[0m
+
+[0;32m✅ All instances deployed successfully and stable![0m
+
+
+
+═══════════════════════════════════════════════════
+  STEP 2: Creating AMI from Instance 1
+═══════════════════════════════════════════════════
+
+🔍 Getting instance ID for 44.193.24.197...
+[0;32m✓ Found instance: i-0e5fca1fc3856ab35[0m
+
+📸 Creating AMI: trackier-subIdOverride-20260112-222059
+   From instance: i-0e5fca1fc3856ab35
+
+[0;32m✅ AMI created: ami-08e030e7a1b2c868a[0m
+
+⏳ Waiting for AMI to become available...
+[0;32m✓ AMI is available[0m
+
+═══════════════════════════════════════════════════
+  STEP 3: Updating Launch Template
+═══════════════════════════════════════════════════
+
+🔍 Finding launch template...
+[1;33m⚠️  Could not auto-detect launch template[0m
+Skipping launch template update.
+
+Manual steps:
+  1. Find your launch template in AWS Console
+  2. Create new version with AMI: ami-08e030e7a1b2c868a

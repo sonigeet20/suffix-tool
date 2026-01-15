@@ -85,6 +85,8 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
   const [advertisers, setAdvertisers] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [campaignCount, setCampaignCount] = useState<number>(1);
+  const [pairsData, setPairsData] = useState<any[]>([]);
 
   const [config, setConfig] = useState<TrackierOffer>({
     offer_id: offerId,
@@ -644,7 +646,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       const webhookUrl = import.meta.env.VITE_WEBHOOK_URL || 
         'http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com:3000/api/trackier-webhook';
 
-      // Create campaigns via edge function
+      // Create campaigns via edge function with campaign_count parameter
       const apiUrl = `${getApiBaseUrl()}/functions/v1/trackier-create-campaigns`;
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -657,7 +659,8 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
           advertiserId: config.advertiser_id,
           offerName: offerName,
           finalUrl: config.final_url,
-          webhookUrl: webhookUrl
+          webhookUrl: webhookUrl,
+          campaign_count: campaignCount // NEW: Support multiple pairs
         })
       });
 
@@ -668,23 +671,29 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
       const result = await response.json();
 
-      // Update config with both display and real campaign IDs
+      // Store all pairs data
+      setPairsData(result.pairs || [result.primary_pair]);
+
+      // Update config with primary pair (backwards compatible)
+      const primaryPair = result.primary_pair || result.pairs[0];
       setConfig({
         ...config,
-        url1_campaign_id: result.url1_campaign_id,
-        url1_campaign_id_real: result.url1_campaign_id_real,
-        url1_campaign_name: result.campaigns.url1.name,
-        url1_tracking_url: result.url1_tracking_url,
-        url2_campaign_id: result.url2_campaign_id,
-        url2_campaign_id_real: result.url2_campaign_id_real,
-        url2_campaign_name: result.campaigns.url2.name,
-        url2_tracking_url: result.url2_tracking_url,
-        url2_destination_url: result.url2_destination_url || config.final_url,
-        webhook_url: result.webhook_url,
-        google_ads_template: result.googleAdsTemplate
+        url1_campaign_id: primaryPair.url1_campaign_id,
+        url1_campaign_id_real: primaryPair.url1_campaign_id_real,
+        url1_campaign_name: primaryPair.url1_campaign_name || result.campaigns?.url1?.name,
+        url1_tracking_url: primaryPair.url1_tracking_url,
+        url2_campaign_id: primaryPair.url2_campaign_id,
+        url2_campaign_id_real: primaryPair.url2_campaign_id_real,
+        url2_campaign_name: primaryPair.url2_campaign_name || result.campaigns?.url2?.name,
+        url2_tracking_url: primaryPair.url2_tracking_url,
+        url2_destination_url: primaryPair.url2_destination_url || config.final_url,
+        webhook_url: primaryPair.webhook_url,
+        google_ads_template: primaryPair.google_ads_template
       });
 
-      setSuccess(`Campaigns created successfully! URL 1: ${result.url1_campaign_id}, URL 2: ${result.url2_campaign_id}. ⚠️ Configure S2S Push URL in Trackier dashboard!`);
+      const pairCount = result.pairs?.length || 1;
+      const totalCampaigns = pairCount * 2;
+      setSuccess(`✅ Created ${pairCount} campaign pairs (${totalCampaigns} campaigns total)! ⚠️ Configure S2S Push URL in Trackier dashboard for each URL1 campaign!`);
 
     } catch (err: any) {
       console.error('Error creating campaigns:', err);
@@ -958,20 +967,39 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-sm text-blue-800 font-semibold mb-2">
-                      🚀 Auto-Create Campaigns
+                    <p className="text-sm text-blue-800 dark:text-blue-300 font-semibold mb-2">
+                      🚀 Auto-Create Campaign Pairs
                     </p>
-                    <p className="text-xs text-blue-700">
-                      Click below to automatically create both URL 1 (Passthrough) and URL 2 (Final) campaigns in Trackier.
-                      The webhook will be configured automatically!
+                    <p className="text-xs text-blue-700 dark:text-blue-400 mb-3">
+                      Create multiple campaign pairs (URL1 + URL2) for A/B testing or different traffic sources.
+                      Each pair gets a unique webhook token for independent tracking.
                     </p>
+                    
+                    {/* Campaign Count Input */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                        Number of Pairs:
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={campaignCount}
+                        onChange={(e) => setCampaignCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                        className="w-20 px-2 py-1 border border-blue-300 dark:border-blue-600 rounded dark:bg-gray-700 dark:text-white text-center"
+                        disabled={creating}
+                      />
+                      <span className="text-xs text-blue-600 dark:text-blue-400">
+                        ({campaignCount * 2} campaigns + {campaignCount} templates)
+                      </span>
+                    </div>
                   </div>
                   <button
                     onClick={handleCreateCampaigns}
                     disabled={creating || !config.api_key}
                     className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium whitespace-nowrap"
                   >
-                    {creating ? 'Creating...' : 'Create Campaigns'}
+                    {creating ? 'Creating...' : `Create ${campaignCount} Pair${campaignCount > 1 ? 's' : ''}`}
                   </button>
                 </div>
               </div>
@@ -1390,7 +1418,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                 {config.url2_last_suffix && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Current Suffix (URL 2)
+                      Current Suffix (URL 2 - Primary Pair)
                     </label>
                     <textarea
                       value={config.url2_last_suffix}
@@ -1400,6 +1428,120 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                     />
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Multi-Pair Management */}
+            {pairsData.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-600 pb-2">
+                  Campaign Pairs ({pairsData.length})
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {pairsData.map((pair, idx) => (
+                    <div key={idx} className="p-4 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-semibold text-gray-900 dark:text-white">
+                          Pair {pair.pair_index} {pair.pair_name && `- ${pair.pair_name}`}
+                        </h4>
+                        <span className={`px-2 py-1 text-xs rounded ${pair.enabled !== false ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'}`}>
+                          {pair.enabled !== false ? '✓ Enabled' : '✗ Disabled'}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-2 text-xs">
+                        <div>
+                          <span className="font-medium text-gray-600 dark:text-gray-400">URL1:</span>
+                          <span className="ml-2 text-gray-900 dark:text-white font-mono">{pair.url1_campaign_id}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-600 dark:text-gray-400">URL2:</span>
+                          <span className="ml-2 text-gray-900 dark:text-white font-mono">{pair.url2_campaign_id}</span>
+                        </div>
+                        
+                        {pair.webhook_count !== undefined && (
+                          <div className="pt-2 border-t dark:border-gray-600">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Webhooks:</span>
+                              <span className="font-semibold text-green-600">{pair.webhook_count || 0}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Updates:</span>
+                              <span className="font-semibold text-blue-600">{pair.update_count || 0}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Google Ads Template for this pair */}
+                        {pair.google_ads_template && (
+                          <div className="pt-2 border-t dark:border-gray-600">
+                            <label className="block font-medium text-gray-600 dark:text-gray-400 mb-1">
+                              Template:
+                            </label>
+                            <div className="flex gap-1">
+                              <input
+                                type="text"
+                                value={pair.google_ads_template}
+                                readOnly
+                                className="flex-1 px-2 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-[10px]"
+                              />
+                              <button
+                                onClick={() => copyToClipboard(pair.google_ads_template, `Pair ${pair.pair_index} Template`)}
+                                className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-[10px]"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Webhook URL */}
+                        {pair.webhook_url && (
+                          <div className="pt-2">
+                            <label className="block font-medium text-gray-600 dark:text-gray-400 mb-1">
+                              Webhook:
+                            </label>
+                            <div className="flex gap-1">
+                              <input
+                                type="text"
+                                value={pair.webhook_url}
+                                readOnly
+                                className="flex-1 px-2 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-[10px]"
+                              />
+                              <button
+                                onClick={() => copyToClipboard(pair.webhook_url, `Pair ${pair.pair_index} Webhook`)}
+                                className="px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 text-[10px]"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Export All Templates */}
+                <button
+                  onClick={() => {
+                    const csvContent = pairsData.map(p => 
+                      `Pair ${p.pair_index},${p.url1_campaign_id},${p.url2_campaign_id},${p.google_ads_template}`
+                    ).join('\n');
+                    const header = 'Pair,URL1_Campaign,URL2_Campaign,Google_Ads_Template\n';
+                    const blob = new Blob([header + csvContent], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `trackier-pairs-${offerName.replace(/\s+/g, '-')}.csv`;
+                    a.click();
+                    setSuccess('✅ Exported all pairs to CSV');
+                  }}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
+                >
+                  📥 Export All Templates to CSV
+                </button>
               </div>
             )}
 
