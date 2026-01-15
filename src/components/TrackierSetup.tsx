@@ -187,7 +187,9 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         setConfig(mergedConfig);
         
         // Load additional_pairs into pairsData if they exist
+        console.log('Loading config, additional_pairs:', data.additional_pairs);
         if (data.additional_pairs && Array.isArray(data.additional_pairs) && data.additional_pairs.length > 0) {
+          console.log('Setting pairsData with', data.additional_pairs.length, 'pairs');
           setPairsData(data.additional_pairs);
         }
         
@@ -527,6 +529,9 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         additional_pairs: pairsData.length > 0 ? pairsData : null,
       };
 
+      console.log('Saving config with pairsData:', pairsData.length, 'pairs');
+      console.log('configToSave.additional_pairs:', configToSave.additional_pairs);
+
       let result;
       if (config.id) {
         // Update existing
@@ -552,6 +557,12 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       }
 
       setConfig(result);
+      
+      // Update pairsData from saved result
+      if (result.additional_pairs && Array.isArray(result.additional_pairs) && result.additional_pairs.length > 0) {
+        setPairsData(result.additional_pairs);
+      }
+      
       setSuccess('Configuration saved successfully!');
       
     } catch (err: any) {
