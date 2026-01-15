@@ -523,6 +523,8 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         // Ensure _real fields are set (used by webhook function for API calls)
         url1_campaign_id_real: config.url1_campaign_id_real || config.url1_campaign_id,
         url2_campaign_id_real: config.url2_campaign_id_real || config.url2_campaign_id,
+        // Save pairsData to additional_pairs
+        additional_pairs: pairsData.length > 0 ? pairsData : null,
       };
 
       let result;
