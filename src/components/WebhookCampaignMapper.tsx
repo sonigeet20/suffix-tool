@@ -84,12 +84,20 @@ export const WebhookCampaignMapper: React.FC = () => {
   const loadMappings = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${PROXY_SERVICE_URL}/api/webhook-campaign/list`);
-      if (response.data.success) {
-        setMappings(response.data.mappings);
-      }
+      setError(null);
+      
+      // Query Supabase directly instead of HTTP ALB (avoids mixed content error)
+      const { data, error: supabaseError } = await supabase
+        .from('webhook_campaign_mappings')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (supabaseError) throw supabaseError;
+      
+      setMappings(data || []);
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message);
+      setError(err.message || 'Failed to load mappings');
+      console.error('Error loading mappings:', err);
     } finally {
       setLoading(false);
     }
