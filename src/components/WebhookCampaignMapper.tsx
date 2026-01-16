@@ -204,7 +204,7 @@ export const WebhookCampaignMapper: React.FC = () => {
     const csvHeader = 'Campaign Name,Offer Name,Account ID,Campaign ID,Trackier Campaign ID,Webhook URL,Tracking Template,Status,Created At\n';
     const csvRows = selected.map(m => {
       // Generate tracking template URL
-      const trackingTemplate = `https://nebula.gotrackier.com/click?campaign_id=${m.trackier_campaign_id}&pub_id=8308&force_transparent=true&url={lpurl}`;
+      const trackingTemplate = `https://nebula.gotrackier.com/click?campaign_id=${m.trackier_campaign_id}&pub_id=2&force_transparent=true&url={lpurl}`;
       
       const row = [
         m.campaign_name || '',
@@ -686,14 +686,14 @@ export const WebhookCampaignMapper: React.FC = () => {
                     Google Ads Tracking Template:
                   </span>
                   <button
-                    onClick={() => copyToClipboard(`https://nebula.gotrackier.com/click?campaign_id=${mapping.trackier_campaign_id}&pub_id=8308&force_transparent=true&url={lpurl}`)}
+                    onClick={() => copyToClipboard(`https://nebula.gotrackier.com/click?campaign_id=${mapping.trackier_campaign_id}&pub_id=2&force_transparent=true&url={lpurl}`)}
                     className="text-xs px-2 py-1 bg-neutral-600 dark:bg-neutral-500 text-white rounded hover:bg-neutral-700 dark:hover:bg-neutral-600 transition-smooth"
                   >
                     Copy
                   </button>
                 </div>
                 <code className="text-xs text-neutral-800 dark:text-neutral-200 break-all font-mono">
-                  https://nebula.gotrackier.com/click?campaign_id={mapping.trackier_campaign_id}&pub_id=8308&force_transparent=true&url={'{lpurl}'}
+                  https://nebula.gotrackier.com/click?campaign_id={mapping.trackier_campaign_id}&pub_id=2&force_transparent=true&url={'{lpurl}'}
                 </code>
                 <div className="mt-2 p-2 bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded text-xs text-brand-800 dark:text-brand-300">
                   <strong>📋 Add to Google Ads:</strong><br/>
