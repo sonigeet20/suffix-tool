@@ -523,6 +523,14 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       // Add cache-busting parameter to force Trackier to serve fresh subIdOverride values
       const googleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&_cb={timestamp}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}`;
       
+      // Ensure each pair has a unique webhook token for proper routing
+      const pairsWithTokens = pairsData.map((pair, index) => ({
+        ...pair,
+        webhook_token: pair.webhook_token || crypto.randomUUID(),
+        pair_index: pair.pair_index || (index + 1),
+        enabled: pair.enabled !== undefined ? pair.enabled : true,
+      }));
+      
       const configToSave = {
         ...config,
         google_ads_template: googleAdsTemplate,
@@ -532,17 +540,19 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         url2_campaign_id_real: config.url2_campaign_id_real || config.url2_campaign_id,
         // Ensure update_interval_seconds is a valid number >= 1
         update_interval_seconds: updateInterval,
-        // Save pairsData to additional_pairs
-        additional_pairs: pairsData.length > 0 ? pairsData : null,
+        // Save pairsData to additional_pairs with unique tokens
+        additional_pairs: pairsWithTokens.length > 0 ? pairsWithTokens : null,
       };
 
       console.log('Saving config with pairsData:', pairsData.length, 'pairs');
       console.log('configToSave.additional_pairs:', configToSave.additional_pairs);
       console.log('configToSave.update_interval_seconds:', configToSave.update_interval_seconds, 'type:', typeof configToSave.update_interval_seconds);
+      console.log('config.id:', config.id, '(will', config.id ? 'UPDATE' : 'INSERT', ')');
 
       let result;
       if (config.id) {
         // Update existing
+        console.log('Updating existing offer with id:', config.id);
         const { data, error: updateError } = await supabase
           .from('trackier_offers')
           .update(configToSave)
@@ -554,6 +564,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         result = data;
       } else {
         // Insert new
+        console.log('Inserting new offer');
         const { data, error: insertError } = await supabase
           .from('trackier_offers')
           .insert(configToSave)
@@ -566,12 +577,12 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
 
       setConfig(result);
       
-      // Update pairsData from saved result
+      // Update pairsData from saved result to include generated tokens
       if (result.additional_pairs && Array.isArray(result.additional_pairs) && result.additional_pairs.length > 0) {
         setPairsData(result.additional_pairs);
       }
       
-      setSuccess('Configuration saved successfully!');
+      setSuccess('Configuration saved successfully! Each pair has a unique webhook token for proper routing.');
       
     } catch (err: any) {
       console.error('Error saving config:', err);
@@ -1585,6 +1596,10 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                         <div>
                           <span className="font-medium text-gray-600 dark:text-gray-400">URL2:</span>
                           <span className="ml-2 text-gray-900 dark:text-white font-mono">{pair.url2_campaign_id}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-600 dark:text-gray-400">Webhook Token:</span>
+                          <span className="ml-2 text-purple-600 dark:text-purple-400 font-mono text-[10px]">{pair.webhook_token || 'Not assigned'}</span>
                         </div>
                         
                         {pair.webhook_count !== undefined && (
