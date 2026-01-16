@@ -1657,6 +1657,1172 @@ function listCampaignIds() {
   Click Here
 </a>`;
 
+  const webhookMasterScript = `/**
+ * WEBHOOK MASTER SCRIPT - ALL-IN-ONE
+ * 
+ * This single Google Ads script handles everything:
+ * 1. Auto-creates campaign mapping on first run (only once per campaign)
+ * 2. Continuously polls webhook queue for Trackier conversion webhooks
+ * 3. On every webhook: Updates final URL suffix + triggers new traces
+ * 4. Once per day: Fetches last 7 days zero-click suffixes and stores in bucket
+ * 
+ * SETUP INSTRUCTIONS:
+ * 1. Go to Google Ads → Tools & Settings → Bulk Actions → Scripts
+ * 2. Click "+ New Script" button
+ * 3. Name it "WEBHOOK-MASTER"
+ * 4. Paste this entire script
+ * 5. Update the 3 configuration values below:
+ *    - OFFER_NAME: Your offer name (e.g., 'SURFSHARK_US', 'VPN_OFFER')
+ *    - SUPABASE_ANON_KEY: Get from Supabase Dashboard → Settings → API → anon/public key
+ *    - (PROXY_SERVICE_URL is pre-configured with your ALB endpoint)
+ * 6. Click "Preview" to test on one campaign first
+ * 7. Click "Save" and then "Run" → "Schedule" → Every 30 minutes
+ * 
+ * WHAT IT DOES:
+ * - First run: Creates mappings for ALL enabled campaigns in your account
+ * - Ongoing: Polls queue every 2 seconds for webhook-triggered suffix updates
+ * - On webhook: Fetches fresh zero-click suffixes, stores them, updates campaign
+ */
+
+// ============================================
+// CONFIGURATION - UPDATE THESE 3 VALUES
+// ============================================
+
+const CONFIG = {
+  // 1. YOUR OFFER NAME (REQUIRED)
+  OFFER_NAME: 'YOUR_OFFER_NAME_HERE',  // Replace with your offer (e.g., 'SURFSHARK_US')
+  
+  // 2. SUPABASE ANON KEY (REQUIRED)
+  // Get from: Supabase Dashboard → Settings → API → Project API keys → anon/public
+  SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY_HERE',
+  
+  // 3. Supabase URL (Pre-configured)
+  SUPABASE_URL: '${supabaseUrl}',
+  
+  // 4. Proxy Service URL (Pre-configured - your EC2 ALB endpoint)
+  PROXY_SERVICE_URL: 'http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com:3000',
+  
+  // Advanced Settings (usually no need to change)
+  QUEUE_POLL_INTERVAL_SECONDS: 2,
+  MAX_RUNTIME_MINUTES: 28,
+  ZERO_CLICK_LOOKBACK_DAYS: 7,
+  SUFFIX_UPDATE_LAST_RUN: 'SUFFIX_UPDATE_LAST_RUN_' // PropertiesService key for daily updates
+};
+
+// ============================================
+// MAIN EXECUTION
+// ============================================
+
+function main() {
+  Logger.log('=== WEBHOOK MASTER SCRIPT STARTED ===');
+  Logger.log('Time: ' + new Date().toISOString());
+  Logger.log('Offer: ' + CONFIG.OFFER_NAME);
+  
+  // Validate configuration
+  if (CONFIG.OFFER_NAME === 'YOUR_OFFER_NAME_HERE') {
+    Logger.log('❌ ERROR: Please update OFFER_NAME in CONFIG');
+    return;
+  }
+  
+  if (CONFIG.SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY_HERE') {
+    Logger.log('❌ ERROR: Please update SUPABASE_ANON_KEY in CONFIG');
+    return;
+  }
+  
+  const accountId = AdsApp.currentAccount().getCustomerId();
+  Logger.log('Account ID: ' + accountId);
+  
+  // Step 1: Ensure all campaign mappings exist (runs once per campaign)
+  Logger.log('\\n--- Step 1: Ensuring Campaign Mappings ---');
+  ensureAllCampaignMappings(accountId);
+  
+  // Step 2: Check if daily zero-click fetch is needed
+  Logger.log('\\n--- Step 2: Checking Daily Zero-Click Suffix Fetch ---');
+  checkAndFetchDailyZeroClickSuffixes(accountId);
+  
+  // Step 3: Check for clicked suffixes and remove from bucket
+  Logger.log('\\n--- Step 3: Checking for Clicked Suffixes ---');
+  checkAndRemoveClickedSuffixes(accountId);
+  
+  // Step 4: Continuous queue polling (webhooks apply suffixes immediately)
+  Logger.log('\\n--- Step 4: Starting Queue Polling ---');
+  const startTime = new Date().getTime();
+  const maxRuntime = CONFIG.MAX_RUNTIME_MINUTES * 60 * 1000;
+  
+  let cycleCount = 0;
+  
+  while (true) {
+    const elapsed = new Date().getTime() - startTime;
+    if (elapsed > maxRuntime) {
+      Logger.log('⏰ Max runtime reached. Script will restart automatically.');
+      break;
+    }
+    
+    cycleCount++;
+    Logger.log('\\nCycle ' + cycleCount + ' - Polling queue...');
+    
+    // Process webhooks (applies suffix + traces + stores in bucket)
+    const processed = processUpdateQueue(accountId);
+    
+    if (processed > 0) {
+      Logger.log('✓ Processed ' + processed + ' webhooks (applied + traced + stored)');
+    }
+    
+    Utilities.sleep(CONFIG.QUEUE_POLL_INTERVAL_SECONDS * 1000);
+  }
+  
+  Logger.log('\\n=== WEBHOOK MASTER SCRIPT COMPLETED ===');
+}
+
+// ============================================
+// AUTO-MAPPING FUNCTIONS
+// ============================================
+
+function ensureAllCampaignMappings(accountId) {
+  try {
+    const campaignIterator = AdsApp.campaigns()
+      .withCondition('Status = ENABLED')
+      .get();
+    
+    let checkedCount = 0;
+    let createdCount = 0;
+    
+    while (campaignIterator.hasNext()) {
+      const campaign = campaignIterator.next();
+      const campaignId = campaign.getId().toString();
+      const campaignName = campaign.getName();
+      
+      checkedCount++;
+      
+      // Check if mapping already exists
+      const exists = checkMappingExists(accountId, campaignId);
+      
+      if (!exists) {
+        Logger.log('Creating mapping for: ' + campaignName + ' (ID: ' + campaignId + ')');
+        const created = createMapping(accountId, campaignId, campaignName);
+        if (created) {
+          createdCount++;
+        }
+      } else {
+        Logger.log('✓ Mapping exists for: ' + campaignName);
+      }
+    }
+    
+    Logger.log('\\nMapping Summary:');
+    Logger.log('- Campaigns checked: ' + checkedCount);
+    Logger.log('- New mappings created: ' + createdCount);
+    
+  } catch (error) {
+    Logger.log('❌ Error in ensureAllCampaignMappings: ' + error.message);
+  }
+}
+
+function checkMappingExists(accountId, campaignId) {
+  try {
+    const url = CONFIG.PROXY_SERVICE_URL + '/api/webhook-campaign/check' +
+                '?account_id=' + encodeURIComponent(accountId) +
+                '&campaign_id=' + encodeURIComponent(campaignId);
+    
+    const response = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      muteHttpExceptions: true
+    });
+    
+    if (response.getResponseCode() === 200) {
+      const data = JSON.parse(response.getContentText());
+      return data.exists === true;
+    }
+    
+    return false;
+  } catch (error) {
+    Logger.log('❌ Error checking mapping: ' + error.message);
+    return false;
+  }
+}
+
+function createMapping(accountId, campaignId, campaignName) {
+  try {
+    const url = CONFIG.PROXY_SERVICE_URL + '/api/webhook-campaign/auto-create';
+    
+    const payload = {
+      account_id: accountId,
+      campaign_id: campaignId,
+      campaign_name: campaignName,
+      offer_name: CONFIG.OFFER_NAME
+    };
+    
+    const response = UrlFetchApp.fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    
+    if (response.getResponseCode() === 200) {
+      const data = JSON.parse(response.getContentText());
+      if (data.success) {
+        Logger.log('✓ Mapping created successfully');
+        if (data.trackier && data.trackier.webhookUrl) {
+          Logger.log('📋 Trackier Webhook URL: ' + data.trackier.webhookUrl);
+          Logger.log('   (Add this to your Trackier campaign S2S postback)');
+        }
+        return true;
+      }
+    }
+    
+    Logger.log('❌ Failed to create mapping: HTTP ' + response.getResponseCode());
+    return false;
+    
+  } catch (error) {
+    Logger.log('❌ Error creating mapping: ' + error.message);
+    return false;
+  }
+}
+
+// ============================================
+// QUEUE PROCESSING FUNCTIONS
+// ============================================
+
+function processUpdateQueue(accountId) {
+  try {
+    const queueItems = fetchPendingQueueItems(accountId);
+    
+    if (!queueItems || queueItems.length === 0) {
+      return 0;
+    }
+    
+    Logger.log('Found ' + queueItems.length + ' pending webhooks');
+    
+    let processedCount = 0;
+    
+    for (var i = 0; i < queueItems.length; i++) {
+      const item = queueItems[i];
+      
+      Logger.log('\\nProcessing webhook for campaign: ' + item.campaign_id);
+      Logger.log('Webhook suffix (will be traced): ' + item.new_suffix);
+      
+      markQueueItemProcessing(item.id);
+      
+      try {
+        const mapping = fetchMappingByIds(accountId, item.campaign_id);
+        
+        if (!mapping || !mapping.mapping_id) {
+          markQueueItemFailed(item.id, 'Mapping not found');
+          Logger.log('❌ Mapping not found for campaign');
+          continue;
+        }
+        
+        // Step 1: Get next suffix FROM BUCKET (not from webhook!)
+        Logger.log('Step 1: Getting next suffix from bucket...');
+        const bucketSuffix = getNextSuffixFromBucket(mapping.mapping_id);
+        
+        if (!bucketSuffix) {
+          Logger.log('⚠️  No suffixes in bucket. Will trace webhook suffix and store for next time.');
+          
+          // Trace webhook suffix and store in bucket for future use
+          const tracedSuffixes = triggerTraceAndExtractSuffixes(
+            item.new_suffix, 
+            mapping.campaign_name,
+            CONFIG.OFFER_NAME
+          );
+          
+          if (tracedSuffixes && tracedSuffixes.length > 0) {
+            const storedCount = storeSuffixesInBucket(mapping.mapping_id, tracedSuffixes);
+            Logger.log('✓ Stored ' + storedCount + ' traced suffixes for future use');
+          }
+          
+          markQueueItemCompleted(item.id);
+          processedCount++;
+          continue;
+        }
+        
+        Logger.log('✓ Got suffix from bucket (ID: ' + bucketSuffix.suffix_id + ')');
+        
+        // Step 2: Apply BUCKET suffix to campaign
+        Logger.log('Step 2: Applying bucket suffix to campaign...');
+        const applied = applySuffixUpdate(item.campaign_id, bucketSuffix.suffix);
+        
+        if (!applied) {
+          markQueueItemFailed(item.id, 'Failed to apply bucket suffix to campaign');
+          Logger.log('❌ Failed to apply bucket suffix');
+          continue;
+        }
+        
+        // Step 3: Mark bucket suffix as used
+        Logger.log('Step 3: Marking bucket suffix as used...');
+        markBucketSuffixAsUsed(bucketSuffix.suffix_id);
+        
+        // Step 4: Trace webhook suffix in background and store results
+        Logger.log('Step 4: Tracing webhook suffix and storing results...');
+        const tracedSuffixes = triggerTraceAndExtractSuffixes(
+          item.new_suffix, 
+          mapping.campaign_name,
+          CONFIG.OFFER_NAME
+        );
+        
+        if (tracedSuffixes && tracedSuffixes.length > 0) {
+          Logger.log('✓ Traced ' + tracedSuffixes.length + ' suffixes from webhook');
+          const storedCount = storeSuffixesInBucket(mapping.mapping_id, tracedSuffixes);
+          Logger.log('✓ Stored ' + storedCount + ' new suffixes in bucket');
+        } else {
+          Logger.log('⚠️  No suffixes traced from webhook');
+        }
+        
+        markQueueItemCompleted(item.id);
+        processedCount++;
+        Logger.log('✅ Webhook processed: Campaign updated with bucket suffix, webhook suffix traced & stored');
+        
+      } catch (error) {
+        markQueueItemFailed(item.id, error.message);
+        Logger.log('❌ Error processing webhook: ' + error.message);
+      }
+    }
+    
+    return processedCount;
+    
+  } catch (error) {
+    Logger.log('❌ Error in processUpdateQueue: ' + error.message);
+    return 0;
+  }
+}
+
+function fetchPendingQueueItems(accountId) {
+  try {
+    const url = CONFIG.SUPABASE_URL + '/rest/v1/webhook_suffix_update_queue' +
+                '?account_id=eq.' + accountId +
+                '&status=eq.pending' +
+                '&order=webhook_received_at.asc' +
+                '&limit=10' +
+                '&select=*';
+    
+    const response = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: {
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY
+      },
+      muteHttpExceptions: true
+    });
+    
+    if (response.getResponseCode() === 200) {
+      return JSON.parse(response.getContentText());
+    }
+    
+    return [];
+  } catch (error) {
+    Logger.log('❌ Error fetching queue items: ' + error.message);
+    return [];
+  }
+}
+
+function applySuffixUpdate(campaignId, newSuffix) {
+  try {
+    const campaign = AdsApp.campaigns()
+      .withCondition('Id = ' + campaignId)
+      .get()
+      .next();
+    
+    if (!campaign) {
+      Logger.log('❌ Campaign not found: ' + campaignId);
+      return false;
+    }
+    
+    // Update FINAL URL SUFFIX at CAMPAIGN LEVEL
+    const currentSuffix = campaign.urls().getFinalUrlSuffix() || '';
+    
+    campaign.urls().setFinalUrlSuffix(newSuffix);
+    
+    Logger.log('✓ Updated campaign final URL suffix: ' + newSuffix);
+    Logger.log('  Old: ' + (currentSuffix || '(none)'));
+    Logger.log('  New: ' + newSuffix);
+    
+    return true;
+    
+  } catch (error) {
+    Logger.log('❌ Error applying suffix: ' + error.message);
+    return false;
+  }
+}
+
+// ============================================
+// BUCKET HELPER FUNCTIONS (SEQUENTIAL)
+// ============================================
+
+function getNextSuffixFromBucket(mappingId) {
+  try {
+    const url = CONFIG.SUPABASE_URL + '/rest/v1/webhook_suffix_bucket' +
+                '?mapping_id=eq.' + mappingId +
+                '&is_valid=eq.true' +
+                '&times_used=eq.0' +  // Only get unused suffixes
+                '&order=id.asc' +  // Sequential order (oldest first)
+                '&limit=1' +
+                '&select=id,suffix,times_used';
+    
+    const response = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: {
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY
+      },
+      muteHttpExceptions: true
+    });
+    
+    if (response.getResponseCode() === 200) {
+      const data = JSON.parse(response.getContentText());
+      if (data && data.length > 0) {
+        return {
+          suffix_id: data[0].id,
+          suffix: data[0].suffix,
+          times_used: data[0].times_used
+        };
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    Logger.log('❌ Error getting next suffix: ' + error.message);
+    return null;
+  }
+}
+
+function markBucketSuffixAsUsed(suffixId) {
+  try {
+    const url = CONFIG.SUPABASE_URL + '/rest/v1/rpc/mark_suffix_used';
+    
+    const payload = {
+      p_suffix_id: suffixId
+    };
+    
+    UrlFetchApp.fetch(url, {
+      method: 'POST',
+      headers: {
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    
+  } catch (error) {
+    Logger.log('❌ Error marking suffix as used: ' + error.message);
+  }
+}
+
+function storeSingleSuffixInBucket(mappingId, suffix, source) {
+  try {
+    const url = CONFIG.SUPABASE_URL + '/rest/v1/webhook_suffix_bucket';
+    
+    const payload = {
+      mapping_id: mappingId,
+      suffix: suffix,
+      suffix_hash: Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, suffix)
+        .map(function(byte) {
+          return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+        }).join(''),
+      source: source,
+      is_valid: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, {
+      method: 'POST',
+      headers: {
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    
+    return response.getResponseCode() === 201;
+    
+  } catch (error) {
+    // Likely duplicate - that's OK
+    return true;
+  }
+}
+
+// ============================================
+// TRACE AND EXTRACT SUFFIXES
+// ============================================
+
+function fetchOfferTracerConfig(offerName) {
+  try {
+    const url = CONFIG.SUPABASE_URL + '/rest/v1/offers' +
+                '?name=eq.' + encodeURIComponent(offerName) +
+                '&select=tracer_mode,geo_target_country,luna_api_customer_id,luna_api_username,luna_api_password' +
+                '&limit=1';
+    
+    const response = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: {
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY
+      },
+      muteHttpExceptions: true
+    });
+    
+    if (response.getResponseCode() === 200) {
+      const data = JSON.parse(response.getContentText());
+      if (data && data.length > 0) {
+        return {
+          tracerMode: data[0].tracer_mode || 'http_only',
+          geoTarget: data[0].geo_target_country || null,
+          lunaCustomerId: data[0].luna_api_customer_id || null,
+          lunaUsername: data[0].luna_api_username || null,
+          lunaPassword: data[0].luna_api_password || null
+        };
+      }
+    }
+    
+    // Default to http_only if offer not found
+    Logger.log('⚠️  Offer config not found, using default: http_only');
+    return {
+      tracerMode: 'http_only',
+      geoTarget: null,
+      lunaCustomerId: null,
+      lunaUsername: null,
+      lunaPassword: null
+    };
+    
+  } catch (error) {
+    Logger.log('⚠️  Error fetching offer config: ' + error.message + ', using http_only');
+    return {
+      tracerMode: 'http_only',
+      geoTarget: null,
+      lunaCustomerId: null,
+      lunaUsername: null,
+      lunaPassword: null
+    };
+  }
+}
+
+function triggerTraceAndExtractSuffixes(suffix, campaignName, offerName) {
+  try {
+    // Fetch saved tracer configuration for this offer
+    Logger.log('Fetching tracer config for offer: ' + offerName);
+    const config = fetchOfferTracerConfig(offerName);
+    
+    Logger.log('Using tracer mode: ' + config.tracerMode);
+    if (config.geoTarget) {
+      Logger.log('Using geo target: ' + config.geoTarget);
+    }
+    
+    // Build a test URL with the suffix (use a dummy domain)
+    const testUrl = 'https://example.com/click?' + suffix;
+    
+    Logger.log('Tracing URL: ' + testUrl);
+    
+    const traceUrl = CONFIG.PROXY_SERVICE_URL + '/trace';
+    
+    const payload = {
+      url: testUrl,
+      mode: config.tracerMode,
+      metadata: {
+        source: 'webhook',
+        campaign: campaignName,
+        offer: offerName
+      }
+    };
+    
+    // Add geo target if configured
+    if (config.geoTarget) {
+      payload.geoTarget = config.geoTarget;
+    }
+    
+    // Add Luna proxy credentials if configured
+    if (config.lunaCustomerId && config.lunaUsername && config.lunaPassword) {
+      payload.lunaProxy = {
+        customerId: config.lunaCustomerId,
+        username: config.lunaUsername,
+        password: config.lunaPassword
+      };
+    }
+    
+    const response = UrlFetchApp.fetch(traceUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    
+    if (response.getResponseCode() !== 200) {
+      Logger.log('⚠️  Trace request failed: HTTP ' + response.getResponseCode());
+      return [];
+    }
+    
+    const result = JSON.parse(response.getContentText());
+    
+    if (!result.success || !result.chain || result.chain.length === 0) {
+      Logger.log('⚠️  No redirect chain found');
+      return [];
+    }
+    
+    Logger.log('✓ Trace complete. Chain length: ' + result.chain.length);
+    
+    // Extract suffixes from all URLs in the chain
+    const suffixes = [];
+    
+    for (var i = 0; i < result.chain.length; i++) {
+      const step = result.chain[i];
+      const url = step.url || '';
+      
+      if (url) {
+        const extractedSuffix = extractSuffixFromUrl(url);
+        if (extractedSuffix) {
+          suffixes.push({
+            suffix: extractedSuffix,
+            clicks: 0,
+            impressions: 0
+          });
+        }
+      }
+    }
+    
+    Logger.log('Extracted ' + suffixes.length + ' unique suffixes from trace');
+    
+    return suffixes;
+    
+  } catch (error) {
+    Logger.log('❌ Error tracing URL: ' + error.message);
+    return [];
+  }
+}
+
+// ============================================
+// QUEUE STATUS UPDATE FUNCTIONS
+// ============================================
+
+function markQueueItemProcessing(itemId) {
+  updateQueueItemStatus(itemId, 'processing', null);
+}
+
+function markQueueItemCompleted(itemId) {
+  updateQueueItemStatus(itemId, 'completed', null);
+}
+
+function markQueueItemFailed(itemId, errorMessage) {
+  updateQueueItemStatus(itemId, 'failed', errorMessage);
+}
+
+function updateQueueItemStatus(itemId, status, errorMessage) {
+  try {
+    const url = CONFIG.SUPABASE_URL + '/rest/v1/webhook_suffix_update_queue?id=eq.' + itemId;
+    
+    const payload = {
+      status: status,
+      attempts: 1
+    };
+    
+    if (status === 'processing') {
+      payload.processing_started_at = new Date().toISOString();
+    }
+    
+    if (status === 'completed') {
+      payload.completed_at = new Date().toISOString();
+    }
+    
+    if (errorMessage) {
+      payload.error_message = errorMessage;
+      payload.last_error_at = new Date().toISOString();
+    }
+    
+    UrlFetchApp.fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    
+  } catch (error) {
+    Logger.log('❌ Error updating queue status: ' + error.message);
+  }
+}
+
+// ============================================
+// ZERO-CLICK SUFFIX FETCHING
+// ============================================
+
+function checkAndFetchDailyZeroClickSuffixes(accountId) {
+  try {
+    // Get last fetch timestamp from script property
+    const scriptProperties = PropertiesService.getScriptProperties();
+    const lastFetchKey = 'ZERO_CLICK_LAST_FETCH_' + accountId;
+    const lastFetchTimestamp = scriptProperties.getProperty(lastFetchKey);
+    const now = new Date().getTime();
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    
+    // Check if 24 hours have passed since last fetch
+    if (lastFetchTimestamp) {
+      const timeSinceLastFetch = now - parseInt(lastFetchTimestamp);
+      if (timeSinceLastFetch < ONE_DAY_MS) {
+        const hoursRemaining = Math.floor((ONE_DAY_MS - timeSinceLastFetch) / (60 * 60 * 1000));
+        Logger.log('⏭️  Zero-click fetch already done today. Next run in ~' + hoursRemaining + ' hours');
+        return;
+      }
+    }
+    
+    Logger.log('📊 Fetching zero-click suffixes for all mappings...');
+    
+    // Get all mappings for this account
+    const mappings = fetchAllMappingsForAccount(accountId);
+    
+    if (!mappings || mappings.length === 0) {
+      Logger.log('ℹ️  No mappings found for this account');
+      return;
+    }
+    
+    let totalFetched = 0;
+    
+    for (var i = 0; i < mappings.length; i++) {
+      const mapping = mappings[i];
+      Logger.log('\\nFetching for campaign: ' + mapping.campaign_name + ' (ID: ' + mapping.campaign_id + ')');
+      
+      const count = fetchAndStoreZeroClickSuffixes(mapping.campaign_id, mapping.mapping_id);
+      totalFetched += count;
+    }
+    
+    Logger.log('\\n✓ Daily zero-click fetch complete. Total suffixes stored: ' + totalFetched);
+    
+    // Update last fetch timestamp
+    scriptProperties.setProperty(lastFetchKey, now.toString());
+    
+  } catch (error) {
+    Logger.log('❌ Error in daily zero-click fetch: ' + error.message);
+  }
+}
+
+// ============================================
+// DAILY SEQUENTIAL SUFFIX UPDATE
+// ============================================
+
+function checkAndUpdateSuffixesDaily(accountId) {
+  try {
+    // Get last update timestamp from script property
+    const scriptProperties = PropertiesService.getScriptProperties();
+    const lastUpdateKey = CONFIG.SUFFIX_UPDATE_LAST_RUN + accountId;
+    const lastUpdateTimestamp = scriptProperties.getProperty(lastUpdateKey);
+    const now = new Date().getTime();
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    
+    // Check if 24 hours have passed since last update
+    if (lastUpdateTimestamp) {
+      const timeSinceLastUpdate = now - parseInt(lastUpdateTimestamp);
+      if (timeSinceLastUpdate < ONE_DAY_MS) {
+        const hoursRemaining = Math.floor((ONE_DAY_MS - timeSinceLastUpdate) / (60 * 60 * 1000));
+        Logger.log('⏭️  Sequential suffix update already done today. Next run in ~' + hoursRemaining + ' hours');
+        return;
+      }
+    }
+    
+    Logger.log('🔄 Running daily sequential suffix update...');
+    
+    // Update suffixes sequentially and clean old/used ones
+    updateCampaignSuffixesSequentially(accountId);
+    
+    // Update last update timestamp
+    scriptProperties.setProperty(lastUpdateKey, now.toString());
+    
+  } catch (error) {
+    Logger.log('❌ Error in daily suffix update: ' + error.message);
+  }
+}
+
+function updateCampaignSuffixesSequentially(accountId) {
+  try {
+    const mappings = fetchAllMappingsForAccount(accountId);
+    
+    if (!mappings || mappings.length === 0) {
+      Logger.log('ℹ️  No active mappings to update');
+      return;
+    }
+    
+    let updatedCount = 0;
+    
+    for (var i = 0; i < mappings.length; i++) {
+      const mapping = mappings[i];
+      
+      // First, clean old and used suffixes (>7 days OR already used)
+      cleanOldUsedSuffixes(mapping.mapping_id);
+      
+      // Get next unused suffix from bucket (sequential order)
+      const nextSuffix = getNextSuffixFromBucket(mapping.mapping_id);
+      
+      if (nextSuffix) {
+        Logger.log('\\nUpdating suffix for: ' + mapping.campaign_name);
+        Logger.log('  Suffix: ' + nextSuffix.suffix);
+        Logger.log('  Sequential ID: ' + nextSuffix.suffix_id);
+        
+        const success = applySuffixUpdate(mapping.campaign_id, nextSuffix.suffix);
+        
+        if (success) {
+          markBucketSuffixAsUsed(nextSuffix.suffix_id);
+          updatedCount++;
+        }
+      } else {
+        Logger.log('⚠️  No unused suffixes in bucket for: ' + mapping.campaign_name);
+      }
+    }
+    
+    Logger.log('\\n✓ Sequential update complete. Updated ' + updatedCount + ' campaigns');
+    
+  } catch (error) {
+    Logger.log('❌ Error in sequential suffix update: ' + error.message);
+  }
+}
+
+// ============================================
+// CLICK DETECTION AND CLEANUP
+// ============================================
+
+function checkAndRemoveClickedSuffixes(accountId) {
+  try {
+    const mappings = fetchAllMappingsForAccount(accountId);
+    
+    if (!mappings || mappings.length === 0) {
+      return;
+    }
+    
+    let removedCount = 0;
+    
+    for (var i = 0; i < mappings.length; i++) {
+      const mapping = mappings[i];
+      
+      // Get current campaign suffix from Google Ads
+      const campaign = AdsApp.campaigns()
+        .withIds([mapping.campaign_id])
+        .get();
+      
+      if (!campaign.hasNext()) {
+        continue;
+      }
+      
+      const camp = campaign.next();
+      const currentSuffix = camp.urls().getFinalUrlSuffix();
+      
+      if (!currentSuffix) {
+        continue;
+      }
+      
+      // Check if this suffix has received clicks TODAY
+      const today = Utilities.formatDate(new Date(), AdsApp.currentAccount().getTimeZone(), 'yyyyMMdd');
+      
+      const report = AdsApp.report(
+        'SELECT Clicks ' +
+        'FROM CAMPAIGN_PERFORMANCE_REPORT ' +
+        'WHERE CampaignId = "' + mapping.campaign_id + '" ' +
+        'AND Date = ' + today
+      );
+      
+      const rows = report.rows();
+      
+      if (rows.hasNext()) {
+        const row = rows.next();
+        const clicks = parseInt(row['Clicks'] || '0');
+        
+        if (clicks > 0) {
+          Logger.log('\\n🚨 Campaign "' + mapping.campaign_name + '" has ' + clicks + ' clicks today!');
+          Logger.log('  Deleting suffix from bucket: ' + currentSuffix);
+          
+          // Delete this suffix from bucket
+          const deleted = deleteSuffixFromBucket(mapping.mapping_id, currentSuffix);
+          
+          if (deleted) {
+            removedCount++;
+            Logger.log('  ✓ Suffix removed from bucket');
+          }
+        }
+      }
+    }
+    
+    if (removedCount > 0) {
+      Logger.log('\\n✓ Removed ' + removedCount + ' clicked suffixes from bucket');
+    }
+    
+  } catch (error) {
+    Logger.log('❌ Error checking for clicked suffixes: ' + error.message);
+  }
+}
+
+function cleanOldUsedSuffixes(mappingId) {
+  try {
+    const url = CONFIG.SUPABASE_URL + '/rest/v1/rpc/clean_old_used_suffixes';
+    
+    const payload = {
+      p_mapping_id: mappingId
+    };
+    
+    const response = UrlFetchApp.fetch(url, {
+      method: 'POST',
+      headers: {
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    
+    if (response.getResponseCode() === 200) {
+      const data = JSON.parse(response.getContentText());
+      if (data && data.length > 0 && data[0].deleted_count > 0) {
+        Logger.log('  🧹 Cleaned ' + data[0].deleted_count + ' old/used suffixes');
+      }
+    }
+    
+  } catch (error) {
+    Logger.log('❌ Error cleaning old suffixes: ' + error.message);
+  }
+}
+
+function deleteSuffixFromBucket(mappingId, suffix) {
+  try {
+    // First, get the suffix ID by hash
+    const suffixHash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, suffix)
+      .map(function(byte) {
+        return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+      }).join('');
+    
+    const getUrl = CONFIG.SUPABASE_URL + '/rest/v1/webhook_suffix_bucket' +
+                   '?mapping_id=eq.' + mappingId +
+                   '&suffix_hash=eq.' + suffixHash +
+                   '&select=id';
+    
+    const getResponse = UrlFetchApp.fetch(getUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY
+      },
+      muteHttpExceptions: true
+    });
+    
+    if (getResponse.getResponseCode() === 200) {
+      const data = JSON.parse(getResponse.getContentText());
+      if (data && data.length > 0) {
+        const suffixId = data[0].id;
+        
+        // Delete via RPC
+        const deleteUrl = CONFIG.SUPABASE_URL + '/rest/v1/rpc/delete_suffix_from_bucket';
+        
+        const payload = {
+          p_suffix_id: suffixId
+        };
+        
+        UrlFetchApp.fetch(deleteUrl, {
+          method: 'POST',
+          headers: {
+            'apikey': CONFIG.SUPABASE_ANON_KEY,
+            'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          payload: JSON.stringify(payload),
+          muteHttpExceptions: true
+        });
+        
+        return true;
+      }
+    }
+    
+    return false;
+    
+  } catch (error) {
+    Logger.log('❌ Error deleting suffix: ' + error.message);
+    return false;
+  }
+}
+
+function fetchAllMappingsForAccount(accountId) {
+  try {
+    const url = CONFIG.SUPABASE_URL + '/rest/v1/webhook_campaign_mappings' +
+                '?account_id=eq.' + accountId +
+                '&is_active=eq.true' +
+                '&select=*';
+    
+    const response = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: {
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY
+      },
+      muteHttpExceptions: true
+    });
+    
+    if (response.getResponseCode() === 200) {
+      return JSON.parse(response.getContentText());
+    }
+    
+    return [];
+  } catch (error) {
+    Logger.log('❌ Error fetching mappings: ' + error.message);
+    return [];
+  }
+}
+
+function fetchAndStoreZeroClickSuffixes(campaignId, mappingId) {
+  try {
+    // Fetch ALL zero-click suffixes from last 7 days
+    const lookbackDays = CONFIG.ZERO_CLICK_LOOKBACK_DAYS;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - lookbackDays);
+    const dateString = Utilities.formatDate(startDate, AdsApp.currentAccount().getTimeZone(), 'yyyyMMdd');
+    
+    const query = 'SELECT EffectiveFinalUrl, Clicks, Impressions ' +
+                  'FROM FINAL_URL_REPORT ' +
+                  'WHERE CampaignId = ' + campaignId + ' ' +
+                  'AND Clicks = 0 ' +
+                  'AND Impressions > 0 ' +
+                  'DURING ' + dateString + ',' + Utilities.formatDate(new Date(), AdsApp.currentAccount().getTimeZone(), 'yyyyMMdd');
+    
+    const report = AdsApp.report(query);
+    const rows = report.rows();
+    
+    const suffixes = [];
+    while (rows.hasNext()) {
+      const row = rows.next();
+      const finalUrl = row['EffectiveFinalUrl'] || row['FinalUrls'] || '';
+      const clicks = parseInt(row['Clicks']);
+      const impressions = parseInt(row['Impressions']);
+      
+      if (finalUrl && clicks === 0 && impressions > 0) {
+        const suffix = extractSuffixFromUrl(finalUrl);
+        if (suffix) {
+          suffixes.push({
+            suffix: suffix,
+            clicks: clicks,
+            impressions: impressions
+          });
+        }
+      }
+    }
+    
+    Logger.log('Found ' + suffixes.length + ' zero-click suffixes');
+    
+    if (suffixes.length > 0) {
+      return storeSuffixesInBucket(mappingId, suffixes);
+    }
+    
+    return 0;
+    
+  } catch (error) {
+    Logger.log('❌ Error fetching zero-click suffixes: ' + error.message);
+    return 0;
+  }
+}
+
+function extractSuffixFromUrl(url) {
+  try {
+    if (!url || url.indexOf('?') === -1) {
+      return null;
+    }
+    
+    const parts = url.split('?');
+    if (parts.length < 2) {
+      return null;
+    }
+    
+    return parts[1];
+  } catch (error) {
+    return null;
+  }
+}
+
+function storeSuffixesInBucket(mappingId, suffixes) {
+  try {
+    const url = CONFIG.SUPABASE_URL + '/rest/v1/webhook_suffix_bucket';
+    
+    let storedCount = 0;
+    
+    for (var i = 0; i < suffixes.length; i++) {
+      const item = suffixes[i];
+      
+      const payload = {
+        mapping_id: mappingId,
+        suffix: item.suffix,
+        suffix_hash: Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, item.suffix)
+          .map(function(byte) {
+            return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+          }).join(''),
+        original_clicks: item.clicks,
+        original_impressions: item.impressions,
+        source: 'zero_click',
+        is_valid: true
+      };
+      
+      try {
+        const response = UrlFetchApp.fetch(url, {
+          method: 'POST',
+          headers: {
+            'apikey': CONFIG.SUPABASE_ANON_KEY,
+            'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          payload: JSON.stringify(payload),
+          muteHttpExceptions: true
+        });
+        
+        if (response.getResponseCode() === 201) {
+          storedCount++;
+        }
+      } catch (error) {
+        // Likely duplicate - skip
+      }
+    }
+    
+    return storedCount;
+  } catch (error) {
+    Logger.log('❌ Error storing suffixes: ' + error.message);
+    return 0;
+  }
+}
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+function fetchMappingByIds(accountId, campaignId) {
+  try {
+    const url = CONFIG.SUPABASE_URL + '/rest/v1/webhook_campaign_mappings' +
+                '?account_id=eq.' + accountId +
+                '&campaign_id=eq.' + campaignId +
+                '&select=*' +
+                '&limit=1';
+    
+    const response = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: {
+        'apikey': CONFIG.SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY
+      },
+      muteHttpExceptions: true
+    });
+    
+    if (response.getResponseCode() === 200) {
+      const data = JSON.parse(response.getContentText());
+      if (data && data.length > 0) {
+        return data[0];
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    Logger.log('❌ Error fetching mapping: ' + error.message);
+    return null;
+  }
+}`;
+
   const curlExample = `# Get Suffix (with redirect)
 curl "${supabaseUrl}/functions/v1/get-suffix?offer_name=OFFER_NAME&redirect=true"
 
@@ -2021,6 +3187,43 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
             </div>
           </div>
         </div>
+
+        {/* Webhook Master Script - All-in-One */}
+        <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-neutral-200 dark:border-neutral-800 overflow-hidden">
+          <div className="bg-neutral-50 dark:bg-neutral-850 px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FileCode className="text-emerald-600 dark:text-emerald-400" size={24} />
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Webhook Master Script (All-in-One) 🎯</h3>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                  Single script that auto-creates mappings + polls webhooks + fetches zero-click suffixes + updates campaigns
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => copyToClipboard(webhookMasterScript, 'webhook-master')}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 dark:bg-emerald-500 text-white rounded-lg hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-smooth"
+            >
+              {copiedScript === 'webhook-master' ? (
+                <>
+                  <CheckCircle size={20} />
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={20} />
+                  <span>Copy Script</span>
+                </>
+              )}
+            </button>
+          </div>
+          <div className="px-6 py-4">
+            <pre className="bg-neutral-50 dark:bg-neutral-950 p-4 rounded-lg overflow-x-auto text-sm border border-neutral-200 dark:border-neutral-800">
+              <code className="text-neutral-800 dark:text-neutral-200">{webhookMasterScript}</code>
+            </pre>
+          </div>
+        </div>
+
         <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-neutral-200 dark:border-neutral-800 overflow-hidden">
           <div className="bg-neutral-50 dark:bg-neutral-850 px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
