@@ -656,8 +656,11 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
           const pairUrl2Encoded = encodeURIComponent(pairUrl2);
           const pairTemplate = `https://nebula.gotrackier.com/click?campaign_id=${pair.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${pairUrl2Encoded}`;
           
+          // Remove old webhook_token field and ensure pair_index is set
+          const { webhook_token, ...pairWithoutToken } = pair;
+          
           return {
-            ...pair,
+            ...pairWithoutToken,
             google_ads_template: pairTemplate,
             pair_index: pair.pair_index || (index + 1)
           };
