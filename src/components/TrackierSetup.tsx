@@ -1669,9 +1669,9 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                 <button
                   onClick={() => {
                     const csvContent = pairsData.map(p => 
-                      `Pair ${p.pair_index},${p.url1_campaign_id},${p.url2_campaign_id},${p.google_ads_template}`
+                      `Pair ${p.pair_index},${p.url1_campaign_id},${p.url2_campaign_id},${p.webhook_token || 'N/A'},${p.google_ads_template}`
                     ).join('\n');
-                    const header = 'Pair,URL1_Campaign,URL2_Campaign,Google_Ads_Template\n';
+                    const header = 'Pair,URL1_Campaign,URL2_Campaign,Webhook_Token,Google_Ads_Template\n';
                     const blob = new Blob([header + csvContent], { type: 'text/csv' });
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
