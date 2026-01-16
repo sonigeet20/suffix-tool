@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { Link2, Settings as SettingsIcon, Activity, LogOut, Code2, Sun, Moon, Shield, Eye, Clock } from 'lucide-react';
+import { Link2, Settings as SettingsIcon, Activity, LogOut, Code2, Sun, Moon, Shield, Eye, Clock, Zap } from 'lucide-react';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { useRole } from './hooks/useRole';
 import Login from './components/Login';
@@ -11,6 +11,7 @@ import Settings from './components/SettingsContent';
 import Analytics from './components/Analytics';
 import Scripts from './components/Scripts';
 import IntervalHistory from './components/IntervalHistory';
+import { WebhookCampaignMapper } from './components/WebhookCampaignMapper';
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
@@ -134,6 +135,19 @@ function AppContent() {
               )}
               {isAdmin && (
                 <Link
+                  to="/webhooks"
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-smooth ${
+                    isActive('/webhooks')
+                      ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-50'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-850 hover:text-neutral-900 dark:hover:text-neutral-200'
+                  }`}
+                >
+                  <Zap size={14} />
+                  <span className="hidden lg:inline">Webhooks</span>
+                </Link>
+              )}
+              {isAdmin && (
+                <Link
                   to="/intervals"
                   className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-smooth ${
                     isActive('/intervals')
@@ -201,6 +215,7 @@ function AppContent() {
             <>
               <Route path="/" element={<OfferList />} />
               <Route path="/scripts" element={<Scripts />} />
+              <Route path="/webhooks" element={<WebhookCampaignMapper />} />
               <Route path="/intervals" element={<IntervalHistory />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
