@@ -496,18 +496,15 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         .map(([paramName, placeholder]) => `${paramName}={${placeholder}}`)
         .join('&');
       
-      // Build final destination URL with parameter placeholders
-      const separator = config.final_url.includes('?') ? '&' : '?';
-      const finalUrlWithParams = queryParams ? `${config.final_url}${separator}${queryParams}` : config.final_url;
-      
       // Build double-nested Trackier URL structure:
-      // URL1 (Google Ads template) → URL2 → final_url?params
-      // URL2: Second Trackier URL with actual final_url + parameter placeholders for subIdOverride
-      const url2Template = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${encodeURIComponent(finalUrlWithParams)}`;
+      // URL1 → URL2 → {lpurl}?params
+      // Google Ads populates {lpurl}, then URL2 appends tracking params via subIdOverride
+      const lpurlWithParams = queryParams ? `{lpurl}?${queryParams}` : '{lpurl}';
+      const url2Template = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${encodeURIComponent(lpurlWithParams)}`;
       const url2Encoded = encodeURIComponent(url2Template);
       
-      // URL1: First Trackier URL wrapping URL2 + {lpurl} for Google Ads compliance
-      const googleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}&lpurl={lpurl}`;
+      // URL1: First Trackier URL wrapping URL2
+      const googleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}`;
       
       // Update pairs with pair_index (no unique tokens needed)
       // Webhook system uses: token=<offer_id>&pair_index=<num>
@@ -642,25 +639,22 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         .map(([paramName, placeholder]) => `${paramName}={${placeholder}}`)
         .join('&');
       
-      // Build final destination URL with parameter placeholders
-      const separator = config.final_url.includes('?') ? '&' : '?';
-      const finalUrlWithParams = queryParams ? `${config.final_url}${separator}${queryParams}` : config.final_url;
-      
       // Build double-nested Trackier URL structure:
-      // URL1 → URL2 → final_url?params
-      // URL2 uses actual final_url with parameter placeholders so Trackier can populate them via subIdOverride
-      const url2Template = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${encodeURIComponent(finalUrlWithParams)}`;
+      // URL1 → URL2 → {lpurl}?params
+      // Google Ads populates {lpurl}, then URL2 appends tracking params via subIdOverride
+      const lpurlWithParams = queryParams ? `{lpurl}?${queryParams}` : '{lpurl}';
+      const url2Template = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${encodeURIComponent(lpurlWithParams)}`;
       const url2Encoded = encodeURIComponent(url2Template);
-      const updatedGoogleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}&lpurl={lpurl}`;
+      const updatedGoogleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}`;
 
       // Update pairs if they exist
       let updatedPairs = pairsData;
       if (pairsData && pairsData.length > 0) {
         updatedPairs = pairsData.map((pair, index) => {
           // Build double-nested structure for each pair
-          const pairUrl2 = `https://nebula.gotrackier.com/click?campaign_id=${pair.url2_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${encodeURIComponent(finalUrlWithParams)}`;
+          const pairUrl2 = `https://nebula.gotrackier.com/click?campaign_id=${pair.url2_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${encodeURIComponent(lpurlWithParams)}`;
           const pairUrl2Encoded = encodeURIComponent(pairUrl2);
-          const pairTemplate = `https://nebula.gotrackier.com/click?campaign_id=${pair.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${pairUrl2Encoded}&lpurl={lpurl}`;
+          const pairTemplate = `https://nebula.gotrackier.com/click?campaign_id=${pair.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${pairUrl2Encoded}`;
           
           // Remove old webhook fields and ensure pair_index is set
           const { webhook_token, webhook_url, ...pairWithoutOldFields } = pair;
