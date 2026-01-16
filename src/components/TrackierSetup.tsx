@@ -517,6 +517,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       
       // Build URL 2 (final destination) with force_transparency, pub_id, and destination URL with params
       const url2Base = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparency=true&url=${encodeURIComponent(destinationUrlWithParams)}`;
+
       const url2Encoded = encodeURIComponent(url2Base);
       
       // Build URL 1 (passthrough) wrapping URL 2 with pub_id
