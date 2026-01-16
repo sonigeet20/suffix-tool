@@ -1633,12 +1633,15 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                             <div className="flex gap-1">
                               <input
                                 type="text"
-                                value={`${config.webhook_url.split('?')[0]}?token=${config.id}&pair_index=${pair.pair_index}&campaign_id={campaign_id}&click_id={click_id}`}
+                                value={`${config.webhook_url?.split('?')[0] || config.webhook_url}?token=${config.id}&pair_index=${pair.pair_index}&campaign_id={campaign_id}&click_id={click_id}`}
                                 readOnly
                                 className="flex-1 px-2 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-[10px]"
                               />
                               <button
-                                onClick={() => copyToClipboard(`${config.webhook_url.split('?')[0]}?token=${config.id}&pair_index=${pair.pair_index}&campaign_id={campaign_id}&click_id={click_id}`, `Pair ${pair.pair_index} Webhook`)}
+                                onClick={() => {
+                                  const baseUrl = config.webhook_url?.split('?')[0] || config.webhook_url || '';
+                                  copyToClipboard(`${baseUrl}?token=${config.id}&pair_index=${pair.pair_index}&campaign_id={campaign_id}&click_id={click_id}`, `Pair ${pair.pair_index} Webhook`);
+                                }}
                                 className="px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 text-[10px]"
                               >
                                 Copy
