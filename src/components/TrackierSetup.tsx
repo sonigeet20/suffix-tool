@@ -483,52 +483,33 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       
       const publisherId = config.publisher_id || '2'; // Default to 2 if not set
       
-      // Build destination URL with parameter names and placeholders
-      // Example: https://example.com/offer?utm_source={p1}&utm_medium={p2}&...
-      const subIdMapping = config.sub_id_mapping || {
-        p1: 'gclid',
-        p2: 'fbclid',
-        p3: 'msclkid',
-        p4: 'ttclid',
-        p5: 'clickid',
-        p6: 'utm_source',
-        p7: 'utm_medium',
-        p8: 'utm_campaign',
-        p9: 'custom1',
-        p10: 'custom2',
-        erid: 'erid',
-        app_name: 'app_name',
-        app_id: 'app_id',
-        cr_name: 'cr_name'
-      };
-
-      // Build parameter template
+      // Build parameter placeholders from sub_id_mapping
+      const subIdMapping = config.sub_id_mapping || {};
       const paramToPlaceholder: Record<string, string> = {};
       Object.entries(subIdMapping).forEach(([placeholder, paramName]) => {
-        paramToPlaceholder[paramName as string] = placeholder;
+        if (paramName) {
+          paramToPlaceholder[paramName as string] = placeholder;
+        }
       });
-
+      
       const queryParams = Object.entries(paramToPlaceholder)
         .map(([paramName, placeholder]) => `${paramName}={${placeholder}}`)
         .join('&');
-
-      const separator = config.final_url.includes('?') ? '&' : '?';
-      const destinationUrlWithParams = `${config.final_url}${separator}${queryParams}`;
       
-      // Build URL 2 (final destination) with force_transparency, pub_id, and destination URL with params
-      const url2Base = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparency=true&url=${encodeURIComponent(destinationUrlWithParams)}`;
-
-      const url2Encoded = encodeURIComponent(url2Base);
+      // Build double-nested Trackier URL structure:
+      // URL1 (Google Ads template) → URL2 → {lpurl}?params
+      // URL2: Second Trackier URL with {lpurl} + parameter placeholders for subIdOverride
+      const lpurlWithParams = queryParams ? `{lpurl}?${queryParams}` : '{lpurl}';
+      const url2Template = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${encodeURIComponent(lpurlWithParams)}`;
+      const url2Encoded = encodeURIComponent(url2Template);
       
-      // Build URL 1 (passthrough) wrapping URL 2 with pub_id
-      // Add cache-busting parameter to force Trackier to serve fresh subIdOverride values
-      // Include {lpurl} for Google Ads parallel tracking requirement
-      const googleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&_cb={timestamp}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}&lpurl={lpurl}`;
+      // URL1: First Trackier URL wrapping URL2
+      const googleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}`;
       
-      // Ensure each pair has a unique webhook token for proper routing
-      const pairsWithTokens = pairsData.map((pair, index) => ({
+      // Update pairs with pair_index (no unique tokens needed)
+      // Webhook system uses: token=<offer_id>&pair_index=<num>
+      const pairsWithIndex = pairsData.map((pair, index) => ({
         ...pair,
-        webhook_token: pair.webhook_token || crypto.randomUUID(),
         pair_index: pair.pair_index || (index + 1),
         enabled: pair.enabled !== undefined ? pair.enabled : true,
       }));
@@ -542,8 +523,8 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         url2_campaign_id_real: config.url2_campaign_id_real || config.url2_campaign_id,
         // Ensure update_interval_seconds is a valid number >= 1
         update_interval_seconds: updateInterval,
-        // Save pairsData to additional_pairs with unique tokens
-        additional_pairs: pairsWithTokens.length > 0 ? pairsWithTokens : null,
+        // Save pairsData to additional_pairs with pair_index (no unique tokens)
+        additional_pairs: pairsWithIndex.length > 0 ? pairsWithIndex : null,
       };
 
       console.log('Saving config with pairsData:', pairsData.length, 'pairs');
@@ -584,7 +565,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
         setPairsData(result.additional_pairs);
       }
       
-      setSuccess('Configuration saved successfully! Each pair has a unique webhook token for proper routing.');
+      setSuccess('Configuration saved successfully! Each pair uses offer ID + pair index for webhook routing.');
       
     } catch (err: any) {
       console.error('Error saving config:', err);
@@ -646,43 +627,39 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       // Regenerate Google Ads template with current suffix pattern and mappings
       const publisherId = config.publisher_id || '2';
       
-      // Build parameter template from sub_id_mapping
-      // sub_id_mapping format: { p1: 'utm_source', p2: 'utm_medium', ... }
-      // We need to reverse it to: { utm_source: 'p1', utm_medium: 'p2', ... }
+      // Build parameter placeholders from sub_id_mapping
       const paramToPlaceholder: Record<string, string> = {};
       Object.entries(config.sub_id_mapping).forEach(([placeholder, paramName]) => {
         if (paramName) {
           paramToPlaceholder[paramName as string] = placeholder;
         }
       });
-
+      
       const queryParams = Object.entries(paramToPlaceholder)
         .map(([paramName, placeholder]) => `${paramName}={${placeholder}}`)
         .join('&');
-
-      const separator = config.final_url.includes('?') ? '&' : '?';
-      const destinationUrlWithParams = `${config.final_url}${separator}${queryParams}`;
       
-      // Build URL 2 (final destination) 
-      const url2Base = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparency=true&url=${encodeURIComponent(destinationUrlWithParams)}`;
-      const url2Encoded = encodeURIComponent(url2Base);
-      
-      // Build URL 1 (passthrough)
-      // Include {lpurl} for Google Ads parallel tracking requirement
-      const updatedGoogleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&_cb={timestamp}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}&lpurl={lpurl}`;
+      // Build double-nested Trackier URL structure:
+      // URL1 → URL2 → {lpurl}?params
+      // URL2 appends parameter placeholders so Trackier can populate them via subIdOverride
+      const lpurlWithParams = queryParams ? `{lpurl}?${queryParams}` : '{lpurl}';
+      const url2Template = `https://nebula.gotrackier.com/click?campaign_id=${config.url2_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${encodeURIComponent(lpurlWithParams)}`;
+      const url2Encoded = encodeURIComponent(url2Template);
+      const updatedGoogleAdsTemplate = `https://nebula.gotrackier.com/click?campaign_id=${config.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${url2Encoded}`;
 
       // Update pairs if they exist
       let updatedPairs = pairsData;
       if (pairsData && pairsData.length > 0) {
-        updatedPairs = pairsData.map(pair => {
-          const pairUrl2Base = `https://nebula.gotrackier.com/click?campaign_id=${pair.url2_campaign_id}&pub_id=${publisherId}&force_transparency=true&url=${encodeURIComponent(destinationUrlWithParams)}`;
-          const pairUrl2Encoded = encodeURIComponent(pairUrl2Base);
-          const pairTemplate = `https://nebula.gotrackier.com/click?campaign_id=${pair.url1_campaign_id}&_cb={timestamp}&pub_id=${publisherId}&force_transparent=true&url=${pairUrl2Encoded}&lpurl={lpurl}`;
+        updatedPairs = pairsData.map((pair, index) => {
+          // Build double-nested structure for each pair
+          const pairUrl2 = `https://nebula.gotrackier.com/click?campaign_id=${pair.url2_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${encodeURIComponent(lpurlWithParams)}`;
+          const pairUrl2Encoded = encodeURIComponent(pairUrl2);
+          const pairTemplate = `https://nebula.gotrackier.com/click?campaign_id=${pair.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${pairUrl2Encoded}`;
           
           return {
             ...pair,
             google_ads_template: pairTemplate,
-            url2_destination_url: destinationUrlWithParams
+            pair_index: pair.pair_index || (index + 1)
           };
         });
         setPairsData(updatedPairs);
@@ -692,7 +669,6 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
       const updatedConfig = {
         ...config,
         google_ads_template: updatedGoogleAdsTemplate,
-        url2_destination_url: destinationUrlWithParams,
         additional_pairs: updatedPairs.length > 0 ? updatedPairs : config.additional_pairs
       };
 
@@ -1109,7 +1085,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                     </p>
                     <p className="text-xs text-blue-700 dark:text-blue-400 mb-3">
                       Create multiple campaign pairs (URL1 + URL2) for A/B testing or different traffic sources.
-                      Each pair gets a unique webhook token for independent tracking.
+                      Each pair uses the offer ID + pair index for webhook routing (no unique tokens needed).
                     </p>
                     
                     {/* Campaign Count Input */}
@@ -1601,8 +1577,12 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                           <span className="ml-2 text-gray-900 dark:text-white font-mono">{pair.url2_campaign_id}</span>
                         </div>
                         <div>
-                          <span className="font-medium text-gray-600 dark:text-gray-400">Webhook Token:</span>
-                          <span className="ml-2 text-purple-600 dark:text-purple-400 font-mono text-[10px]">{pair.webhook_token || 'Not assigned'}</span>
+                          <span className="font-medium text-gray-600 dark:text-gray-400">Webhook URL:</span>
+                          <div className="ml-2 text-purple-600 dark:text-purple-400 font-mono text-[10px] break-all">
+                            {config.id && pair.pair_index 
+                              ? `${config.webhook_url?.split('?')[0]}?token=${config.id}&pair_index=${pair.pair_index}&campaign_id={campaign_id}&click_id={click_id}`
+                              : 'Save configuration first'}
+                          </div>
                         </div>
                         
                         {pair.webhook_count !== undefined && (
@@ -1671,10 +1651,12 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                 {/* Export All Templates */}
                 <button
                   onClick={() => {
-                    const csvContent = pairsData.map(p => 
-                      `Pair ${p.pair_index},${p.url1_campaign_id},${p.url2_campaign_id},${p.webhook_token || 'N/A'},${p.google_ads_template}`
-                    ).join('\n');
-                    const header = 'Pair,URL1_Campaign,URL2_Campaign,Webhook_Token,Google_Ads_Template\n';
+                    const webhookBaseUrl = config.webhook_url?.split('?')[0] || 'https://[your-project].supabase.co/functions/v1/trackier-webhook';
+                    const csvContent = pairsData.map(p => {
+                      const webhookUrl = `${webhookBaseUrl}?token=${config.id}&pair_index=${p.pair_index}&campaign_id={campaign_id}&click_id={click_id}`;
+                      return `Pair ${p.pair_index},${p.url1_campaign_id},${p.url2_campaign_id},${config.id},${p.pair_index},"${webhookUrl}","${p.google_ads_template}"`;
+                    }).join('\n');
+                    const header = 'Pair,URL1_Campaign,URL2_Campaign,Offer_ID,Pair_Index,Webhook_URL,Google_Ads_Template\n';
                     const blob = new Blob([header + csvContent], { type: 'text/csv' });
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');

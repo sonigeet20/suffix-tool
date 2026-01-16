@@ -67,15 +67,15 @@ Deno.serve(async (req) => {
 
     console.log(`[${requestId}] Token: ${token}, Campaign ID: ${campaignId}, Click ID: ${clickId}`);
 
-    // Multi-route webhook resolution (backwards compatible)
+    // Multi-route webhook resolution with offer_id + pair_index system
     let offerId: string | null = null;
     let trackierOffer = null;
     let activePair = null;
     let pairIndex = 1;
 
-    // ROUTE 1: Token matches offer ID (LEGACY single-pair mode)
+    // ROUTE 1: token=<offer_id> + pair_index=<number> (PRIMARY METHOD)
     if (token) {
-      console.log(`[${requestId}] 🔍 Route 1: Checking if token is offer ID...`);
+      console.log(`[${requestId}] 🔍 Route 1: Looking up offer by ID (token=${token})...`);
       const { data: offer, error: offerError } = await supabase
         .from("trackier_offers")
         .select("*")
@@ -87,11 +87,23 @@ Deno.serve(async (req) => {
         trackierOffer = offer;
         offerId = offer.id;
         
-        // Extract pair 1 from additional_pairs if exists, else use top-level columns
+        // Extract pair by pair_index from URL query params
+        const urlParams = new URLSearchParams(new URL(req.url).search);
+        const urlPairIndex = urlParams.get('pair_index');
+        const targetIndex = urlPairIndex ? parseInt(urlPairIndex) : 1;
+        
         if (offer.additional_pairs && offer.additional_pairs.length > 0) {
-          activePair = offer.additional_pairs[0];
-          pairIndex = 1;
-          console.log(`[${requestId}] ✅ Route 1 SUCCESS: Legacy offer ${offer.offer_name} (using additional_pairs[0])`);
+          // Find pair by pair_index
+          activePair = offer.additional_pairs.find((p: any) => p.pair_index === targetIndex);
+          if (activePair) {
+            pairIndex = targetIndex;
+            console.log(`[${requestId}] ✅ Route 1 SUCCESS: Offer ${offer.offer_name}, Pair ${pairIndex}`);
+          } else {
+            // Fallback to first pair if index not found
+            activePair = offer.additional_pairs[0];
+            pairIndex = activePair.pair_index || 1;
+            console.log(`[${requestId}] ⚠️ Pair index ${targetIndex} not found, using pair ${pairIndex}`);
+          }
         } else {
           // Fallback to top-level columns for un-migrated offers
           console.log(`[${requestId}] ✅ Route 1 SUCCESS: Legacy offer ${offer.offer_name} (using top-level columns)`);
@@ -99,39 +111,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ROUTE 2: Token matches pair webhook_token (NEW multi-pair mode)
-    if (!trackierOffer && token) {
-      console.log(`[${requestId}] 🔍 Route 2: Searching for pair webhook_token...`);
-      const { data: offers } = await supabase
-        .from("trackier_offers")
-        .select("*")
-        .eq("enabled", true);
-      
-      // Search for matching webhook_token in additional_pairs arrays
-      for (const offer of offers || []) {
-        if (offer.additional_pairs && Array.isArray(offer.additional_pairs)) {
-          const pair = offer.additional_pairs.find(
-            (p: any) => p.webhook_token === token && p.enabled !== false
-          );
-          if (pair) {
-            trackierOffer = offer;
-            offerId = offer.id;
-            activePair = pair;
-            pairIndex = pair.pair_index;
-            console.log(`[${requestId}] ✅ Route 2 SUCCESS: Found pair ${pairIndex} for offer ${offer.offer_name}`);
-            break;
-          }
-        }
-      }
-      
-      if (!trackierOffer) {
-        console.log(`[${requestId}] ⚠️ Route 2: No pair found with webhook_token: ${token}`);
-      }
-    }
-
-    // ROUTE 3: Fallback by campaign_id (PRESERVED for backwards compat)
+    // ROUTE 2: Fallback by campaign_id (PRESERVED for backwards compat)
     if (!trackierOffer && campaignId && campaignId !== "unknown") {
-      console.log(`[${requestId}] 🔍 Route 3: Fallback search by campaign_id...`);
+      console.log(`[${requestId}] 🔍 Route 2: Fallback search by campaign_id...`);
       const { data: offerByCampaign } = await supabase
         .from("trackier_offers")
         .select("*")
