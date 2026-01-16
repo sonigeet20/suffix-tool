@@ -2509,21 +2509,6 @@ function cleanOldUsedSuffixes(mappingId) {
     Logger.log('❌ Error cleaning bucket: ' + error.message);
   }
 }
-    });
-    
-    if (response.getResponseCode() === 200) {
-      const data = JSON.parse(response.getContentText());
-      if (data && data.length > 0 && data[0].deleted_count > 0) {
-        Logger.log('  🧹 Cleaned ' + data[0].deleted_count + ' suffixes older than 7 days');
-      }
-    }
-    
-  } catch (error) {
-    Logger.log('❌ Error cleaning old suffixes: ' + error.message);
-  }
-}
-
-// Cleanup is handled automatically by clean_old_used_suffixes (7-day age check)
 
 function fetchAllMappingsForAccount(accountId) {
   try {
