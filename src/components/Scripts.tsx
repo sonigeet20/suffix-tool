@@ -1734,12 +1734,8 @@ function main() {
   Logger.log('\\n--- Step 2: Checking Daily Zero-Click Suffix Fetch ---');
   checkAndFetchDailyZeroClickSuffixes(accountId);
   
-  // Step 3: Check for clicked suffixes and remove from bucket
-  Logger.log('\\n--- Step 3: Checking for Clicked Suffixes ---');
-  checkAndRemoveClickedSuffixes(accountId);
-  
-  // Step 4: Continuous queue polling (webhooks apply suffixes immediately)
-  Logger.log('\\n--- Step 4: Starting Queue Polling ---');
+  // Step 3: Continuous queue polling (webhooks apply suffixes immediately)
+  Logger.log('\\n--- Step 3: Starting Queue Polling ---');
   const startTime = new Date().getTime();
   const maxRuntime = CONFIG.MAX_RUNTIME_MINUTES * 60 * 1000;
   
@@ -2383,6 +2379,12 @@ function checkAndFetchDailyZeroClickSuffixes(accountId) {
       const mapping = mappings[i];
       Logger.log('\\nFetching for campaign: ' + mapping.campaign_name + ' (ID: ' + mapping.campaign_id + ')');
       
+      // Clean bucket before fetching: delete used suffixes + old zero-click suffixes
+      // This keeps only: unused traced suffixes that were never sent to Google
+      Logger.log('  Cleaning old bucket data...');
+      cleanOldUsedSuffixes(mapping.mapping_id);
+      
+      // Now fetch fresh zero-click suffixes from Google
       const count = fetchAndStoreZeroClickSuffixes(mapping.campaign_id, mapping.mapping_id);
       totalFetched += count;
     }
@@ -2447,9 +2449,6 @@ function updateCampaignSuffixesSequentially(accountId) {
     for (var i = 0; i < mappings.length; i++) {
       const mapping = mappings[i];
       
-      // First, clean old and used suffixes (>7 days OR already used)
-      cleanOldUsedSuffixes(mapping.mapping_id);
-      
       // Get next unused suffix from bucket (sequential order)
       const nextSuffix = getNextSuffixFromBucket(mapping.mapping_id);
       
@@ -2477,77 +2476,8 @@ function updateCampaignSuffixesSequentially(accountId) {
 }
 
 // ============================================
-// CLICK DETECTION AND CLEANUP
+// AUTOMATIC CLEANUP (USED + OLD ZERO-CLICK)
 // ============================================
-
-function checkAndRemoveClickedSuffixes(accountId) {
-  try {
-    const mappings = fetchAllMappingsForAccount(accountId);
-    
-    if (!mappings || mappings.length === 0) {
-      return;
-    }
-    
-    let removedCount = 0;
-    
-    for (var i = 0; i < mappings.length; i++) {
-      const mapping = mappings[i];
-      
-      // Get current campaign suffix from Google Ads
-      const campaign = AdsApp.campaigns()
-        .withIds([mapping.campaign_id])
-        .get();
-      
-      if (!campaign.hasNext()) {
-        continue;
-      }
-      
-      const camp = campaign.next();
-      const currentSuffix = camp.urls().getFinalUrlSuffix();
-      
-      if (!currentSuffix) {
-        continue;
-      }
-      
-      // Check if this suffix has received clicks TODAY
-      const today = Utilities.formatDate(new Date(), AdsApp.currentAccount().getTimeZone(), 'yyyyMMdd');
-      
-      const report = AdsApp.report(
-        'SELECT Clicks ' +
-        'FROM CAMPAIGN_PERFORMANCE_REPORT ' +
-        'WHERE CampaignId = "' + mapping.campaign_id + '" ' +
-        'AND Date = ' + today
-      );
-      
-      const rows = report.rows();
-      
-      if (rows.hasNext()) {
-        const row = rows.next();
-        const clicks = parseInt(row['Clicks'] || '0');
-        
-        if (clicks > 0) {
-          Logger.log('\\n🚨 Campaign "' + mapping.campaign_name + '" has ' + clicks + ' clicks today!');
-          Logger.log('  Deleting suffix from bucket: ' + currentSuffix);
-          
-          // Delete this suffix from bucket
-          const deleted = deleteSuffixFromBucket(mapping.mapping_id, currentSuffix);
-          
-          if (deleted) {
-            removedCount++;
-            Logger.log('  ✓ Suffix removed from bucket');
-          }
-        }
-      }
-    }
-    
-    if (removedCount > 0) {
-      Logger.log('\\n✓ Removed ' + removedCount + ' clicked suffixes from bucket');
-    }
-    
-  } catch (error) {
-    Logger.log('❌ Error checking for clicked suffixes: ' + error.message);
-  }
-}
 
 function cleanOldUsedSuffixes(mappingId) {
   try {
@@ -2571,7 +2501,20 @@ function cleanOldUsedSuffixes(mappingId) {
     if (response.getResponseCode() === 200) {
       const data = JSON.parse(response.getContentText());
       if (data && data.length > 0 && data[0].deleted_count > 0) {
-        Logger.log('  🧹 Cleaned ' + data[0].deleted_count + ' old/used suffixes');
+        Logger.log('  🧹 Cleaned ' + data[0].deleted_count + ' suffixes (used + old zero-click)');
+      }
+    }
+    
+  } catch (error) {
+    Logger.log('❌ Error cleaning bucket: ' + error.message);
+  }
+}
+    });
+    
+    if (response.getResponseCode() === 200) {
+      const data = JSON.parse(response.getContentText());
+      if (data && data.length > 0 && data[0].deleted_count > 0) {
+        Logger.log('  🧹 Cleaned ' + data[0].deleted_count + ' suffixes older than 7 days');
       }
     }
     
@@ -2580,62 +2523,7 @@ function cleanOldUsedSuffixes(mappingId) {
   }
 }
 
-function deleteSuffixFromBucket(mappingId, suffix) {
-  try {
-    // First, get the suffix ID by hash
-    const suffixHash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, suffix)
-      .map(function(byte) {
-        return ('0' + (byte & 0xFF).toString(16)).slice(-2);
-      }).join('');
-    
-    const getUrl = CONFIG.SUPABASE_URL + '/rest/v1/webhook_suffix_bucket' +
-                   '?mapping_id=eq.' + mappingId +
-                   '&suffix_hash=eq.' + suffixHash +
-                   '&select=id';
-    
-    const getResponse = UrlFetchApp.fetch(getUrl, {
-      method: 'GET',
-      headers: {
-        'apikey': CONFIG.SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY
-      },
-      muteHttpExceptions: true
-    });
-    
-    if (getResponse.getResponseCode() === 200) {
-      const data = JSON.parse(getResponse.getContentText());
-      if (data && data.length > 0) {
-        const suffixId = data[0].id;
-        
-        // Delete via RPC
-        const deleteUrl = CONFIG.SUPABASE_URL + '/rest/v1/rpc/delete_suffix_from_bucket';
-        
-        const payload = {
-          p_suffix_id: suffixId
-        };
-        
-        UrlFetchApp.fetch(deleteUrl, {
-          method: 'POST',
-          headers: {
-            'apikey': CONFIG.SUPABASE_ANON_KEY,
-            'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json'
-          },
-          payload: JSON.stringify(payload),
-          muteHttpExceptions: true
-        });
-        
-        return true;
-      }
-    }
-    
-    return false;
-    
-  } catch (error) {
-    Logger.log('❌ Error deleting suffix: ' + error.message);
-    return false;
-  }
-}
+// Cleanup is handled automatically by clean_old_used_suffixes (7-day age check)
 
 function fetchAllMappingsForAccount(accountId) {
   try {

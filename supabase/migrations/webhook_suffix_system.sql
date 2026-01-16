@@ -198,7 +198,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to clean old and used suffixes (>7 days old OR already used)
+-- Function to clean bucket before daily refresh (delete used suffixes + old zero-click suffixes)
+-- Keeps only: unused traced suffixes that were never sent to Google
 CREATE OR REPLACE FUNCTION clean_old_used_suffixes(p_mapping_id UUID)
 RETURNS TABLE (
     deleted_count INTEGER
@@ -209,8 +210,8 @@ BEGIN
     DELETE FROM webhook_suffix_bucket
     WHERE mapping_id = p_mapping_id
       AND (
-          times_used > 0  -- Already used at least once
-          OR fetched_at < NOW() - INTERVAL '7 days'  -- Older than 7 days
+          times_used > 0  -- Delete suffixes already sent to Google
+          OR source = 'zero_click'  -- Delete old zero-click fetch (will be replaced with fresh ones)
       );
     
     GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
