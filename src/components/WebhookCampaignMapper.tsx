@@ -36,6 +36,10 @@ export const WebhookCampaignMapper: React.FC = () => {
   const [filteredOffers, setFilteredOffers] = useState<string[]>([]);
   const [showOfferDropdown, setShowOfferDropdown] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'configured' | 'pending'>('all');
+  
+  // Selection state
+  const [selectedMappings, setSelectedMappings] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -172,6 +176,87 @@ export const WebhookCampaignMapper: React.FC = () => {
     alert('📋 Copied to clipboard!');
   };
 
+  // Selection handlers
+  const toggleSelection = (mappingId: string) => {
+    setSelectedMappings(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(mappingId)) {
+        newSet.delete(mappingId);
+      } else {
+        newSet.add(mappingId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedMappings(new Set(filteredMappings.map(m => m.mapping_id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedMappings(new Set());
+  };
+
+  // Bulk download CSV
+  const downloadCSV = () => {
+    const selected = mappings.filter(m => selectedMappings.has(m.mapping_id));
+    
+    const csvHeader = 'Campaign Name,Offer Name,Account ID,Campaign ID,Trackier Campaign ID,Webhook URL,Tracking Template,Status,Created At\n';
+    const csvRows = selected.map(m => {
+      // Generate tracking template URL
+      const trackingTemplate = `https://nebula.gotrackier.com/click?campaign_id=${m.trackier_campaign_id}&pub_id=8308&force_transparent=true&url={lpurl}`;
+      
+      const row = [
+        m.campaign_name || '',
+        m.offer_name,
+        m.account_id,
+        m.campaign_id,
+        m.trackier_campaign_id,
+        m.trackier_webhook_url,
+        trackingTemplate,
+        m.is_active ? 'Active' : 'Inactive',
+        new Date(m.created_at).toISOString()
+      ];
+      return row.map(field => `"${field}"`).join(',');
+    }).join('\n');
+    
+    const csv = csvHeader + csvRows;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `webhook-mappings-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Bulk delete
+  const bulkDelete = async () => {
+    if (!confirm(`Delete ${selectedMappings.size} mapping(s)? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const deletePromises = Array.from(selectedMappings).map(mappingId =>
+        supabase
+          .from('webhook_campaign_mappings')
+          .delete()
+          .eq('mapping_id', mappingId)
+      );
+
+      await Promise.all(deletePromises);
+      
+      await loadMappings();
+      setSelectedMappings(new Set());
+      setSelectionMode(false);
+    } catch (err: any) {
+      alert(`Error deleting mappings: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filter mappings by configuration status
   const filteredMappings = mappings.filter(mapping => {
     if (statusFilter === 'configured') return mapping.webhook_configured;
@@ -192,6 +277,74 @@ export const WebhookCampaignMapper: React.FC = () => {
             Manage webhook-triggered suffix updates for Google Ads campaigns
           </p>
         </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="px-4 py-2 bg-brand-600 dark:bg-brand-500 text-white rounded-lg hover:bg-brand-700 dark:hover:bg-brand-600 transition-smooth disabled:opacity-50"
+            disabled={loading}
+          >
+            {showCreateForm ? 'Cancel' : '+ New Mapping'}
+          </button>
+          {mappings.length > 0 && (
+            <button
+              onClick={() => {
+                setSelectionMode(!selectionMode);
+                setSelectedMappings(new Set());
+              }}
+              className={`px-4 py-2 rounded-lg transition-smooth ${
+                selectionMode 
+                  ? 'bg-neutral-600 text-white hover:bg-neutral-700' 
+                  : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-neutral-50 hover:bg-neutral-300 dark:hover:bg-neutral-600'
+              }`}
+            >
+              {selectionMode ? 'Cancel Selection' : 'Select'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Bulk Actions Bar */}
+      {selectionMode && selectedMappings.size > 0 && (
+        <div className="p-4 bg-brand-50 dark:bg-brand-900/20 border-2 border-brand-300 dark:border-brand-700 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
+              {selectedMappings.size} selected
+            </span>
+            <button
+              onClick={selectAll}
+              className="text-sm text-brand-600 dark:text-brand-400 hover:underline"
+            >
+              Select All ({filteredMappings.length})
+            </button>
+            <button
+              onClick={deselectAll}
+              className="text-sm text-neutral-600 dark:text-neutral-400 hover:underline"
+            >
+              Deselect All
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={downloadCSV}
+              className="px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 transition-smooth flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Download CSV
+            </button>
+            <button
+              onClick={bulkDelete}
+              className="px-4 py-2 bg-error-600 text-white rounded-lg hover:bg-error-700 transition-smooth flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
         <div className="flex gap-3">
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
@@ -380,19 +533,31 @@ export const WebhookCampaignMapper: React.FC = () => {
             <div
               key={mapping.mapping_id}
               className={`p-5 rounded-lg border-2 ${
-                mapping.is_active 
-                  ? 'border-success-300 dark:border-success-700 bg-success-50 dark:bg-success-900/20' 
-                  : 'border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-850'
+                selectionMode && selectedMappings.has(mapping.mapping_id)
+                  ? 'border-brand-500 dark:border-brand-400 bg-brand-50 dark:bg-brand-900/30'
+                  : mapping.is_active 
+                    ? 'border-success-300 dark:border-success-700 bg-success-50 dark:bg-success-900/20' 
+                    : 'border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-850'
               }`}
             >
               <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-                    {mapping.offer_name}
-                  </h3>
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    {mapping.campaign_name || `Campaign ${mapping.campaign_id}`}
-                  </p>
+                <div className="flex items-start gap-3">
+                  {selectionMode && (
+                    <input
+                      type="checkbox"
+                      checked={selectedMappings.has(mapping.mapping_id)}
+                      onChange={() => toggleSelection(mapping.mapping_id)}
+                      className="w-5 h-5 mt-1 rounded border-neutral-300 dark:border-neutral-600 text-brand-600 focus:ring-brand-500 focus:ring-2"
+                    />
+                  )}
+                  <div>
+                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                      {mapping.offer_name}
+                    </h3>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                      {mapping.campaign_name || `Campaign ${mapping.campaign_id}`}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -512,6 +677,31 @@ export const WebhookCampaignMapper: React.FC = () => {
                     ✅ Webhook configured and working! First webhook received: {new Date(mapping.first_webhook_received_at).toLocaleString()}
                   </div>
                 )}
+              </div>
+
+              {/* Tracking Template */}
+              <div className="bg-neutral-100 dark:bg-neutral-800 p-3 rounded border border-neutral-300 dark:border-neutral-700">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                    Google Ads Tracking Template:
+                  </span>
+                  <button
+                    onClick={() => copyToClipboard(`https://nebula.gotrackier.com/click?campaign_id=${mapping.trackier_campaign_id}&pub_id=8308&force_transparent=true&url={lpurl}`)}
+                    className="text-xs px-2 py-1 bg-neutral-600 dark:bg-neutral-500 text-white rounded hover:bg-neutral-700 dark:hover:bg-neutral-600 transition-smooth"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <code className="text-xs text-neutral-800 dark:text-neutral-200 break-all font-mono">
+                  https://nebula.gotrackier.com/click?campaign_id={mapping.trackier_campaign_id}&pub_id=8308&force_transparent=true&url={'{lpurl}'}
+                </code>
+                <div className="mt-2 p-2 bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded text-xs text-brand-800 dark:text-brand-300">
+                  <strong>📋 Add to Google Ads:</strong><br/>
+                  1. Copy tracking template above<br/>
+                  2. Go to Google Ads campaign settings<br/>
+                  3. Paste in "Tracking template" field at campaign level<br/>
+                  4. Save changes
+                </div>
               </div>
             </div>
           ))
