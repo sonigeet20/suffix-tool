@@ -1176,7 +1176,7 @@ router.post('/trackier-create-campaigns', async (req, res) => {
           device: 'all',
           convTracking: 'iframe_https',
           convTrackingDomain: 'nebula.gotrackier.com',
-          redirect_type: '200_hrf', // 200 with Hide Referrer
+          redirectType: '200_hrf', // 200 with Hide Referrer
           payouts: [{
             currency: 'USD',
             revenue: 0,
@@ -1228,7 +1228,7 @@ router.post('/trackier-create-campaigns', async (req, res) => {
           device: 'all',
           convTracking: 'postback',
           convTrackingDomain: 'nebula.gotrackier.com',
-          redirect_type: '200_hrf', // 200 with Hide Referrer
+          redirectType: '200_hrf', // 200 with Hide Referrer
           payouts: [{
             currency: 'USD',
             revenue: 0,
