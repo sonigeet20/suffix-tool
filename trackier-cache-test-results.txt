@@ -1,0 +1,90 @@
+╔════════════════════════════════════════════════════════════════╗
+║         TRACKIER CACHE BEHAVIOR TEST                           ║
+╚════════════════════════════════════════════════════════════════╝
+
+🎯 Target URL: Campaign 408 → 407 → ultrahuman.com
+🔢 Number of traces: 8
+⏱️  Delay between traces: 10s
+🌍 Testing from different geos to get different IPs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 TRACE #1 of 8 - Geo: US - 2026-01-16 17:20:00
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Trace Stats:
+   • Proxy IP: 73.107.139.139
+   • Location: Cape Coral, United States
+   • Steps: 2
+   • Duration: 16229ms
+
+🎯 Final URL:
+   https://nebula.gotrackier.com/click?campaign_id=407&pub_id=2&force_transparency=true&url=https%3A%2F%2Fwww.ultrahuman.com%2F%3Fgclid%3D%7Bp1%7D%26fbclid%3D%7Bp2%7D%26msclkid%3D%7Bp3%7D%26ttclid%3D%7Bp4%7D%26clickid%3D%7Bp5%7D%26utm_source%3D%7Bp6%7D%26utm_medium%3D%7Bp7%7D%26utm_campaign%3D%7Bp8%7D%26custom1%3D%7Bp9%7D%26custom2%3D%7Bp10%7D
+
+📋 Parameters extracted:
+grep: invalid option -- P
+usage: grep [-abcdDEFGHhIiJLlMmnOopqRSsUVvwXxZz] [-A num] [-B num] [-C[num]]
+	[-e pattern] [-f file] [--binary-files=value] [--color=when]
+	[--context[=num]] [--directories=action] [--label] [--line-buffered]
+	[--null] [pattern] [file ...]
+grep: invalid option -- P
+usage: grep [-abcdDEFGHhIiJLlMmnOopqRSsUVvwXxZz] [-A num] [-B num] [-C[num]]
+	[-e pattern] [-f file] [--binary-files=value] [--color=when]
+	[--context[=num]] [--directories=action] [--label] [--line-buffered]
+	[--null] [pattern] [file ...]
+grep: invalid option -- P
+usage: grep [-abcdDEFGHhIiJLlMmnOopqRSsUVvwXxZz] [-A num] [-B num] [-C[num]]
+	[-e pattern] [-f file] [--binary-files=value] [--color=when]
+	[--context[=num]] [--directories=action] [--label] [--line-buffered]
+	[--null] [pattern] [file ...]
+grep: invalid option -- P
+usage: grep [-abcdDEFGHhIiJLlMmnOopqRSsUVvwXxZz] [-A num] [-B num] [-C[num]]
+	[-e pattern] [-f file] [--binary-files=value] [--color=when]
+	[--context[=num]] [--directories=action] [--label] [--line-buffered]
+	[--null] [pattern] [file ...]
+   • gclid: NOT_FOUND
+   • fbclid: NOT_FOUND
+   • clickid: NOT_FOUND
+   • utm_source: NOT_FOUND
+   ❌ Parameters are MISSING
+
+⏳ Waiting 10 seconds before next trace...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 TRACE #2 of 8 - Geo: GB - 2026-01-16 17:20:27
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Trace Stats:
+   • Proxy IP: 2.219.100.241
+   • Location: Bristol, United Kingdom
+   • Steps: 2
+   • Duration: 5289ms
+
+🎯 Final URL:
+   https://nebula.gotrackier.com/click?campaign_id=407&pub_id=2&force_transparency=true&url=https%3A%2F%2Fwww.ultrahuman.com%2F%3Fgclid%3D%7Bp1%7D%26fbclid%3D%7Bp2%7D%26msclkid%3D%7Bp3%7D%26ttclid%3D%7Bp4%7D%26clickid%3D%7Bp5%7D%26utm_source%3D%7Bp6%7D%26utm_medium%3D%7Bp7%7D%26utm_campaign%3D%7Bp8%7D%26custom1%3D%7Bp9%7D%26custom2%3D%7Bp10%7D
+
+📋 Parameters extracted:
+grep: invalid option -- P
+usage: grep [-abcdDEFGHhIiJLlMmnOopqRSsUVvwXxZz] [-A num] [-B num] [-C[num]]
+	[-e pattern] [-f file] [--binary-files=value] [--color=when]
+	[--context[=num]] [--directories=action] [--label] [--line-buffered]
+	[--null] [pattern] [file ...]
+grep: invalid option -- P
+usage: grep [-abcdDEFGHhIiJLlMmnOopqRSsUVvwXxZz] [-A num] [-B num] [-C[num]]
+	[-e pattern] [-f file] [--binary-files=value] [--color=when]
+	[--context[=num]] [--directories=action] [--label] [--line-buffered]
+	[--null] [pattern] [file ...]
+grep: invalid option -- P
+usage: grep [-abcdDEFGHhIiJLlMmnOopqRSsUVvwXxZz] [-A num] [-B num] [-C[num]]
+	[-e pattern] [-f file] [--binary-files=value] [--color=when]
+	[--context[=num]] [--directories=action] [--label] [--line-buffered]
+	[--null] [pattern] [file ...]
+grep: invalid option -- P
+usage: grep [-abcdDEFGHhIiJLlMmnOopqRSsUVvwXxZz] [-A num] [-B num] [-C[num]]
+	[-e pattern] [-f file] [--binary-files=value] [--color=when]
+	[--context[=num]] [--directories=action] [--label] [--line-buffered]
+	[--null] [pattern] [file ...]
+   • gclid: NOT_FOUND
+   • fbclid: NOT_FOUND
+   • clickid: NOT_FOUND
+   • utm_source: NOT_FOUND
+   ❌ Parameters are MISSING
+
+⏳ Waiting 10 seconds before next trace...

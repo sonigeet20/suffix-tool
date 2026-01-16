@@ -1671,10 +1671,8 @@ function listCampaignIds() {
  * 2. Click "+ New Script" button
  * 3. Name it "WEBHOOK-MASTER"
  * 4. Paste this entire script
- * 5. Update the 3 configuration values below:
- *    - OFFER_NAME: Your offer name (e.g., 'SURFSHARK_US', 'VPN_OFFER')
- *    - SUPABASE_ANON_KEY: Get from Supabase Dashboard → Settings → API → anon/public key
- *    - (PROXY_SERVICE_URL is pre-configured with your ALB endpoint)
+ * 5. Update ONLY the OFFER_NAME below (e.g., 'SURFSHARK_US', 'VPN_OFFER')
+ *    - SUPABASE_ANON_KEY and PROXY_SERVICE_URL are pre-configured
  * 6. Click "Preview" to test on one campaign first
  * 7. Click "Save" and then "Run" → "Schedule" → Every 30 minutes
  * 
@@ -1692,15 +1690,14 @@ const CONFIG = {
   // 1. YOUR OFFER NAME (REQUIRED)
   OFFER_NAME: 'YOUR_OFFER_NAME_HERE',  // Replace with your offer (e.g., 'SURFSHARK_US')
   
-  // 2. SUPABASE ANON KEY (REQUIRED)
-  // Get from: Supabase Dashboard → Settings → API → Project API keys → anon/public
-  SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY_HERE',
+  // 2. SUPABASE ANON KEY (Pre-configured)
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmaHVxZW5udHhpcXVycGxlbmpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjEwNDgsImV4cCI6MjA4MTUzNzA0OH0.pi_6p2H2nuPfJvdT3pHNGpk0BTI3WQKTSzsj8dxQBA8',
   
   // 3. Supabase URL (Pre-configured)
   SUPABASE_URL: '${supabaseUrl}',
   
   // 4. Proxy Service URL (Pre-configured - your EC2 ALB endpoint)
-  PROXY_SERVICE_URL: 'http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com:3000',
+  PROXY_SERVICE_URL: 'http://url-tracker-proxy-alb-1426409269.us-east-1.elb.amazonaws.com',
   
   // Advanced Settings (usually no need to change)
   QUEUE_POLL_INTERVAL_SECONDS: 2,
@@ -1724,10 +1721,7 @@ function main() {
     return;
   }
   
-  if (CONFIG.SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY_HERE') {
-    Logger.log('❌ ERROR: Please update SUPABASE_ANON_KEY in CONFIG');
-    return;
-  }
+  // Anon key is pre-configured, no validation needed
   
   const accountId = AdsApp.currentAccount().getCustomerId();
   Logger.log('Account ID: ' + accountId);
@@ -1845,10 +1839,10 @@ function createMapping(accountId, campaignId, campaignName) {
     const url = CONFIG.PROXY_SERVICE_URL + '/api/webhook-campaign/auto-create';
     
     const payload = {
-      account_id: accountId,
-      campaign_id: campaignId,
-      campaign_name: campaignName,
-      offer_name: CONFIG.OFFER_NAME
+      accountId: accountId,
+      campaignId: campaignId,
+      campaignName: campaignName,
+      offerName: CONFIG.OFFER_NAME
     };
     
     const response = UrlFetchApp.fetch(url, {

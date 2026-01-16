@@ -75,6 +75,12 @@ app.use('/api', trackierTraceRoutes);
 app.use('/api', trackierPollingRoutes);
 app.use('/api', trackierPairManagement);
 
+// Webhook Suffix Update System (Independent Module)
+const webhookCampaignRoutes = require('./routes/webhook-campaign');
+const webhookSuffixRoutes = require('./routes/webhook-suffix-handler');
+app.use('/api/webhook-campaign', webhookCampaignRoutes);
+app.use('/api/webhook-suffix', webhookSuffixRoutes);
+
 // Utility function to convert bytes to human-readable format
 function formatBytes(bytes) {
   if (bytes === null || bytes === undefined) return 'unknown';
