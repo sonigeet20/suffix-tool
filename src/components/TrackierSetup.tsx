@@ -656,11 +656,11 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
           const pairUrl2Encoded = encodeURIComponent(pairUrl2);
           const pairTemplate = `https://nebula.gotrackier.com/click?campaign_id=${pair.url1_campaign_id}&pub_id=${publisherId}&force_transparent=true&url=${pairUrl2Encoded}`;
           
-          // Remove old webhook_token field and ensure pair_index is set
-          const { webhook_token, ...pairWithoutToken } = pair;
+          // Remove old webhook fields and ensure pair_index is set
+          const { webhook_token, webhook_url, ...pairWithoutOldFields } = pair;
           
           return {
-            ...pairWithoutToken,
+            ...pairWithoutOldFields,
             google_ads_template: pairTemplate,
             pair_index: pair.pair_index || (index + 1)
           };
@@ -1605,7 +1605,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                         {pair.google_ads_template && (
                           <div className="pt-2 border-t dark:border-gray-600">
                             <label className="block font-medium text-gray-600 dark:text-gray-400 mb-1">
-                              Template:
+                              Template: <span className="text-xs text-gray-500">(URL1 → URL2 → {"{lpurl}"})</span>
                             </label>
                             <div className="flex gap-1">
                               <input
@@ -1625,7 +1625,7 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                         )}
 
                         {/* Webhook URL */}
-                        {pair.webhook_url && (
+                        {config.id && config.webhook_url && (
                           <div className="pt-2">
                             <label className="block font-medium text-gray-600 dark:text-gray-400 mb-1">
                               Webhook:
@@ -1633,12 +1633,12 @@ export default function TrackierSetup({ offerId, offerName, finalUrl, trackingTe
                             <div className="flex gap-1">
                               <input
                                 type="text"
-                                value={pair.webhook_url}
+                                value={`${config.webhook_url.split('?')[0]}?token=${config.id}&pair_index=${pair.pair_index}&campaign_id={campaign_id}&click_id={click_id}`}
                                 readOnly
                                 className="flex-1 px-2 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-[10px]"
                               />
                               <button
-                                onClick={() => copyToClipboard(pair.webhook_url, `Pair ${pair.pair_index} Webhook`)}
+                                onClick={() => copyToClipboard(`${config.webhook_url.split('?')[0]}?token=${config.id}&pair_index=${pair.pair_index}&campaign_id={campaign_id}&click_id={click_id}`, `Pair ${pair.pair_index} Webhook`)}
                                 className="px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 text-[10px]"
                               >
                                 Copy
