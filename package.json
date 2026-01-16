@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "axios": "^1.13.2",
     "git": "^0.1.5",
     "lucide-react": "^0.312.0",
     "pg": "^8.16.3",
