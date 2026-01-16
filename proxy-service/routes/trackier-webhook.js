@@ -1094,7 +1094,7 @@ router.post('/trackier-create-campaigns', async (req, res) => {
 
     const { 
       apiKey, 
-      apiBaseUrl = 'https://api.trackier.com',
+      apiBaseUrl = 'https://api.trackier.com/v2',
       advertiserId,
       offerName,
       finalUrl,
