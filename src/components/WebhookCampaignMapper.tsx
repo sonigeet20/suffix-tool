@@ -345,15 +345,6 @@ export const WebhookCampaignMapper: React.FC = () => {
           </div>
         </div>
       )}
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-smooth font-medium text-sm"
-          >
-            {showCreateForm ? 'Cancel' : '+ New Mapping'}
-          </button>
-        </div>
-      </div>
 
       {/* Status Filter */}
       {mappings.length > 0 && (
@@ -362,7 +353,8 @@ export const WebhookCampaignMapper: React.FC = () => {
           <div className="flex gap-2">
             <button
               onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 text-sm rounded-lg transition-smooth ${ statusFilter === 'all'
+              className={`px-3 py-1.5 text-sm rounded-lg transition-smooth ${
+                statusFilter === 'all'
                   ? 'bg-brand-600 text-white'
                   : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
               }`}
