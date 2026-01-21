@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, TrendingDown, TrendingUp, Calendar, Edit2, Trash2, Save, X, RefreshCw, Search } from 'lucide-react';
+import { TrendingDown, TrendingUp, Calendar, Edit2, Trash2, Save, X, RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface IntervalData {
@@ -22,6 +22,8 @@ interface EditingRow {
   unique_landing_pages: number;
 }
 
+const ITEMS_PER_PAGE = 50;
+
 export default function IntervalHistory() {
   const [data, setData] = useState<IntervalData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,10 +31,16 @@ export default function IntervalHistory() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [editingRow, setEditingRow] = useState<EditingRow | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ offer_id: string; date: string } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchIntervalHistory();
+    cleanOldData();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedOffer]);
 
   const fetchIntervalHistory = async () => {
     setLoading(true);
@@ -61,6 +69,21 @@ export default function IntervalHistory() {
       alert('Failed to fetch interval history: ' + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cleanOldData = async () => {
+    try {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const cutoffDate = sevenDaysAgo.toISOString().split('T')[0];
+
+      await supabase
+        .from('daily_trace_counts')
+        .delete()
+        .lt('date', cutoffDate);
+    } catch (error: any) {
+      console.error('Error cleaning old data:', error);
     }
   };
 
@@ -134,25 +157,30 @@ export default function IntervalHistory() {
     ? data 
     : data.filter(d => (d.offer_name || d.offer_id) === selectedOffer);
   
-  // Apply search filter
+  // Apply search filter with safe null checks
   if (searchTerm.trim()) {
     const search = searchTerm.toLowerCase();
-    filteredData = filteredData.filter(d => 
-      (d.offer_name || d.offer_id).toLowerCase().includes(search) ||
-      d.account_id.toLowerCase().includes(search) ||
-      d.date.includes(search) ||
-      formatInterval(d.interval_used_ms).toLowerCase().includes(search)
-    );
+    filteredData = filteredData.filter(d => {
+      try {
+        const offerName = (d.offer_name || d.offer_id || '').toLowerCase();
+        const accountId = (d.account_id || '').toLowerCase();
+        const date = (d.date || '').toLowerCase();
+        
+        return offerName.includes(search) ||
+               accountId.includes(search) ||
+               date.includes(search);
+      } catch (e) {
+        return false;
+      }
+    });
   }
 
-  // Group by offer and get latest interval
-  const latestByOffer = data.reduce((acc, item) => {
-    const key = item.offer_name || item.offer_id;
-    if (!acc[key] || new Date(item.date) > new Date(acc[key].date)) {
-      acc[key] = item;
-    }
-    return acc;
-  }, {} as Record<string, IntervalData>);
+  // Pagination
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -243,43 +271,7 @@ export default function IntervalHistory() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Object.entries(latestByOffer).map(([offerName, latest]) => (
-          <div key={offerName} className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs border border-neutral-200 dark:border-neutral-800 p-4">
-            <div className="flex items-start justify-between mb-2">
-              <h3 className="font-semibold text-neutral-900 dark:text-neutral-50 text-sm truncate flex-1">
-                {offerName}
-              </h3>
-              <Clock className="text-brand-600 dark:text-brand-400 flex-shrink-0" size={18} />
-            </div>
-            <div className="space-y-2">
-              <div>
-                <p className="text-2xl font-bold text-brand-600 dark:text-brand-400">
-                  {formatInterval(latest.interval_used_ms)}
-                </p>
-                <p className="text-xs text-neutral-600 dark:text-neutral-400">Current Delay</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <p className="text-neutral-600 dark:text-neutral-400">Avg Repeats</p>
-                  <p className="font-semibold text-neutral-900 dark:text-neutral-50">
-                    {latest.average_repeats.toFixed(1)}x
-                  </p>
-                </div>
-                <div>
-                  <p className="text-neutral-600 dark:text-neutral-400">Last Updated</p>
-                  <p className="font-semibold text-neutral-900 dark:text-neutral-50">
-                    {formatDate(latest.date)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Detailed History Table */}
+      {/* Interval History Table */}
       <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs border border-neutral-200 dark:border-neutral-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -315,15 +307,16 @@ export default function IntervalHistory() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-              {filteredData.length === 0 ? (
+              {paginatedData.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400">
-                    No interval history available
+                    {filteredData.length === 0 ? 'No interval history available' : 'No results found'}
                   </td>
                 </tr>
               ) : (
-                filteredData.map((item, idx) => {
-                  const prevItem = filteredData[idx + 1];
+                paginatedData.map((item, idx) => {
+                  const globalIdx = (currentPage - 1) * ITEMS_PER_PAGE + idx;
+                  const prevItem = filteredData[globalIdx + 1];
                   const trend = prevItem 
                     ? item.interval_used_ms - prevItem.interval_used_ms 
                     : 0;
@@ -457,6 +450,36 @@ export default function IntervalHistory() {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+            <div className="text-sm text-neutral-600 dark:text-neutral-400">
+              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredData.length)} of {filteredData.length} results
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              >
+                <ChevronLeft size={16} />
+                Previous
+              </button>
+              <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              >
+                Next
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-lg p-4">
