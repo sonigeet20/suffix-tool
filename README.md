@@ -2,7 +2,7 @@
 
 A modern URL tracking application with offer management, analytics, and user authentication.
 
-_Last deployment: January 12, 2026 - 12:20 PM_
+_Last deployment: January 23, 2026 - Latest updates include V4 multi-offer script and interval backfill improvements_
 
 ## Quick Start
 
