@@ -37,6 +37,7 @@ interface TraceRequest {
   geo_weights?: Record<string, number>;
   offer_id?: string;
   device_distribution?: Array<{ deviceCategory: string; weight: number }>;
+  proxy_protocol?: string;
 }
 
 async function fetchThroughResidentialProxy(
@@ -541,6 +542,7 @@ Deno.serve(async (req: Request) => {
       account_id = null,
       extract_from_location_header = null,
       location_extract_hop = null,
+      proxy_protocol = null,
     } = await req.json() as TraceRequest;
 
     if (!url) {
@@ -635,7 +637,7 @@ Deno.serve(async (req: Request) => {
     let selectedProvider: any = null;
     let providerId: string | null = null;
     let useRotation = false;
-    let proxyProtocol: string | null = null;
+    let proxyProtocol: string | null = proxy_protocol; // Use request parameter first
 
     // Check for provider override from offer configuration
     if (effectiveUserId && offer_id) {
@@ -651,10 +653,12 @@ Deno.serve(async (req: Request) => {
         if (!offerError && offerData && offerData.provider_id) {
           console.log("✅ Found provider override:", offerData.provider_id);
           
-          // Capture proxy_protocol from offer (overrides provider default)
-          if (offerData.proxy_protocol) {
+          // Capture proxy_protocol from offer if not provided in request
+          if (!proxyProtocol && offerData.proxy_protocol) {
             proxyProtocol = offerData.proxy_protocol;
             console.log("🔐 Offer proxy protocol:", proxyProtocol);
+          } else if (proxyProtocol) {
+            console.log("🔐 Using request proxy protocol:", proxyProtocol);
           }
           
           // Check for sentinel value for explicit rotation

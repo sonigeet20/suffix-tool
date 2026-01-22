@@ -873,3 +873,58 @@
 {"level":"info","message":"============================================================\n"}
 {"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 5\n  ├─ Total network clicks: 187\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 37.40x\n  ├─ Duration: 28113ms\n  ├─ Session dwell time: 5706ms\n  └─ Total interactions: 5"}
 {"level":"info","message":"✅ Cleanup complete\n"}
+{"level":"info","message":"🎬 Interactive trace started: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"⏰ Session config: min=4000ms, max=8000ms"}
+{"level":"info","message":"✅ Proxy settings loaded"}
+{"level":"info","message":"🚀 Launching fresh browser for new IP..."}
+{"level":"info","message":"✅ Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"✅ Browser and page created"}
+{"level":"info","message":"🔄 Fresh Luna connection (session: toueuo89...)"}
+{"level":"info","message":"✅ Proxy authenticated"}
+{"level":"info","message":"🎭 User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Fingerprint: mobile | viewport=393x843"}
+{"level":"info","message":"✅ Stealth measures applied"}
+{"level":"info","message":"🌐 Navigating to: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"📄 Document request #1: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"warn","message":"⚠️ Navigation failed (no retry): net::ERR_TUNNEL_CONNECTION_FAILED at https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"🎯 Final URL reached: about:blank..."}
+{"level":"info","message":"↩️ Using last document URL fallback: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"🎬 INTERACTIVE SESSION PHASE STARTING"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"🎯 Starting interactive session: 5352ms (range: 4000-8000ms)"}
+{"level":"info","message":"📋 Generated 3 initial actions for session"}
+{"level":"info","message":"⚙️ Executing action #1: wait"}
+{"level":"info","message":"⏱️ Wait 607ms"}
+{"level":"info","message":"📄 Frame navigated to: chrome-error://chromewebdata/..."}
+{"level":"info","message":"⚙️ Executing action #2: scroll"}
+{"level":"info","message":"↕️ Scroll down by 124px (scroll #1)"}
+{"level":"info","message":"↕️ Scroll down by 124px (scroll #2)"}
+{"level":"info","message":"⚙️ Executing action #3: scroll"}
+{"level":"info","message":"↕️ Scroll down by 229px (scroll #3)"}
+{"level":"info","message":"↕️ Scroll down by 229px (scroll #4)"}
+{"level":"info","message":"🔄 Generated new batch of 3 actions (2965ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #4: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (288, 412)"}
+{"level":"info","message":"⚙️ Executing action #5: scroll"}
+{"level":"info","message":"↕️ Scroll down by 376px (scroll #5)"}
+{"level":"info","message":"↕️ Scroll down by 376px (scroll #6)"}
+{"level":"info","message":"⚙️ Executing action #6: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (868, 111)"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (1185ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #7: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (487, 246)"}
+{"level":"info","message":"⚙️ Executing action #8: mouse_move"}
+{"level":"info","message":"🖱️ Mouse move to (669, 544)"}
+{"level":"info","message":"🔄 Generated new batch of 2 actions (428ms remaining)"}
+{"level":"info","message":"⚙️ Executing action #9: scroll"}
+{"level":"info","message":"↕️ Scroll up by 212px (scroll #7)"}
+{"level":"info","message":"⚡ Idle detected - no URL changes for 5s"}
+{"level":"info","message":"↕️ Scroll up by 212px (scroll #8)"}
+{"level":"info","message":"✅ Interactive session complete: 5672ms dwell time"}
+{"level":"info","message":"📊 Session Summary:\n  ├─ Scrolls: 8\n  ├─ Mouse movements: 4\n  ├─ Waits: 1\n  ├─ Total actions: 9\n  └─ Dwell time: 5672ms"}
+{"level":"info","message":"\n============================================================"}
+{"level":"info","message":"✅ INTERACTIVE SESSION PHASE COMPLETE"}
+{"level":"info","message":"============================================================\n"}
+{"level":"info","message":"📊 TRACE COMPLETE - Interactive Mode Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 4\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 4.00x\n  ├─ Duration: 12831ms\n  ├─ Session dwell time: 5672ms\n  └─ Total interactions: 9"}
+{"level":"info","message":"✅ Cleanup complete\n"}

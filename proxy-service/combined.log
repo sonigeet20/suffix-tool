@@ -7563,3 +7563,413 @@
 {"level":"info","message":"🌐 Proxy IP used: 45.49.35.155 | Location: Los Angeles, California, United States | Selected Geo: US"}
 {"level":"warn","message":"⚠️ Error searching for hidden redirects: Requesting main frame too early!"}
 {"level":"info","message":"⚡ Browser: Early stop - no more redirects found"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"http_only","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=419x887, colorDepth=24, pixelRatio=2"}
+{"level":"info","message":"🔄 HTTP-only: Using Luna proxy (new connection = new IP)"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"  ❌ Hop 1 error: EPROTO"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 2306ms"}
+{"level":"info","message":"🌐 Proxy IP used: 181.46.164.176 | Location: Villa Ballester, Buenos Aires, Argentina | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"browser","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Browser: Fresh Luna connection (session: afjh3s4q...)"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=398x835, colorDepth=24, pixelRatio=2.5"}
+{"level":"info","message":"📄 Browser document request #1: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"🔍 Browser Mode - Hop 1: referrer=null, referrerHops=null, shouldApply=null"}
+{"level":"info","message":"   📋 Current request headers Referer: NOT SET"}
+{"level":"info","message":"   ⛔ No Referer header to apply"}
+{"level":"warn","message":"⚠️ Browser navigation failed (no retry): net::ERR_TUNNEL_CONNECTION_FAILED at https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"⏳ Browser: Waiting for response 1/1 before closing"}
+{"level":"info","message":"📊 Browser Mode Network Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 4\n  ├─ Retry attempts detected: 0\n  ├─ JS redirects detected: 0\n  ├─ Form submissions: 0\n  ├─ Request ratio (clicks/docs): 4.00x\n  └─ Duration: 8973ms"}
+{"level":"info","message":"✅ Trace completed (browser): 1 steps in 10025ms"}
+{"level":"info","message":"🌐 Proxy IP used: 181.46.164.176 | Location: Villa Ballester, Buenos Aires, Argentina | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"interactive","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🎬 Using Interactive mode (anti-cloaking + session engagement)"}
+{"level":"info","message":"✅ Trace completed (interactive): 1 steps in 14593ms"}
+{"level":"info","message":"🌐 Proxy IP used: 84.115.212.214 | Location: Vienna, Vienna, Austria | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"anti_cloaking","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🕵️ Using Anti-Cloaking mode (advanced stealth)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Anti-cloaking: Fresh Luna connection (session: 9rhxj7rt...)"}
+{"level":"info","message":"🕵️ Anti-cloaking User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1923x1209, colorDepth=24, pixelRatio=1"}
+{"level":"info","message":"📄 Anti-cloaking document request #1: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"🔍 Anti-cloaking Mode - Hop 1: referrer=null, referrerHops=null, shouldApply=null"}
+{"level":"info","message":"   📋 Current request headers Referer: NOT SET"}
+{"level":"info","message":"   ⛔ No Referer header to apply"}
+{"level":"info","message":"⚡ Anti-cloaking: Early stop - no URL changes for 3.5s"}
+{"level":"warn","message":"⚠️ Anti-cloaking navigation failed (no retry): net::ERR_TUNNEL_CONNECTION_FAILED at https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"📊 Anti-Cloaking Mode Network Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 4\n  ├─ Retry attempts detected: 0\n  ├─ Request ratio (clicks/docs): 4.00x\n  └─ Duration: 11991ms"}
+{"level":"info","message":"✅ Trace completed (anti_cloaking): 1 steps in 12567ms"}
+{"level":"info","message":"🌐 Proxy IP used: 45.159.74.101 | Location: Yerevan, Yerevan, Armenia | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"browser","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"info","message":"Launching fresh browser for new IP"}
+{"level":"info","message":"Using system browser: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+{"level":"info","message":"🔄 Browser: Fresh Luna connection (session: 7vs7glt1...)"}
+{"level":"info","message":"🎭 Using User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHT..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=388x860, colorDepth=32, pixelRatio=3"}
+{"level":"info","message":"📄 Browser document request #1: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"🔍 Browser Mode - Hop 1: referrer=null, referrerHops=null, shouldApply=null"}
+{"level":"info","message":"   📋 Current request headers Referer: NOT SET"}
+{"level":"info","message":"   ⛔ No Referer header to apply"}
+{"level":"warn","message":"⚠️ Browser navigation failed (no retry): net::ERR_TUNNEL_CONNECTION_FAILED at https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"📊 Browser Mode Network Summary:\n  ├─ Document requests: 1\n  ├─ Total network clicks: 4\n  ├─ Retry attempts detected: 0\n  ├─ JS redirects detected: 0\n  ├─ Form submissions: 0\n  ├─ Request ratio (clicks/docs): 4.00x\n  └─ Duration: 1388ms"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"✅ Trace completed (browser): 1 steps in 3013ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"warn","message":"⚠️ Error searching for hidden redirects: Requesting main frame too early!"}
+{"level":"info","message":"⚡ Browser: Early stop - no more redirects found"}
+{"level":"error","message":"Error closing page after idle: Protocol error: Connection closed. Most likely the page has been closed."}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement), curl (native curl with proxy)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"curl","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌀 Using CURL mode (native curl with proxy support)"}
+{"level":"info","message":"🌀 CURL Trace started: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"🔧 CURL command: curl -L -v --compressed --max-time 60 --connect-timeout 30 --max-redirs 20 --http2 --tlsv1.2 --ssl-no-revoke -A Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1 -H Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8 -H Accept-Language: en-US,en;q=0.9 -H Accept-Encoding: gzip, deflate, br -H Cache-Control: max-age=0 -H Upgrade-Insecure-Requests: 1 -H Sec-Fetch-Dest: document -H Sec-Fetch-Mode: navigate -H Sec-Fetch-Site: none -H Sec-Fetch-User: ?1 -x undefined:12233 -U user-admin_X5otK:Dang7898 -s -S -o /dev/null https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"error","message":"❌ CURL failed with code 5"}
+{"level":"error","message":"STDERR: * Could not resolve proxy: undefined\n* Closing connection\ncurl: (5) Could not resolve proxy: undefined\n"}
+{"level":"error","message":"Request error: curl exited with code 5: * Could not resolve proxy: undefined\n* Closing connection\ncurl: (5) Could not resolve proxy: undefined\n","stack":"Error: curl exited with code 5: * Could not resolve proxy: undefined\n* Closing connection\ncurl: (5) Could not resolve proxy: undefined\n\n    at ChildProcess.<anonymous> (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/trace-curl.js:230:25)\n    at ChildProcess.emit (node:events:520:35)\n    at maybeClose (node:internal/child_process:1085:16)\n    at ChildProcess._handle.onexit (node:internal/child_process:304:5)"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement), curl (native curl with proxy)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"curl","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌀 Using CURL mode (native curl with proxy support)"}
+{"level":"info","message":"🔧 CURL using proxy: na.lunaproxy.com:12233"}
+{"level":"info","message":"🌀 CURL Trace started: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"🔧 CURL command: curl -L -v --compressed --max-time 60 --connect-timeout 30 --max-redirs 20 --http2 --tlsv1.2 --ssl-no-revoke -A Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 -H Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8 -H Accept-Language: en-US,en;q=0.9 -H Accept-Encoding: gzip, deflate, br -H Cache-Control: max-age=0 -H Upgrade-Insecure-Requests: 1 -H Sec-Fetch-Dest: document -H Sec-Fetch-Mode: navigate -H Sec-Fetch-Site: none -H Sec-Fetch-User: ?1 -x na.lunaproxy.com:12233 -U user-admin_X5otK:Dang7898 -s -S -o /dev/null https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"error","message":"❌ CURL failed with code 35"}
+{"level":"error","message":"STDERR: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1 negotiated\n* allocate connect buffer\n* Proxy auth using Basic with user 'user-admin_X5otK'\n* Establish HTTP proxy tunnel to blackboxai.partnerlinks.io:443\n> CONNECT blackboxai.partnerlinks.io:443 HTTP/1.1\r\n> Host: blackboxai.partnerlinks.io:443\r\n> Proxy-Authorization: Basic dXNlci1hZG1pbl9YNW90SzpE"}
+{"level":"error","message":"Request error: curl exited with code 35: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1","stack":"Error: curl exited with code 35: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1\n    at ChildProcess.<anonymous> (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/trace-curl.js:230:25)\n    at ChildProcess.emit (node:events:520:35)\n    at maybeClose (node:internal/child_process:1085:16)\n    at Socket.<anonymous> (node:internal/child_process:456:11)\n    at Socket.emit (node:events:508:28)\n    at Pipe.<anonymous> (node:net:346:12)"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"⚡ Trace request:","mode":"curl","url":"https://httpbin.org/redirect-to?url=https://httpbin.org/get&status_code=302"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌀 Using CURL mode (native curl with proxy support)"}
+{"level":"info","message":"🔧 CURL using proxy: na.lunaproxy.com:12233"}
+{"level":"info","message":"🌀 CURL Trace started: https://httpbin.org/redirect-to?url=https://httpbin.org/get&status_code=302"}
+{"level":"info","message":"🔧 CURL command: curl -L -v --compressed --max-time 60 --connect-timeout 30 --max-redirs 20 --http2 --tlsv1.2 --ssl-no-revoke -A Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 -H Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8 -H Accept-Language: en-US,en;q=0.9 -H Accept-Encoding: gzip, deflate, br -H Cache-Control: max-age=0 -H Upgrade-Insecure-Requests: 1 -H Sec-Fetch-Dest: document -H Sec-Fetch-Mode: navigate -H Sec-Fetch-Site: none -H Sec-Fetch-User: ?1 -x na.lunaproxy.com:12233 -U user-admin_X5otK:Dang7898 -s -S -o /dev/null https://httpbin.org/redirect-to?url=https://httpbin.org/get&status_code=302"}
+{"level":"info","message":"✅ CURL Trace completed: 1 hops in 5343ms"}
+{"level":"info","message":"✅ Trace completed (curl): undefined steps in 5347ms"}
+{"level":"info","message":"🌐 Proxy IP used: 119.160.132.158 | Location: Bandar Seri Begawan, Brunei-Muara District, Brunei | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"http_only","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1910x1195, colorDepth=32, pixelRatio=1.5"}
+{"level":"info","message":"🔄 HTTP-only: Using Luna proxy (new connection = new IP)"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"  ❌ Hop 1 error: ECONNRESET"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 3017ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: N/A"}
+{"level":"info","message":"⚡ Trace request:","mode":"curl","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌀 Using CURL mode (native curl with proxy support)"}
+{"level":"info","message":"🔧 CURL using proxy: na.lunaproxy.com:12233"}
+{"level":"info","message":"🌀 CURL Trace started: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"🔧 CURL command: curl -L -v --compressed --max-time 60 --connect-timeout 30 --max-redirs 20 --http2 --tlsv1.2 --ssl-no-revoke -A Mozilla/5.0 (Android 13; Mobile; rv:143.0) Gecko/143.0 Firefox/143.0 -H Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8 -H Accept-Language: en-US,en;q=0.9 -H Accept-Encoding: gzip, deflate, br -H Cache-Control: max-age=0 -H Upgrade-Insecure-Requests: 1 -H Sec-Fetch-Dest: document -H Sec-Fetch-Mode: navigate -H Sec-Fetch-Site: none -H Sec-Fetch-User: ?1 -x na.lunaproxy.com:12233 -U user-admin_X5otK:Dang7898 -s -S -o /dev/null https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"error","message":"❌ CURL failed with code 35"}
+{"level":"error","message":"STDERR: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1 negotiated\n* allocate connect buffer\n* Proxy auth using Basic with user 'user-admin_X5otK'\n* Establish HTTP proxy tunnel to blackboxai.partnerlinks.io:443\n> CONNECT blackboxai.partnerlinks.io:443 HTTP/1.1\r\n> Host: blackboxai.partnerlinks.io:443\r\n> Proxy-Authorization: Basic dXNlci1hZG1pbl9YNW90SzpE"}
+{"level":"error","message":"Request error: curl exited with code 35: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1","stack":"Error: curl exited with code 35: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1\n    at ChildProcess.<anonymous> (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/trace-curl.js:230:25)\n    at ChildProcess.emit (node:events:520:35)\n    at maybeClose (node:internal/child_process:1085:16)\n    at ChildProcess._handle.onexit (node:internal/child_process:304:5)"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement), curl (native curl with proxy)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"curl","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌀 Using CURL mode (native curl with proxy support)"}
+{"level":"info","message":"🔧 CURL using proxy: na.lunaproxy.com:12233"}
+{"level":"info","message":"🌀 CURL Trace started: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"🔧 CURL command: curl -L -v --compressed --max-time 60 --connect-timeout 30 --max-redirs 20 --tlsv1.3 --tls-max 1.3 --ssl-no-revoke --http2 --http2-prior-knowledge -A Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/141.0.7390.41 Mobile/15E148 Safari/604.1 -H sec-ch-ua: \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\" -H sec-ch-ua-mobile: ?0 -H sec-ch-ua-platform: \"Windows\" -H Upgrade-Insecure-Requests: 1 -H Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7 -H Sec-Fetch-Site: none -H Sec-Fetch-Mode: navigate -H Sec-Fetch-User: ?1 -H Sec-Fetch-Dest: document -H Accept-Encoding: gzip, deflate, br, zstd -H Accept-Language: en-US,en;q=0.9 -H Connection: keep-alive -H Cache-Control: max-age=0 -b  -c  -x https://na.lunaproxy.com:12233 -U user-admin_X5otK:Dang7898 --proxy-insecure --proxy-tlsv1.3 --location-trusted --no-keepalive -s -S -o /dev/null https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"error","message":"❌ CURL failed with code 2"}
+{"level":"error","message":"STDERR: Warning: Overrides previous HTTP version option\ncurl: option -c: blank argument where content is expected\ncurl: try 'curl --help' or 'curl --manual' for more information\n"}
+{"level":"error","message":"Request error: curl exited with code 2: Warning: Overrides previous HTTP version option\ncurl: option -c: blank argument where content is expected\ncurl: try 'curl --help' or 'curl --manual' for more information\n","stack":"Error: curl exited with code 2: Warning: Overrides previous HTTP version option\ncurl: option -c: blank argument where content is expected\ncurl: try 'curl --help' or 'curl --manual' for more information\n\n    at ChildProcess.<anonymous> (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/trace-curl.js:256:25)\n    at ChildProcess.emit (node:events:520:35)\n    at maybeClose (node:internal/child_process:1085:16)\n    at Socket.<anonymous> (node:internal/child_process:456:11)\n    at Socket.emit (node:events:508:28)\n    at Pipe.<anonymous> (node:net:346:12)"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement), curl (native curl with proxy)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"curl","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌀 Using CURL mode (native curl with proxy support)"}
+{"level":"info","message":"🔧 CURL using proxy: na.lunaproxy.com:12233"}
+{"level":"info","message":"🌀 CURL Trace started: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"🔧 CURL command: curl -L -v --compressed --max-time 60 --connect-timeout 30 --max-redirs 20 --tlsv1.2 --tls-max 1.3 --ssl-no-revoke --http1.1 -A Mozilla/5.0 (iPhone; CPU iPhone OS 17_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1 -H sec-ch-ua: \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\" -H sec-ch-ua-mobile: ?0 -H sec-ch-ua-platform: \"Windows\" -H Upgrade-Insecure-Requests: 1 -H Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7 -H Sec-Fetch-Site: none -H Sec-Fetch-Mode: navigate -H Sec-Fetch-User: ?1 -H Sec-Fetch-Dest: document -H Accept-Encoding: gzip, deflate, br, zstd -H Accept-Language: en-US,en;q=0.9 -H Connection: keep-alive -H Cache-Control: max-age=0 -x http://na.lunaproxy.com:12233 -U user-admin_X5otK:Dang7898 --location-trusted -s -S -o /dev/null https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"error","message":"❌ CURL failed with code 35"}
+{"level":"error","message":"STDERR: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1 negotiated\n* allocate connect buffer\n* Proxy auth using Basic with user 'user-admin_X5otK'\n* Establish HTTP proxy tunnel to blackboxai.partnerlinks.io:443\n> CONNECT blackboxai.partnerlinks.io:443 HTTP/1.1\r\n> Host: blackboxai.partnerlinks.io:443\r\n> Proxy-Authorization: Basic dXNlci1hZG1pbl9YNW90SzpE"}
+{"level":"error","message":"Request error: curl exited with code 35: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1","stack":"Error: curl exited with code 35: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1\n    at ChildProcess.<anonymous> (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/trace-curl.js:247:25)\n    at ChildProcess.emit (node:events:520:35)\n    at maybeClose (node:internal/child_process:1085:16)\n    at ChildProcess._handle.onexit (node:internal/child_process:304:5)"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement), curl (native curl with proxy)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"curl","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌀 Using CURL mode (native curl with proxy support)"}
+{"level":"info","message":"🔧 CURL using active proxy settings: na.lunaproxy.com:12233"}
+{"level":"info","message":"🌀 CURL Trace started: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"🔧 CURL command: curl -L -v --compressed --max-time 60 --connect-timeout 30 --max-redirs 20 --tlsv1.2 --tls-max 1.3 --ssl-no-revoke --http1.1 -A Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 -H sec-ch-ua: \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\" -H sec-ch-ua-mobile: ?0 -H sec-ch-ua-platform: \"Windows\" -H Upgrade-Insecure-Requests: 1 -H Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7 -H Sec-Fetch-Site: none -H Sec-Fetch-Mode: navigate -H Sec-Fetch-User: ?1 -H Sec-Fetch-Dest: document -H Accept-Encoding: gzip, deflate, br, zstd -H Accept-Language: en-US,en;q=0.9 -H Connection: keep-alive -H Cache-Control: max-age=0 -x http://na.lunaproxy.com:12233 -U user-admin_X5otK:Dang7898 --location-trusted -s -S -o /dev/null https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"error","message":"❌ CURL failed with code 35"}
+{"level":"error","message":"STDERR: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1 negotiated\n* allocate connect buffer\n* Proxy auth using Basic with user 'user-admin_X5otK'\n* Establish HTTP proxy tunnel to blackboxai.partnerlinks.io:443\n> CONNECT blackboxai.partnerlinks.io:443 HTTP/1.1\r\n> Host: blackboxai.partnerlinks.io:443\r\n> Proxy-Authorization: Basic dXNlci1hZG1pbl9YNW90SzpE"}
+{"level":"error","message":"Request error: curl exited with code 35: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1","stack":"Error: curl exited with code 35: * Host na.lunaproxy.com:12233 was resolved.\n* IPv6: (none)\n* IPv4: 43.159.20.117\n*   Trying 43.159.20.117:12233...\n* Connected to na.lunaproxy.com (43.159.20.117) port 12233\n* CONNECT tunnel: HTTP/1.1\n    at ChildProcess.<anonymous> (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/trace-curl.js:249:25)\n    at ChildProcess.emit (node:events:520:35)\n    at maybeClose (node:internal/child_process:1085:16)\n    at ChildProcess._handle.onexit (node:internal/child_process:304:5)"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement), curl (native curl with proxy)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"brd.superproxy.io","level":"info","message":"BrightData proxy configured:","port":"33335"}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"⚡ Trace request:","mode":"curl","url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":null}
+{"level":"info","message":"🌀 Using CURL mode (native curl with proxy support)"}
+{"level":"info","message":"🔧 CURL using BrightData proxy: brd.superproxy.io:33335"}
+{"level":"info","message":"🌀 CURL Trace started: https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"info","message":"🔧 CURL command: curl -L -v --compressed --max-time 60 --connect-timeout 30 --max-redirs 20 --tlsv1.2 --tls-max 1.3 --ssl-no-revoke --http1.1 -A Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1 -H sec-ch-ua: \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\" -H sec-ch-ua-mobile: ?0 -H sec-ch-ua-platform: \"Windows\" -H Upgrade-Insecure-Requests: 1 -H Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7 -H Sec-Fetch-Site: none -H Sec-Fetch-Mode: navigate -H Sec-Fetch-User: ?1 -H Sec-Fetch-Dest: document -H Accept-Encoding: gzip, deflate, br, zstd -H Accept-Language: en-US,en;q=0.9 -H Connection: keep-alive -H Cache-Control: max-age=0 -x http://brd.superproxy.io:33335 -U brd-customer-hl_a908b07a-zone-testing_softality_1:sugfiq4h5s73 --location-trusted -s -S -o /dev/null https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"level":"error","message":"❌ CURL failed with code 56"}
+{"level":"error","message":"STDERR: * Host brd.superproxy.io:33335 was resolved.\n* IPv6: (none)\n* IPv4: 139.59.25.140, 159.89.169.246, 139.59.92.14, 143.110.179.151, 134.209.151.102, 206.189.137.28, 159.89.165.217, 143.244.135.21, 143.110.253.55, 68.183.87.221, 142.93.211.186, 139.59.6.85\n*   Trying 139.59.25.140:33335...\n* Connected to brd.superproxy.io (139.59.25.140) port 33335\n* CONNECT tunnel: HTTP/1.1 negotiated\n* allocate connect buffer\n* Proxy auth using Basic with user 'brd-customer-hl_a908b07a-zone-testing_softality_1'\n*"}
+{"level":"error","message":"Request error: curl exited with code 56: * Host brd.superproxy.io:33335 was resolved.\n* IPv6: (none)\n* IPv4: 139.59.25.140, 159.89.169.246, 139.59.92.14, 143.110.179.151, 134.209.151.102, 206.189.137.28, 159.89.165.217, 143.244.135.21, 143.1","stack":"Error: curl exited with code 56: * Host brd.superproxy.io:33335 was resolved.\n* IPv6: (none)\n* IPv4: 139.59.25.140, 159.89.169.246, 139.59.92.14, 143.110.179.151, 134.209.151.102, 206.189.137.28, 159.89.165.217, 143.244.135.21, 143.1\n    at ChildProcess.<anonymous> (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/trace-curl.js:249:25)\n    at ChildProcess.emit (node:events:520:35)\n    at maybeClose (node:internal/child_process:1085:16)\n    at ChildProcess._handle.onexit (node:internal/child_process:304:5)"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","max_redirects":20,"message":"⚡ Trace request:","mode":"http_only","target_country":"in","timeout_ms":60000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"error","message":"Request error: proxy_protocol is not defined","stack":"ReferenceError: proxy_protocol is not defined\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:3289:24\n    at Layer.handle [as handle_request] (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/layer.js:95:5)\n    at next (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/route.js:149:13)\n    at Route.dispatch (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/route.js:119:3)\n    at Layer.handle [as handle_request] (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/layer.js:95:5)\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:284:15\n    at router.process_params (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:346:12)\n    at next (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:280:10)\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/body-parser/lib/read.js:137:5\n    at AsyncResource.runInAsyncScope (node:async_hooks:213:14)"}
+{"level":"info","max_redirects":20,"message":"⚡ Trace request:","mode":"http_only","target_country":"in","timeout_ms":60000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"error","message":"Request error: proxy_protocol is not defined","stack":"ReferenceError: proxy_protocol is not defined\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:3289:24\n    at Layer.handle [as handle_request] (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/layer.js:95:5)\n    at next (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/route.js:149:13)\n    at Route.dispatch (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/route.js:119:3)\n    at Layer.handle [as handle_request] (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/layer.js:95:5)\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:284:15\n    at router.process_params (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:346:12)\n    at next (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:280:10)\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/body-parser/lib/read.js:137:5\n    at AsyncResource.runInAsyncScope (node:async_hooks:213:14)"}
+{"level":"info","max_redirects":20,"message":"⚡ Trace request:","mode":"browser","target_country":"in","timeout_ms":60000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"error","message":"Request error: proxy_protocol is not defined","stack":"ReferenceError: proxy_protocol is not defined\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:3391:24\n    at Layer.handle [as handle_request] (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/layer.js:95:5)\n    at next (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/route.js:149:13)\n    at Route.dispatch (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/route.js:119:3)\n    at Layer.handle [as handle_request] (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/layer.js:95:5)\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:284:15\n    at router.process_params (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:346:12)\n    at next (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:280:10)\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/body-parser/lib/read.js:137:5\n    at AsyncResource.runInAsyncScope (node:async_hooks:213:14)"}
+{"level":"info","max_redirects":20,"message":"⚡ Trace request:","mode":"browser","target_country":"in","timeout_ms":60000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"🌐 Using Browser mode (full rendering)"}
+{"level":"error","message":"Request error: proxy_protocol is not defined","stack":"ReferenceError: proxy_protocol is not defined\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/server.js:3391:24\n    at Layer.handle [as handle_request] (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/layer.js:95:5)\n    at next (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/route.js:149:13)\n    at Route.dispatch (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/route.js:119:3)\n    at Layer.handle [as handle_request] (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/layer.js:95:5)\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:284:15\n    at router.process_params (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:346:12)\n    at next (/Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/express/lib/router/index.js:280:10)\n    at /Users/geetsoni/Downloads/suffix-tool-main 2/proxy-service/node_modules/body-parser/lib/read.js:137:5\n    at AsyncResource.runInAsyncScope (node:async_hooks:213:14)"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","max_redirects":20,"message":"⚡ Trace request:","mode":"http_only","target_country":"in","timeout_ms":60000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1446x898, colorDepth=24, pixelRatio=1.25"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting IN"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"  ❌ Hop 1 error: ECONNRESET"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1993ms"}
+{"level":"info","message":"🌐 Proxy IP used: 49.42.92.55 | Location: Rohtak, Haryana, India | Selected Geo: IN"}
+{"level":"info","max_redirects":20,"message":"⚡ Trace request:","mode":"http_only","target_country":"in","timeout_ms":60000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=379x672, colorDepth=24, pixelRatio=3"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting IN"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"  ❌ Hop 1 error: ECONNRESET"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1810ms"}
+{"level":"info","message":"🌐 Proxy IP used: 49.42.92.55 | Location: Rohtak, Haryana, India | Selected Geo: IN"}
+{"level":"info","max_redirects":20,"message":"⚡ Trace request:","mode":"http_only","target_country":"in","timeout_ms":60000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Samsun..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=399x855, colorDepth=32, pixelRatio=3"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting IN"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"  ⏱️ Hop 1 timeout after 5002ms"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 5121ms"}
+{"level":"info","message":"🌐 Proxy IP used: 152.59.88.57 | Location: Sahāranpur, Uttar Pradesh, India | Selected Geo: IN"}
+{"level":"info","max_redirects":20,"message":"⚡ Trace request:","mode":"http_only","target_country":"in","timeout_ms":60000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=420x897, colorDepth=32, pixelRatio=2"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting IN"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"  ❌ Hop 1 error: ECONNRESET"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 1707ms"}
+{"level":"info","message":"🌐 Proxy IP used: 223.185.57.94 | Location: Karnāl, Haryana, India | Selected Geo: IN"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","max_redirects":20,"message":"⚡ Trace request:","mode":"http_only","target_country":"in","timeout_ms":60000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_0_1 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=395x834, colorDepth=24, pixelRatio=3"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting IN"}
+{"level":"info","message":"🔐 Proxy protocol: SOCKS5 | URL: socks5://na.lunaproxy.com:12233"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"  ❌ Hop 1 error: ECONNRESET"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 2286ms"}
+{"level":"info","message":"🌐 Proxy IP used: 103.157.16.133 | Location: Aizawl, Mizoram, India | Selected Geo: IN"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","max_redirects":20,"message":"⚡ Trace request:","mode":"http_only","target_country":"in","timeout_ms":60000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=384x834, colorDepth=24, pixelRatio=2"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting IN"}
+{"level":"info","message":"🔄 Switching Luna host for SOCKS5: na.lunaproxy.com → as.lunaproxy.com"}
+{"level":"info","message":"🔐 Proxy protocol: SOCKS5 | URL: socks5://as.lunaproxy.com:12233"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"  ❌ Hop 1 error: ECONNRESET"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 2060ms"}
+{"level":"info","message":"🌐 Proxy IP used: 103.175.101.34 | Location: Kota, Rajasthan, India | Selected Geo: IN"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","max_redirects":5,"message":"⚡ Trace request:","mode":"http_only","target_country":"in","timeout_ms":30000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv... | maxRedirects: 5"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1913x1191, colorDepth=32, pixelRatio=1.25"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting IN"}
+{"level":"info","message":"🔄 Switching Luna host for SOCKS5: na.lunaproxy.com → as.lunaproxy.com"}
+{"level":"info","message":"🔐 Proxy protocol: SOCKS5 (socks5h) | URL: socks5h://as.lunaproxy.com:12233"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"warn","message":"Geolocation fetch error (non-critical):"}
+{"level":"info","message":"  ⏱️ Hop 1 timeout after 5002ms"}
+{"level":"info","message":"✅ HTTP-only trace complete: 1 steps (1 hops launched, max concurrent=1)"}
+{"level":"info","message":"✅ Trace completed (http_only): 1 steps in 5123ms"}
+{"level":"info","message":"🌐 Proxy IP used: unknown | Location: null, null, null | Selected Geo: IN"}
+{"level":"info","message":"SIGTERM received, closing browser..."}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3000"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","max_redirects":20,"message":"⚡ Trace request:","mode":"http_only","target_country":"in","timeout_ms":30000,"url":"https://blackboxai.partnerlinks.io/pcn4bo8ipzxv"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"in"}
+{"level":"info","message":"🌍 Geo-targeting: IN"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv... | maxRedirects: 20"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=380x661, colorDepth=24, pixelRatio=3"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting IN"}
+{"level":"info","message":"🔄 Switching Luna host for SOCKS5: na.lunaproxy.com → as.lunaproxy.com"}
+{"level":"info","message":"🔐 Proxy protocol: SOCKS5 (socks5h) | URL: socks5h://as.lunaproxy.com:12233"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://blackboxai.partnerlinks.io/pcn4bo8ipzxv..."}
+{"level":"info","message":"  ✅ Hop 1 (302) in 2019ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  🚀 Hop 2 (parallel, concurrent=2): https://blackbox.ai/?ps_partner_key=ZDE0N2QyNGI3NWQ5&ps_xid=..."}
+{"level":"info","message":"  ✅ Hop 2 (301) in 1359ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  🚀 Hop 3 (parallel, concurrent=2): https://www.blackbox.ai/?ps_partner_key=ZDE0N2QyNGI3NWQ5&ps_..."}
+{"level":"info","message":"  ✅ Hop 3 (200) in 1925ms 🛑 FINAL [parallel, concurrent=1]"}
+{"level":"info","message":"  🎯 Final URL reached at hop 3 - connection killed to save bandwidth"}
+{"level":"info","message":"✅ HTTP-only trace complete: 3 steps (3 hops launched, max concurrent=2)"}
+{"level":"info","message":"✅ Trace completed (http_only): 3 steps in 5427ms"}
+{"level":"info","message":"🌐 Proxy IP used: 103.165.167.50 | Location: Kochi, Kerala, India | Selected Geo: IN"}
