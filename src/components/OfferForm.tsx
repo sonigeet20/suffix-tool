@@ -1697,6 +1697,81 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                 </div>
               </div>
 
+              {/* Active Settings Display - Show whenever settings are available */}
+              {activeTraceSettings && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-neutral-100 mb-3 flex items-center gap-2">
+                    <span className="text-blue-600 dark:text-blue-400">⚙️</span>
+                    Active Configuration
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🔐 Protocol:</span>
+                      <span className="font-semibold text-gray-900 dark:text-neutral-100 uppercase">{activeTraceSettings.proxy_protocol}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🎯 Mode:</span>
+                      <span className="font-semibold text-gray-900 dark:text-neutral-100">{activeTraceSettings.tracer_mode}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">⏱️ Timeout:</span>
+                      <span className="font-semibold text-gray-900 dark:text-neutral-100">{activeTraceSettings.timeout_ms}ms</span>
+                    </div>
+                    <div className="flex items-start gap-2 col-span-1 md:col-span-2 lg:col-span-1">
+                      <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🔗 Referrer:</span>
+                      <span className="font-semibold text-gray-900 dark:text-neutral-100 break-all">
+                        {activeTraceSettings.referrer === 'None' ? (
+                          <span className="text-gray-400 dark:text-neutral-500">None</span>
+                        ) : (
+                          activeTraceSettings.referrer
+                        )}
+                      </span>
+                    </div>
+                    {activeTraceSettings.referrer_hops?.length > 0 && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">📍 Ref Hops:</span>
+                        <span className="font-semibold text-gray-900 dark:text-neutral-100">{activeTraceSettings.referrer_hops.join(', ')}</span>
+                      </div>
+                    )}
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🌍 Geo:</span>
+                      <span className="font-semibold text-gray-900 dark:text-neutral-100">
+                        {activeTraceSettings.geo_pool.length > 0 ? (
+                          <span className="flex items-center gap-1">
+                            {activeTraceSettings.geo_pool.join(', ').toUpperCase()}
+                            <span className="text-xs text-gray-500 dark:text-neutral-500">({activeTraceSettings.geo_strategy})</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 dark:text-neutral-500">None</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2 col-span-1 md:col-span-2">
+                      <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">📱 Devices:</span>
+                      <span className="font-semibold text-gray-900 dark:text-neutral-100">
+                        {activeTraceSettings.device_distribution.map((d: any) => `${d.deviceCategory}: ${d.weight}%`).join(', ')}
+                      </span>
+                    </div>
+                    {activeTraceSettings.extract_from_location_header && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">📍 Extract:</span>
+                        <span className="font-semibold text-gray-900 dark:text-neutral-100">
+                          Location Header {activeTraceSettings.location_extract_hop !== null ? `(Hop ${activeTraceSettings.location_extract_hop + 1})` : ''}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🔄 Max Hops:</span>
+                      <span className="font-semibold text-gray-900 dark:text-neutral-100">{activeTraceSettings.max_redirects}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🌐 Proxy:</span>
+                      <span className="font-semibold text-gray-900 dark:text-neutral-100">{activeTraceSettings.use_proxy ? 'Enabled' : 'Disabled'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {traceError && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
                   <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
@@ -1709,81 +1784,6 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
 
               {traceResult && (
                 <div className="space-y-4">
-                  {/* Active Settings Display */}
-                  {activeTraceSettings && (
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
-                      <h4 className="font-semibold text-gray-900 dark:text-neutral-100 mb-3 flex items-center gap-2">
-                        <span className="text-blue-600 dark:text-blue-400">⚙️</span>
-                        Active Configuration
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                        <div className="flex items-start gap-2">
-                          <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🔐 Protocol:</span>
-                          <span className="font-semibold text-gray-900 dark:text-neutral-100 uppercase">{activeTraceSettings.proxy_protocol}</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🎯 Mode:</span>
-                          <span className="font-semibold text-gray-900 dark:text-neutral-100">{activeTraceSettings.tracer_mode}</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">⏱️ Timeout:</span>
-                          <span className="font-semibold text-gray-900 dark:text-neutral-100">{activeTraceSettings.timeout_ms}ms</span>
-                        </div>
-                        <div className="flex items-start gap-2 col-span-1 md:col-span-2 lg:col-span-1">
-                          <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🔗 Referrer:</span>
-                          <span className="font-semibold text-gray-900 dark:text-neutral-100 break-all">
-                            {activeTraceSettings.referrer === 'None' ? (
-                              <span className="text-gray-400 dark:text-neutral-500">None</span>
-                            ) : (
-                              activeTraceSettings.referrer
-                            )}
-                          </span>
-                        </div>
-                        {activeTraceSettings.referrer_hops?.length > 0 && (
-                          <div className="flex items-start gap-2">
-                            <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">📍 Ref Hops:</span>
-                            <span className="font-semibold text-gray-900 dark:text-neutral-100">{activeTraceSettings.referrer_hops.join(', ')}</span>
-                          </div>
-                        )}
-                        <div className="flex items-start gap-2">
-                          <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🌍 Geo:</span>
-                          <span className="font-semibold text-gray-900 dark:text-neutral-100">
-                            {activeTraceSettings.geo_pool.length > 0 ? (
-                              <span className="flex items-center gap-1">
-                                {activeTraceSettings.geo_pool.join(', ').toUpperCase()}
-                                <span className="text-xs text-gray-500 dark:text-neutral-500">({activeTraceSettings.geo_strategy})</span>
-                              </span>
-                            ) : (
-                              <span className="text-gray-400 dark:text-neutral-500">None</span>
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex items-start gap-2 col-span-1 md:col-span-2">
-                          <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">📱 Devices:</span>
-                          <span className="font-semibold text-gray-900 dark:text-neutral-100">
-                            {activeTraceSettings.device_distribution.map((d: any) => `${d.deviceCategory}: ${d.weight}%`).join(', ')}
-                          </span>
-                        </div>
-                        {activeTraceSettings.extract_from_location_header && (
-                          <div className="flex items-start gap-2">
-                            <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">📍 Extract:</span>
-                            <span className="font-semibold text-gray-900 dark:text-neutral-100">
-                              Location Header {activeTraceSettings.location_extract_hop !== null ? `(Hop ${activeTraceSettings.location_extract_hop + 1})` : ''}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex items-start gap-2">
-                          <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🔄 Max Hops:</span>
-                          <span className="font-semibold text-gray-900 dark:text-neutral-100">{activeTraceSettings.max_redirects}</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-gray-500 dark:text-neutral-400 font-medium min-w-[100px]">🌐 Proxy:</span>
-                          <span className="font-semibold text-gray-900 dark:text-neutral-100">{activeTraceSettings.use_proxy ? 'Enabled' : 'Disabled'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold text-gray-900 dark:text-neutral-100">Trace Results</h4>
                     <div className="flex items-center gap-4 text-sm">
