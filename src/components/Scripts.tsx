@@ -1297,44 +1297,53 @@ function getIntervalForOffer(offerName) {
 }
 
 // ============================================
-// PER-CAMPAIGN SUFFIX FETCHING
+// UNIFIED SUFFIX FETCHING (ALL CAMPAIGNS ONE CALL)
 // ============================================
 
-function getSuffixForCampaign(campaignId, offerName, intervalToUse) {
+function getAllSuffixesUnified(campaignToOfferMapping, intervalToUse) {
   try {
-    var url = SUPABASE_URL + '/functions/v1/get-suffix?offer_name=' + encodeURIComponent(offerName);
-    url += '&account_id=' + encodeURIComponent(ACCOUNT_ID);
+    Logger.log('[API UNIFIED] Fetching unique suffixes for all campaigns in single call...');
+    Logger.log('[API UNIFIED] Campaign count: ' + Object.keys(campaignToOfferMapping).length);
+    
+    var url = SUPABASE_URL + '/functions/v1/get-suffix-batch';
+    url += '?account_id=' + encodeURIComponent(ACCOUNT_ID);
     
     if (intervalToUse > 0) {
       url += '&interval_used=' + intervalToUse;
     }
 
+    var payload = {
+      campaign_offer_mapping: campaignToOfferMapping, // { campaignId: offerName, ... }
+      campaign_count: Object.keys(campaignToOfferMapping).length
+    };
+
     var options = {
-      'method': 'get',
+      'method': 'post',
+      'contentType': 'application/json',
+      'payload': JSON.stringify(payload),
       'muteHttpExceptions': true
     };
 
     var response = UrlFetchApp.fetch(url, options);
+    var responseCode = response.getResponseCode();
     var json = JSON.parse(response.getContentText());
 
-    if (json.success && json.suffix) {
-      perOfferStats[offerName].apiCalls++;
+    if (responseCode === 200 && json.success && json.suffixes && json.suffixes.length > 0) {
+      Logger.log('[API UNIFIED] ✅ Got ' + json.suffixes.length + ' unique suffixes for ' + Object.keys(campaignToOfferMapping).length + ' campaigns');
+      executionState.totalApiCalls++;
       return {
         success: true,
-        suffix: json.suffix,
-        finalUrl: json.final_url
+        suffixes: json.suffixes // Array of { campaign_id, suffix, offer_name }
       };
     } else {
-      Logger.log('[API ERROR] Invalid response for campaign ' + campaignId);
+      Logger.log('[API ERROR] Unified API failed or returned invalid data');
       return { success: false };
     }
   } catch (e) {
-    Logger.log('[API ERROR] Failed to get suffix for campaign ' + campaignId + ': ' + e.toString());
+    Logger.log('[API ERROR] Failed unified suffix fetch: ' + e.toString());
     executionState.errors.push({
       type: 'api_error',
-      campaignId: campaignId,
-      offerName: offerName,
-      message: e.toString(),
+      message: 'Unified suffix fetch failed: ' + e.toString(),
       timestamp: new Date()
     });
     return { success: false };
@@ -1342,14 +1351,14 @@ function getSuffixForCampaign(campaignId, offerName, intervalToUse) {
 }
 
 // ============================================
-// CAMPAIGN UPDATE FUNCTION
+// CAMPAIGN UPDATE FUNCTION (UNIFIED CALL)
 // ============================================
 
 function updateCampaigns() {
   var campaignList = getCampaignList();
   var totalCampaigns = campaignList.length;
   
-  Logger.log('[UPDATE] Processing ' + totalCampaigns + ' campaigns');
+  Logger.log('[UPDATE] Processing ' + totalCampaigns + ' campaigns (unified single API call)');
   
   if (totalCampaigns === 0) {
     return {
@@ -1364,7 +1373,7 @@ function updateCampaigns() {
   var skippedCount = 0;
 
   if (DRY_RUN_MODE) {
-    Logger.log('[DRY RUN] Would update ' + totalCampaigns + ' campaigns');
+    Logger.log('[DRY RUN] Would update ' + totalCampaigns + ' campaigns with unified call');
     for (var i = 0; i < campaignList.length; i++) {
       var campaign = campaignList[i];
       var campaignId = campaign.getId();
@@ -1375,7 +1384,10 @@ function updateCampaigns() {
     return { updated: 0, failed: 0, skipped: skippedCount };
   }
 
-  // Update each campaign with unique suffix from its assigned offer
+  // Build campaign ID to offer name mapping for API call
+  var campaignMapping = {};
+  var campaignListMap = {}; // Keep reference to campaign objects by ID
+  
   for (var i = 0; i < campaignList.length; i++) {
     var campaign = campaignList[i];
     var campaignId = campaign.getId();
@@ -1387,22 +1399,61 @@ function updateCampaigns() {
       continue;
     }
     
-    var stats = perOfferStats[offerName];
-    var intervalToUse = stats.currentInterval || DEFAULT_INTERVAL_MS;
+    campaignMapping[campaignId] = offerName;
+    campaignListMap[campaignId] = campaign;
+  }
+
+  if (Object.keys(campaignMapping).length === 0) {
+    Logger.log('[ERROR] No campaigns with offer assignments');
+    return { updated: 0, failed: 0, skipped: skippedCount };
+  }
+
+  // Calculate average interval for delay between cycles
+  var totalInterval = 0;
+  for (var i = 0; i < NORMALIZED_OFFERS.length; i++) {
+    totalInterval += perOfferStats[NORMALIZED_OFFERS[i]].currentInterval;
+  }
+  var avgInterval = Math.floor(totalInterval / NORMALIZED_OFFERS.length);
+
+  // SINGLE unified API call for ALL campaigns at once
+  var apiResult = getAllSuffixesUnified(campaignMapping, avgInterval);
+  
+  if (!apiResult.success) {
+    Logger.log('[ERROR] Unified API call failed, all campaigns failed');
+    return {
+      updated: 0,
+      failed: Object.keys(campaignMapping).length,
+      skipped: skippedCount
+    };
+  }
+
+  var suffixes = apiResult.suffixes || [];
+  Logger.log('[UPDATE] Received ' + suffixes.length + ' suffixes, applying to campaigns...');
+
+  // Apply each suffix to its corresponding campaign
+  for (var i = 0; i < suffixes.length; i++) {
+    var suffixData = suffixes[i];
+    var campaignId = suffixData.campaign_id;
+    var suffix = suffixData.suffix;
+    var offerName = suffixData.offer_name;
     
-    // Get unique suffix for this campaign from its assigned offer
-    var apiResult = getSuffixForCampaign(campaignId, offerName, intervalToUse);
-    
-    if (!apiResult.success) {
+    var campaign = campaignListMap[campaignId];
+    if (!campaign) {
+      Logger.log('[ERROR] Campaign ' + campaignId + ' not found in campaign list');
       failedCount++;
       continue;
     }
     
     try {
-      campaign.urls().setFinalUrlSuffix(apiResult.suffix);
-      Logger.log('[UPDATED] ' + campaign.getName() + ' (ID: ' + campaignId + ') with suffix from offer: ' + offerName);
+      campaign.urls().setFinalUrlSuffix(suffix);
+      Logger.log('[UPDATED] ' + campaign.getName() + ' (ID: ' + campaignId + ') with unique suffix from offer: ' + offerName);
       updatedCount++;
-      stats.campaignsUpdated++;
+      
+      // Track per-offer
+      if (perOfferStats[offerName]) {
+        perOfferStats[offerName].campaignsUpdated++;
+        perOfferStats[offerName].apiCalls++; // Count this campaign's portion of the unified call
+      }
     } catch (e) {
       failedCount++;
       Logger.log('[ERROR] Failed to update campaign ' + campaignId + ': ' + e.toString());
@@ -1418,7 +1469,6 @@ function updateCampaigns() {
   }
 
   executionState.totalCampaignsUpdated += updatedCount;
-  executionState.totalApiCalls += updatedCount; // Each campaign = 1 API call
 
   return {
     updated: updatedCount,
@@ -1465,6 +1515,7 @@ function logScriptStart() {
   Logger.log('  Max Runtime: ' + formatMs(MAX_RUNTIME_MS));
   Logger.log('  Update Mode: ' + UPDATE_MODE);
   Logger.log('  Dry Run: ' + (DRY_RUN_MODE ? 'YES' : 'NO'));
+  Logger.log('  API Strategy: Unified single call with campaign-offer mapping');
   Logger.log('====================================');
 }
 
