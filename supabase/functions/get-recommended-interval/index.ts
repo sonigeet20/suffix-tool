@@ -175,6 +175,8 @@ Deno.serve(async (req: Request) => {
     let maxIntervalMs = DEFAULT_MAX_INTERVAL_MS;
     let targetAverageRepeats = DEFAULT_TARGET_AVERAGE_REPEATS;
     let defaultIntervalMs = BASE_INTERVAL_MS;
+    let targetRepeatRatio = 5;      // Target repeats per landing page (speedup)
+    let minRepeatRatio = 1.0;       // Minimum repeats per landing page (slowdown trigger)
     
     if (req.method === 'POST') {
       try {
@@ -188,9 +190,12 @@ Deno.serve(async (req: Request) => {
         if (body.max_interval_ms !== undefined) maxIntervalMs = body.max_interval_ms;
         if (body.target_average_repeats !== undefined) targetAverageRepeats = body.target_average_repeats;
         if (body.default_interval_ms !== undefined) defaultIntervalMs = body.default_interval_ms;
+        if (body.target_repeat_ratio !== undefined) targetRepeatRatio = body.target_repeat_ratio;
+        if (body.min_repeat_ratio !== undefined) minRepeatRatio = body.min_repeat_ratio;
         
         console.log(`📬 POST data: clicks=${yesterdayClicks}, landing_pages=${yesterdayLandingPages}, timezone=${accountTimezone}`);
         console.log(`⚙️  Script constraints: MIN=${minIntervalMs}ms, MAX=${maxIntervalMs}ms, TARGET=${targetAverageRepeats}, DEFAULT=${defaultIntervalMs}`);
+        console.log(`⚙️  Ratio constraints: TARGET=${targetRepeatRatio}:1 repeats/page, MIN=${minRepeatRatio}:1 repeats/page`);
       } catch (e) {
         console.warn('⚠️ Failed to parse POST body');
       }
@@ -255,14 +260,34 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 4. Check if we already calculated interval for today (CACHE CHECK)
+    // 4. Check if we already calculated interval for today (CACHE CHECK + OVERRIDES)
     const { data: cachedInterval, error: cacheError } = await supabase
       .from('daily_trace_counts')
-      .select('interval_used_ms, updated_at')
+      .select('interval_used_ms, updated_at, min_interval_override_ms, max_interval_override_ms, target_repeat_ratio, min_repeat_ratio')
       .eq('offer_id', offer.id)
       .eq('account_id', accountId || '')
       .eq('date', todayDate)
       .maybeSingle();
+
+    // Apply overrides from database (takes precedence over script values)
+    if (cachedInterval) {
+      if (cachedInterval.min_interval_override_ms !== null && cachedInterval.min_interval_override_ms !== undefined) {
+        minIntervalMs = cachedInterval.min_interval_override_ms;
+        console.log(`✅ [OVERRIDE] Using database min_interval: ${minIntervalMs}ms (overriding script value)`);
+      }
+      if (cachedInterval.max_interval_override_ms !== null && cachedInterval.max_interval_override_ms !== undefined) {
+        maxIntervalMs = cachedInterval.max_interval_override_ms;
+        console.log(`✅ [OVERRIDE] Using database max_interval: ${maxIntervalMs}ms (overriding script value)`);
+      }
+      if (cachedInterval.target_repeat_ratio !== null && cachedInterval.target_repeat_ratio !== undefined) {
+        targetRepeatRatio = cachedInterval.target_repeat_ratio;
+        console.log(`✅ [OVERRIDE] Using database target_repeat_ratio: ${targetRepeatRatio} (overriding script value)`);
+      }
+      if (cachedInterval.min_repeat_ratio !== null && cachedInterval.min_repeat_ratio !== undefined) {
+        minRepeatRatio = cachedInterval.min_repeat_ratio;
+        console.log(`✅ [OVERRIDE] Using database min_repeat_ratio: ${minRepeatRatio} (overriding script value)`);
+      }
+    }
 
     if (cachedInterval && cachedInterval.interval_used_ms) {
       console.log(`✅ [CACHE HIT] Using cached interval for ${todayDate}: ${cachedInterval.interval_used_ms}ms`);
@@ -318,31 +343,63 @@ Deno.serve(async (req: Request) => {
     }
     console.log(`✅ Found yesterday's interval: ${yesterdayInterval}ms`);
 
-    // 7. Calculate interval based on average repeats per landing page
-    // Formula: average_repeats = clicks / unique_landing_pages
-    // If average > target, increase delay (slow down)
-    // If average < target, decrease delay (speed up)
+    // 7. Calculate interval based on repeat ratio with THREE SCENARIOS
+    // averageRepeats = clicks / unique_landing_pages
+    // Scenario 1: averageRepeats >= TARGET → SPEEDUP (more traffic than expected)
+    // Scenario 2: MIN <= averageRepeats < TARGET → STABLE (acceptable, keep yesterday's speed)
+    // Scenario 3: averageRepeats < MIN → SLOWDOWN (critically low, must slow down)
     let recommendedInterval = BASE_INTERVAL_MS;
     let averageRepeats = 0;
     let usedFallback = false;
+    let adjustmentReason = 'default';
 
     if (yesterdayClicks > 0 && yesterdayLandingPages > 0) {
       averageRepeats = yesterdayClicks / yesterdayLandingPages;
-      const calculated = Math.round(yesterdayInterval * (targetAverageRepeats / averageRepeats));
-      const adjusted = averageRepeats < targetAverageRepeats ? Math.min(yesterdayInterval, calculated) : calculated;
-      recommendedInterval = Math.max(minIntervalMs, Math.min(maxIntervalMs, adjusted));
+      let calculated = yesterdayInterval; // Start with yesterday
       
-      console.log(`📊 Calculation:`);
+      console.log(`📊 Three-Scenario Calculation:`);
       console.log(`   Clicks: ${yesterdayClicks}`);
       console.log(`   Unique Landing Pages: ${yesterdayLandingPages}`);
       console.log(`   Average Repeats: ${yesterdayClicks}/${yesterdayLandingPages} = ${averageRepeats.toFixed(2)}`);
       console.log(`   Yesterday Interval: ${yesterdayInterval}ms`);
-      console.log(`   Formula: ${yesterdayInterval} * (${targetAverageRepeats}/${averageRepeats.toFixed(2)}) = ${calculated}ms`);
-      console.log(`   Final (clamped to MIN=${minIntervalMs}, MAX=${maxIntervalMs}): ${recommendedInterval}ms`);
+      console.log(`   Target Ratio: ${targetRepeatRatio}:1 repeats/page`);
+      console.log(`   Minimum Ratio: ${minRepeatRatio}:1 repeats/page`);
+      
+      // SCENARIO 1: SPEEDUP - Ratio is above or at target (more traffic)
+      if (averageRepeats >= targetRepeatRatio) {
+        calculated = Math.round(yesterdayInterval * (targetRepeatRatio / averageRepeats));
+        adjustmentReason = 'speedup';
+        console.log(`✅ SCENARIO 1 - SPEEDUP: ratio ${averageRepeats.toFixed(2)} >= target ${targetRepeatRatio}`);
+        console.log(`   Formula: ${yesterdayInterval} * (${targetRepeatRatio}/${averageRepeats.toFixed(2)}) = ${calculated}ms (FASTER)`);
+      }
+      // SCENARIO 2: STABLE - Ratio is between target and minimum (acceptable)
+      else if (averageRepeats >= minRepeatRatio) {
+        calculated = yesterdayInterval;
+        adjustmentReason = 'stable';
+        console.log(`✅ SCENARIO 2 - STABLE: ratio ${averageRepeats.toFixed(2)} is between ${minRepeatRatio} and ${targetRepeatRatio}`);
+        console.log(`   Keep yesterday's speed: ${yesterdayInterval}ms (NO CHANGE)`);
+      }
+      // SCENARIO 3: SLOWDOWN - Ratio is below minimum (critically low traffic)
+      else {
+        calculated = Math.round(yesterdayInterval * (minRepeatRatio / averageRepeats));
+        adjustmentReason = 'slowdown';
+        console.log(`⚠️  SCENARIO 3 - SLOWDOWN: ratio ${averageRepeats.toFixed(2)} < minimum ${minRepeatRatio}`);
+        console.log(`   Formula: ${yesterdayInterval} * (${minRepeatRatio}/${averageRepeats.toFixed(2)}) = ${calculated}ms (SLOWER)`);
+      }
+      
+      // Clamp to min/max constraints
+      recommendedInterval = Math.max(minIntervalMs, Math.min(maxIntervalMs, calculated));
+      
+      if (recommendedInterval !== calculated) {
+        console.log(`   ⚠️  Clamped to MIN=${minIntervalMs}, MAX=${maxIntervalMs}: ${recommendedInterval}ms`);
+      } else {
+        console.log(`   ✅ Within bounds: ${recommendedInterval}ms`);
+      }
     } else {
       usedFallback = true;
       // Day-0 or no-data: use script-provided default, clamped to constraints
       recommendedInterval = Math.max(minIntervalMs, Math.min(maxIntervalMs, defaultIntervalMs));
+      adjustmentReason = 'no_data';
       console.log(`⚠️ Not enough data for calculation, using default (clamped): ${recommendedInterval}ms [default=${defaultIntervalMs}, min=${minIntervalMs}, max=${maxIntervalMs}]`);
     }
 
@@ -352,6 +409,9 @@ Deno.serve(async (req: Request) => {
       yesterday_clicks: yesterdayClicks,
       yesterday_landing_pages: yesterdayLandingPages,
       average_repeats: averageRepeats > 0 ? parseFloat(averageRepeats.toFixed(2)) : 0,
+      adjustment_reason: adjustmentReason,
+      target_repeat_ratio: targetRepeatRatio,
+      min_repeat_ratio: minRepeatRatio,
       min_interval_ms: minIntervalMs,
       max_interval_ms: maxIntervalMs,
       target_average_repeats: targetAverageRepeats,
@@ -361,8 +421,12 @@ Deno.serve(async (req: Request) => {
       account_timezone: accountTimezone,
       stats_date: yesterdayDate,
       formula: {
-        description: 'next = yesterday_interval * (target / average_repeats) where average_repeats = clicks / unique_landing_pages',
-        target_average_repeats: targetAverageRepeats,
+        description: 'Three-scenario: SPEEDUP (ratio >= target), STABLE (ratio between min/target), SLOWDOWN (ratio < min). All clamped to MIN/MAX constraints.',
+        scenario_1_speedup: 'interval = yesterday * (target / ratio) when ratio >= target',
+        scenario_2_stable: 'interval = yesterday (no change) when min <= ratio < target',
+        scenario_3_slowdown: 'interval = yesterday * (min / ratio) when ratio < min',
+        target_repeat_ratio: targetRepeatRatio,
+        min_repeat_ratio: minRepeatRatio,
         min_interval_ms: minIntervalMs,
         max_interval_ms: maxIntervalMs,
         base_interval_ms: BASE_INTERVAL_MS,
