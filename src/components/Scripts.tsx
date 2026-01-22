@@ -938,6 +938,699 @@ function listCampaignIds() {
   Logger.log('='.repeat(60));
 }`;
 
+  const googleAdsMultiOfferV4 = `// ============================================
+// MULTI-OFFER ADAPTIVE INTERVAL SCRIPT (V4)
+// ============================================
+// V4: Multi-offer support with flexible campaign mapping
+// - Supports array of offers OR single offer string
+// - Manual campaign-to-offer mapping OR automatic round-robin distribution
+// - Unique suffix per campaign per call from assigned offer
+// - Per-offer interval calculation and statistics tracking
+// - Fully backward compatible with single-offer mode
+
+var SUPABASE_URL = '${supabaseUrl}';
+var ACCOUNT_ID = ''; // Will be set at startup
+
+// ============================================
+// MULTI-OFFER CONFIGURATION
+// ============================================
+
+// OFFER_NAMES: Accept array OR single string
+// Examples:
+//   var OFFER_NAMES = ['offer1', 'offer2', 'offer3'];
+//   var OFFER_NAMES = 'single-offer';
+var OFFER_NAMES = 'OFFER_NAME'; // Replace with your offer(s)
+
+// CAMPAIGN_MAPPING: Manual mode - explicit campaign ID to offer name mapping
+// Leave empty {} or null for automatic round-robin distribution
+// Example:
+//   var CAMPAIGN_MAPPING = {
+//     '12345678': 'offer1',
+//     '87654321': 'offer2',
+//     '11223344': 'offer3'
+//   };
+var CAMPAIGN_MAPPING = {};
+
+// ============================================
+// INTERVAL CONFIGURATION
+// ============================================
+var DEFAULT_INTERVAL_MS = 5000;
+var MIN_INTERVAL_MS = 1000;
+var MAX_INTERVAL_MS = 30000;
+var TARGET_REPEAT_RATIO = 5;
+var MIN_REPEAT_RATIO = 1.0;
+
+// ============================================
+// CAMPAIGN FILTERING
+// ============================================
+var CAMPAIGN_IDS = []; // Leave empty to process all campaigns
+var CAMPAIGN_LABEL_FILTER = '';
+var DRY_RUN_MODE = false;
+
+// ============================================
+// RUNTIME CONFIGURATION
+// ============================================
+var MAX_RUNTIME_MS = 1500000; // 25 minutes
+var UPDATE_MODE = 'on_change';
+
+// ============================================
+// GLOBAL STATE
+// ============================================
+var executionState = {
+  startTime: new Date().getTime(),
+  totalApiCalls: 0,
+  totalCampaignsUpdated: 0,
+  cycleNumber: 0,
+  errors: []
+};
+
+// Normalized offer names (always an array)
+var NORMALIZED_OFFERS = [];
+
+// Campaign to offer assignment map
+var campaignToOfferMap = {};
+
+// Per-offer tracking
+var perOfferStats = {};
+
+// Per-offer yesterday data cache
+var perOfferYesterdayCache = {};
+
+// ============================================
+// INITIALIZATION HELPERS
+// ============================================
+
+function getAccountId() {
+  try {
+    return AdsApp.currentAccount().getCustomerId();
+  } catch (error) {
+    Logger.log('⚠️ [ACCOUNT] Failed to get account ID: ' + error);
+    return 'unknown';
+  }
+}
+
+function normalizeOfferNames() {
+  // Convert OFFER_NAMES to array format
+  if (typeof OFFER_NAMES === 'string') {
+    NORMALIZED_OFFERS = [OFFER_NAMES];
+    Logger.log('[INIT] Single offer mode: ' + OFFER_NAMES);
+  } else if (Array.isArray(OFFER_NAMES)) {
+    NORMALIZED_OFFERS = OFFER_NAMES;
+    Logger.log('[INIT] Multi-offer mode: ' + NORMALIZED_OFFERS.length + ' offers');
+    for (var i = 0; i < NORMALIZED_OFFERS.length; i++) {
+      Logger.log('  ' + (i + 1) + '. ' + NORMALIZED_OFFERS[i]);
+    }
+  } else {
+    Logger.log('⚠️ [INIT] Invalid OFFER_NAMES format, using default');
+    NORMALIZED_OFFERS = ['default-offer'];
+  }
+  
+  // Initialize per-offer stats
+  for (var i = 0; i < NORMALIZED_OFFERS.length; i++) {
+    var offerName = NORMALIZED_OFFERS[i];
+    perOfferStats[offerName] = {
+      currentInterval: DEFAULT_INTERVAL_MS,
+      totalClicks: 0,
+      uniquePages: 0,
+      apiCalls: 0,
+      campaignsUpdated: 0
+    };
+  }
+}
+
+function getCampaignList() {
+  var campaignSelector;
+
+  if (CAMPAIGN_IDS && CAMPAIGN_IDS.length > 0) {
+    Logger.log('[FILTER] Using Campaign IDs: ' + CAMPAIGN_IDS.join(', '));
+    var idConditions = [];
+    for (var i = 0; i < CAMPAIGN_IDS.length; i++) {
+      idConditions.push('Id = ' + CAMPAIGN_IDS[i]);
+    }
+    var idFilter = '(' + idConditions.join(' OR ') + ')';
+    campaignSelector = AdsApp.campaigns()
+      .withCondition('Status = ENABLED')
+      .withCondition(idFilter);
+  } else if (CAMPAIGN_LABEL_FILTER && CAMPAIGN_LABEL_FILTER !== '') {
+    Logger.log('[FILTER] Using Label: ' + CAMPAIGN_LABEL_FILTER);
+    campaignSelector = AdsApp.campaigns()
+      .withCondition('Status = ENABLED')
+      .withCondition('LabelNames CONTAINS_ANY ["' + CAMPAIGN_LABEL_FILTER + '"]');
+  } else {
+    Logger.log('[FILTER] Using all enabled campaigns');
+    campaignSelector = AdsApp.campaigns()
+      .withCondition('Status = ENABLED');
+  }
+
+  var campaigns = campaignSelector.get();
+  var campaignList = [];
+  while (campaigns.hasNext()) {
+    campaignList.push(campaigns.next());
+  }
+  
+  return campaignList;
+}
+
+function assignCampaignsToOffers(campaignList) {
+  Logger.log('[MAPPING] Assigning campaigns to offers...');
+  
+  // Check if manual mapping provided
+  var hasManualMapping = CAMPAIGN_MAPPING && Object.keys(CAMPAIGN_MAPPING).length > 0;
+  
+  if (hasManualMapping) {
+    Logger.log('[MAPPING] Using manual campaign mapping');
+    for (var i = 0; i < campaignList.length; i++) {
+      var campaign = campaignList[i];
+      var campaignId = campaign.getId();
+      var assignedOffer = CAMPAIGN_MAPPING[campaignId];
+      
+      if (assignedOffer) {
+        campaignToOfferMap[campaignId] = assignedOffer;
+        Logger.log('  Campaign ' + campaignId + ' -> ' + assignedOffer);
+      } else {
+        Logger.log('  ⚠️ Campaign ' + campaignId + ' has no mapping, skipping');
+      }
+    }
+  } else {
+    Logger.log('[MAPPING] Using automatic round-robin distribution');
+    var offerCount = NORMALIZED_OFFERS.length;
+    
+    for (var i = 0; i < campaignList.length; i++) {
+      var campaign = campaignList[i];
+      var campaignId = campaign.getId();
+      var offerIndex = i % offerCount;
+      var assignedOffer = NORMALIZED_OFFERS[offerIndex];
+      
+      campaignToOfferMap[campaignId] = assignedOffer;
+      Logger.log('  Campaign ' + campaignId + ' -> ' + assignedOffer + ' (round-robin #' + offerIndex + ')');
+    }
+  }
+  
+  // Log summary
+  var assignedCount = Object.keys(campaignToOfferMap).length;
+  Logger.log('[MAPPING] Total campaigns assigned: ' + assignedCount);
+  
+  // Count campaigns per offer
+  var offerCounts = {};
+  for (var campaignId in campaignToOfferMap) {
+    var offer = campaignToOfferMap[campaignId];
+    offerCounts[offer] = (offerCounts[offer] || 0) + 1;
+  }
+  
+  Logger.log('[MAPPING] Campaigns per offer:');
+  for (var offer in offerCounts) {
+    Logger.log('  ' + offer + ': ' + offerCounts[offer] + ' campaigns');
+  }
+}
+
+// ============================================
+// YESTERDAY'S DATA COLLECTION (PER-OFFER)
+// ============================================
+
+function getYesterdayLandingPagesForOffer(offerName) {
+  try {
+    Logger.log('[GOOGLE ADS] Collecting yesterday landing pages for offer: ' + offerName);
+    
+    // Get campaigns assigned to this offer
+    var offerCampaignIds = [];
+    for (var campaignId in campaignToOfferMap) {
+      if (campaignToOfferMap[campaignId] === offerName) {
+        offerCampaignIds.push(campaignId);
+      }
+    }
+    
+    if (offerCampaignIds.length === 0) {
+      Logger.log('[REPORT] No campaigns assigned to offer: ' + offerName);
+      return null;
+    }
+    
+    // Build campaign filter
+    var campaignFilter = '';
+    for (var i = 0; i < offerCampaignIds.length; i++) {
+      if (i > 0) campaignFilter += ' OR ';
+      campaignFilter += 'CampaignId = ' + offerCampaignIds[i];
+    }
+    
+    var query = 'SELECT EffectiveFinalUrl, Clicks ' +
+                'FROM FINAL_URL_REPORT ' +
+                'WHERE (' + campaignFilter + ') ' +
+                'DURING YESTERDAY';
+    
+    var report = AdsApp.report(query);
+    var rows = report.rows();
+    
+    var landingPages = {};
+    var totalClicks = 0;
+    var processedRows = 0;
+    
+    while (rows.hasNext()) {
+      var row = rows.next();
+      var url = row['EffectiveFinalUrl'] || '';
+      var clicks = parseInt(row['Clicks'], 10) || 0;
+      
+      if (url && clicks > 0) {
+        landingPages[url] = (landingPages[url] || 0) + clicks;
+        totalClicks += clicks;
+        processedRows++;
+      }
+    }
+    
+    var uniquePages = Object.keys(landingPages).length;
+    Logger.log('[REPORT] Offer "' + offerName + '" yesterday results:');
+    Logger.log('  Rows processed: ' + processedRows);
+    Logger.log('  Unique landing pages: ' + uniquePages);
+    Logger.log('  Total clicks: ' + totalClicks);
+
+    if (uniquePages > 0 && totalClicks > 0) {
+      return {
+        landingPages: landingPages,
+        totalClicks: totalClicks,
+        uniquePages: uniquePages
+      };
+    }
+    return null;
+  } catch (error) {
+    Logger.log('⚠️ [REPORT] Failed to collect yesterday data for ' + offerName + ': ' + error);
+    return null;
+  }
+}
+
+function collectAllOfferYesterdayData() {
+  Logger.log('[STARTUP] Collecting yesterday data for all offers...');
+  
+  for (var i = 0; i < NORMALIZED_OFFERS.length; i++) {
+    var offerName = NORMALIZED_OFFERS[i];
+    var yesterdayData = getYesterdayLandingPagesForOffer(offerName);
+    
+    if (yesterdayData) {
+      perOfferYesterdayCache[offerName] = yesterdayData;
+      perOfferStats[offerName].totalClicks = yesterdayData.totalClicks;
+      perOfferStats[offerName].uniquePages = yesterdayData.uniquePages;
+      Logger.log('[STARTUP] Cached data for ' + offerName + ': ' + yesterdayData.totalClicks + ' clicks, ' + yesterdayData.uniquePages + ' pages');
+    } else {
+      Logger.log('[STARTUP] No yesterday data for ' + offerName);
+      perOfferStats[offerName].totalClicks = 0;
+      perOfferStats[offerName].uniquePages = 0;
+    }
+  }
+}
+
+// ============================================
+// PER-OFFER INTERVAL FETCHING
+// ============================================
+
+function getIntervalForOffer(offerName) {
+  try {
+    var stats = perOfferStats[offerName];
+    if (!stats) {
+      Logger.log('⚠️ [INTERVAL] No stats for offer: ' + offerName);
+      return DEFAULT_INTERVAL_MS;
+    }
+    
+    Logger.log('[INTERVAL] Fetching interval for offer: ' + offerName);
+    
+    var accountTimezone = AdsApp.currentAccount().getTimeZone();
+    var url = SUPABASE_URL + '/functions/v1/get-recommended-interval?offer_name=' + encodeURIComponent(offerName);
+    url += '&account_id=' + encodeURIComponent(ACCOUNT_ID);
+    
+    var payload = {
+      yesterday_total_clicks: stats.totalClicks,
+      yesterday_unique_landing_pages: stats.uniquePages,
+      account_timezone: accountTimezone,
+      min_interval_ms: MIN_INTERVAL_MS,
+      max_interval_ms: MAX_INTERVAL_MS,
+      target_repeat_ratio: TARGET_REPEAT_RATIO,
+      min_repeat_ratio: MIN_REPEAT_RATIO,
+      default_interval_ms: DEFAULT_INTERVAL_MS
+    };
+    
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    var response = UrlFetchApp.fetch(url, options);
+    var responseCode = response.getResponseCode();
+    var responseText = response.getContentText();
+    
+    if (responseCode === 200) {
+      var result = JSON.parse(responseText);
+      if (result.recommended_interval_ms) {
+        stats.currentInterval = result.recommended_interval_ms;
+        Logger.log('[INTERVAL] Offer "' + offerName + '" interval: ' + stats.currentInterval + 'ms');
+        Logger.log('  Data source: ' + (result.data_source || 'database'));
+        Logger.log('  Yesterday clicks: ' + result.yesterday_clicks);
+        Logger.log('  Yesterday pages: ' + result.yesterday_landing_pages);
+        Logger.log('  Average repeats: ' + result.average_repeats);
+        return stats.currentInterval;
+      }
+    }
+    
+    Logger.log('⚠️ [INTERVAL] API failed for ' + offerName + ', using default');
+    return DEFAULT_INTERVAL_MS;
+  } catch (error) {
+    Logger.log('⚠️ [INTERVAL] Error for ' + offerName + ': ' + error);
+    return DEFAULT_INTERVAL_MS;
+  }
+}
+
+// ============================================
+// PER-CAMPAIGN SUFFIX FETCHING
+// ============================================
+
+function getSuffixForCampaign(campaignId, offerName, intervalToUse) {
+  try {
+    var url = SUPABASE_URL + '/functions/v1/get-suffix?offer_name=' + encodeURIComponent(offerName);
+    url += '&account_id=' + encodeURIComponent(ACCOUNT_ID);
+    
+    if (intervalToUse > 0) {
+      url += '&interval_used=' + intervalToUse;
+    }
+
+    var options = {
+      'method': 'get',
+      'muteHttpExceptions': true
+    };
+
+    var response = UrlFetchApp.fetch(url, options);
+    var json = JSON.parse(response.getContentText());
+
+    if (json.success && json.suffix) {
+      perOfferStats[offerName].apiCalls++;
+      return {
+        success: true,
+        suffix: json.suffix,
+        finalUrl: json.final_url
+      };
+    } else {
+      Logger.log('[API ERROR] Invalid response for campaign ' + campaignId);
+      return { success: false };
+    }
+  } catch (e) {
+    Logger.log('[API ERROR] Failed to get suffix for campaign ' + campaignId + ': ' + e.toString());
+    executionState.errors.push({
+      type: 'api_error',
+      campaignId: campaignId,
+      offerName: offerName,
+      message: e.toString(),
+      timestamp: new Date()
+    });
+    return { success: false };
+  }
+}
+
+// ============================================
+// CAMPAIGN UPDATE FUNCTION
+// ============================================
+
+function updateCampaigns() {
+  var campaignList = getCampaignList();
+  var totalCampaigns = campaignList.length;
+  
+  Logger.log('[UPDATE] Processing ' + totalCampaigns + ' campaigns');
+  
+  if (totalCampaigns === 0) {
+    return {
+      updated: 0,
+      failed: 0,
+      skipped: 0
+    };
+  }
+
+  var updatedCount = 0;
+  var failedCount = 0;
+  var skippedCount = 0;
+
+  if (DRY_RUN_MODE) {
+    Logger.log('[DRY RUN] Would update ' + totalCampaigns + ' campaigns');
+    for (var i = 0; i < campaignList.length; i++) {
+      var campaign = campaignList[i];
+      var campaignId = campaign.getId();
+      var offerName = campaignToOfferMap[campaignId];
+      Logger.log('[DRY RUN] Campaign ' + campaign.getName() + ' (ID: ' + campaignId + ') -> ' + offerName);
+      skippedCount++;
+    }
+    return { updated: 0, failed: 0, skipped: skippedCount };
+  }
+
+  // Update each campaign with unique suffix from its assigned offer
+  for (var i = 0; i < campaignList.length; i++) {
+    var campaign = campaignList[i];
+    var campaignId = campaign.getId();
+    var offerName = campaignToOfferMap[campaignId];
+    
+    if (!offerName) {
+      Logger.log('[SKIP] Campaign ' + campaignId + ' has no offer assignment');
+      skippedCount++;
+      continue;
+    }
+    
+    var stats = perOfferStats[offerName];
+    var intervalToUse = stats.currentInterval || DEFAULT_INTERVAL_MS;
+    
+    // Get unique suffix for this campaign from its assigned offer
+    var apiResult = getSuffixForCampaign(campaignId, offerName, intervalToUse);
+    
+    if (!apiResult.success) {
+      failedCount++;
+      continue;
+    }
+    
+    try {
+      campaign.urls().setFinalUrlSuffix(apiResult.suffix);
+      Logger.log('[UPDATED] ' + campaign.getName() + ' (ID: ' + campaignId + ') with suffix from offer: ' + offerName);
+      updatedCount++;
+      stats.campaignsUpdated++;
+    } catch (e) {
+      failedCount++;
+      Logger.log('[ERROR] Failed to update campaign ' + campaignId + ': ' + e.toString());
+      executionState.errors.push({
+        type: 'campaign_update_error',
+        campaign: campaign.getName(),
+        campaignId: campaignId,
+        offerName: offerName,
+        message: e.toString(),
+        timestamp: new Date()
+      });
+    }
+  }
+
+  executionState.totalCampaignsUpdated += updatedCount;
+  executionState.totalApiCalls += updatedCount; // Each campaign = 1 API call
+
+  return {
+    updated: updatedCount,
+    failed: failedCount,
+    skipped: skippedCount
+  };
+}
+
+// ============================================
+// TIME HELPERS
+// ============================================
+
+function getElapsedMs() {
+  return new Date().getTime() - executionState.startTime;
+}
+
+function getRemainingMs() {
+  return MAX_RUNTIME_MS - getElapsedMs();
+}
+
+function hasEnoughTime() {
+  return getRemainingMs() > 0;
+}
+
+function formatMs(ms) {
+  var seconds = Math.floor(ms / 1000);
+  var minutes = Math.floor(seconds / 60);
+  seconds = seconds % 60;
+  return minutes + 'm ' + seconds + 's';
+}
+
+// ============================================
+// LOGGING
+// ============================================
+
+function logScriptStart() {
+  Logger.log('====================================');
+  Logger.log('MULTI-OFFER CAMPAIGN UPDATER V4');
+  Logger.log('====================================');
+  Logger.log('Configuration:');
+  Logger.log('  Account ID: ' + ACCOUNT_ID);
+  Logger.log('  Offers: ' + NORMALIZED_OFFERS.join(', '));
+  Logger.log('  Mapping Mode: ' + (Object.keys(CAMPAIGN_MAPPING).length > 0 ? 'Manual' : 'Auto Round-Robin'));
+  Logger.log('  Max Runtime: ' + formatMs(MAX_RUNTIME_MS));
+  Logger.log('  Update Mode: ' + UPDATE_MODE);
+  Logger.log('  Dry Run: ' + (DRY_RUN_MODE ? 'YES' : 'NO'));
+  Logger.log('====================================');
+}
+
+function logCycleStart() {
+  executionState.cycleNumber++;
+  Logger.log('');
+  Logger.log('--- CYCLE #' + executionState.cycleNumber + ' ---');
+  Logger.log('Time: ' + new Date().toLocaleString());
+  Logger.log('Elapsed: ' + formatMs(getElapsedMs()) + ' / ' + formatMs(MAX_RUNTIME_MS));
+  Logger.log('Remaining: ' + formatMs(getRemainingMs()));
+}
+
+function logFinalSummary() {
+  Logger.log('');
+  Logger.log('====================================');
+  Logger.log('EXECUTION SUMMARY (V4)');
+  Logger.log('====================================');
+  Logger.log('Total Runtime: ' + formatMs(getElapsedMs()));
+  Logger.log('Total Cycles: ' + executionState.cycleNumber);
+  Logger.log('Total API Calls: ' + executionState.totalApiCalls);
+  Logger.log('Total Campaigns Updated: ' + executionState.totalCampaignsUpdated);
+  Logger.log('Total Errors: ' + executionState.errors.length);
+  Logger.log('');
+  Logger.log('Per-Offer Statistics:');
+  for (var i = 0; i < NORMALIZED_OFFERS.length; i++) {
+    var offerName = NORMALIZED_OFFERS[i];
+    var stats = perOfferStats[offerName];
+    Logger.log('  ' + offerName + ':');
+    Logger.log('    API Calls: ' + stats.apiCalls);
+    Logger.log('    Campaigns Updated: ' + stats.campaignsUpdated);
+    Logger.log('    Current Interval: ' + stats.currentInterval + 'ms');
+    Logger.log('    Yesterday Clicks: ' + stats.totalClicks);
+    Logger.log('    Yesterday Pages: ' + stats.uniquePages);
+  }
+
+  if (executionState.errors.length > 0) {
+    Logger.log('');
+    Logger.log('Error Details:');
+    for (var i = 0; i < executionState.errors.length && i < 10; i++) {
+      var error = executionState.errors[i];
+      Logger.log('  [' + error.type + '] ' + error.message);
+    }
+    if (executionState.errors.length > 10) {
+      Logger.log('  ... and ' + (executionState.errors.length - 10) + ' more errors');
+    }
+  }
+
+  Logger.log('====================================');
+  Logger.log('Script finished at: ' + new Date().toLocaleString());
+  Logger.log('====================================');
+}
+
+// ============================================
+// MAIN EXECUTION LOOP
+// ============================================
+
+function main() {
+  // Initialize
+  ACCOUNT_ID = getAccountId();
+  normalizeOfferNames();
+  
+  logScriptStart();
+
+  // Get all campaigns and assign to offers
+  var campaignList = getCampaignList();
+  Logger.log('[INIT] Found ' + campaignList.length + ' campaigns');
+  
+  if (campaignList.length === 0) {
+    Logger.log('[ERROR] No campaigns found to process');
+    return;
+  }
+  
+  assignCampaignsToOffers(campaignList);
+  
+  // Collect yesterday's data for all offers (one-time at startup)
+  collectAllOfferYesterdayData();
+  
+  // Fetch initial intervals for all offers
+  Logger.log('[STARTUP] Fetching initial intervals for all offers...');
+  for (var i = 0; i < NORMALIZED_OFFERS.length; i++) {
+    var offerName = NORMALIZED_OFFERS[i];
+    getIntervalForOffer(offerName);
+  }
+
+  try {
+    while (hasEnoughTime()) {
+      logCycleStart();
+
+      // Update all campaigns (each gets unique suffix from its assigned offer)
+      var updateResult = updateCampaigns();
+      
+      Logger.log('[CYCLE COMPLETE]');
+      Logger.log('  Campaigns Updated: ' + updateResult.updated);
+      Logger.log('  Campaigns Failed: ' + updateResult.failed);
+      Logger.log('  Campaigns Skipped: ' + updateResult.skipped);
+      
+      // Calculate average interval across all offers for cycle delay
+      var totalInterval = 0;
+      for (var i = 0; i < NORMALIZED_OFFERS.length; i++) {
+        totalInterval += perOfferStats[NORMALIZED_OFFERS[i]].currentInterval;
+      }
+      var avgInterval = Math.floor(totalInterval / NORMALIZED_OFFERS.length);
+      
+      Logger.log('[INTERVAL] Average interval across all offers: ' + avgInterval + 'ms');
+      Logger.log('[INTERVAL] Waiting before next cycle...');
+      
+      if (avgInterval > 0) {
+        Utilities.sleep(avgInterval);
+      }
+      
+      // Periodically refresh intervals (every 10 cycles)
+      if (executionState.cycleNumber % 10 === 0) {
+        Logger.log('[REFRESH] Refreshing intervals for all offers...');
+        for (var i = 0; i < NORMALIZED_OFFERS.length; i++) {
+          getIntervalForOffer(NORMALIZED_OFFERS[i]);
+        }
+      }
+    }
+
+    Logger.log('');
+    Logger.log('[RUNTIME COMPLETE] Reached maximum runtime limit');
+
+  } catch (e) {
+    Logger.log('[FATAL ERROR] ' + e.toString());
+    executionState.errors.push({
+      type: 'fatal_error',
+      message: e.toString(),
+      timestamp: new Date()
+    });
+  }
+
+  logFinalSummary();
+}
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * List all enabled campaigns with their IDs
+ * Run this once to find Campaign IDs for the CAMPAIGN_IDS array or CAMPAIGN_MAPPING
+ */
+function listCampaignIds() {
+  Logger.log('\\n' + '='.repeat(60));
+  Logger.log('CAMPAIGN ID FINDER');
+  Logger.log('='.repeat(60));
+  
+  var campaigns = AdsApp.campaigns()
+    .withCondition('Status = ENABLED')
+    .get();
+  
+  var count = 0;
+  while (campaigns.hasNext()) {
+    var campaign = campaigns.next();
+    count++;
+    Logger.log(count + '. ' + campaign.getName());
+    Logger.log('   ID: ' + campaign.getId());
+    Logger.log('   Status: ' + campaign.getStatsFor('LAST_30_DAYS').getClicks() + ' clicks (30d)');
+    Logger.log('');
+  }
+  
+  Logger.log('='.repeat(60));
+  Logger.log('Total: ' + count + ' enabled campaigns');
+  Logger.log('='.repeat(60));
+}`;
+
   const googleAdsAutoScheduleV3 = `// ============================================
 // ADAPTIVE INTERVAL + AUTO-SCHEDULE (V3)
 // ============================================
@@ -3266,6 +3959,188 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
                 <p className="pt-2">
                   Schedule this script every 30 minutes in Google Ads for continuous optimization!
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-purple-200 dark:border-purple-800 overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 px-6 py-4 border-b border-purple-200 dark:border-purple-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Code2 className="text-purple-600 dark:text-purple-400" size={24} />
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Google Ads Script (Multi-Offer V4) 🎯</h3>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                  NEW: Multiple offers with flexible campaign mapping - manual or automatic distribution
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => copyToClipboard(googleAdsMultiOfferV4, 'google-ads-v4')}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 dark:bg-purple-500 text-white rounded-lg hover:bg-purple-700 dark:hover:bg-purple-600 transition-smooth"
+            >
+              {copiedScript === 'google-ads-v4' ? (
+                <>
+                  <CheckCircle size={18} />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy size={18} />
+                  Copy
+                </>
+              )}
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-300 dark:border-purple-800 rounded-lg p-4">
+              <h4 className="font-semibold text-purple-900 dark:text-purple-300 mb-2">🎯 Multi-Offer Magic (V4)</h4>
+              <div className="text-sm text-purple-800 dark:text-purple-400 space-y-2">
+                <p className="font-semibold">What makes V4 special:</p>
+                <ul className="list-disc ml-5 space-y-1">
+                  <li><strong>Multiple Offers:</strong> Pass array of offer names OR single string (backward compatible)</li>
+                  <li><strong>Flexible Mapping:</strong> Manual campaign→offer mapping OR automatic round-robin</li>
+                  <li><strong>Unique Per Campaign:</strong> Each campaign gets unique suffix from its assigned offer</li>
+                  <li><strong>Per-Offer Stats:</strong> Independent interval calculation for each offer</li>
+                  <li><strong>Per-Offer Tracking:</strong> Yesterday's data collected separately per offer</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg p-4">
+              <h4 className="font-semibold text-violet-900 dark:text-violet-300 mb-2">🔧 Two Mapping Modes</h4>
+              <div className="text-sm text-violet-800 dark:text-violet-400 space-y-3">
+                <div>
+                  <p className="font-semibold">1. Manual Mode (Explicit Control)</p>
+                  <pre className="bg-violet-100 dark:bg-violet-950 text-violet-900 dark:text-violet-300 p-2 rounded mt-1 text-xs">
+{`var CAMPAIGN_MAPPING = {
+  '12345678': 'offer1',
+  '87654321': 'offer2',
+  '11223344': 'offer3'
+};`}
+                  </pre>
+                  <p className="ml-4 mt-1">Map specific campaign IDs to specific offers. Full control.</p>
+                </div>
+                <div>
+                  <p className="font-semibold">2. Auto Mode (Round-Robin)</p>
+                  <pre className="bg-violet-100 dark:bg-violet-950 text-violet-900 dark:text-violet-300 p-2 rounded mt-1 text-xs">
+{`var CAMPAIGN_MAPPING = {}; // Empty = auto mode`}
+                  </pre>
+                  <p className="ml-4 mt-1">Automatically distribute campaigns evenly across all offers.</p>
+                </div>
+              </div>
+            </div>
+
+            <pre className="bg-neutral-900 dark:bg-neutral-950 text-neutral-100 dark:text-neutral-200 text-sm p-4 rounded overflow-x-auto max-h-96">
+              {googleAdsMultiOfferV4}
+            </pre>
+
+            <div className="bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 rounded-lg p-4">
+              <h4 className="font-semibold text-warning-900 dark:text-warning-300 mb-3">⚙️ V4 Configuration Variables</h4>
+              <div className="text-sm text-warning-800 dark:text-warning-400 space-y-3">
+                <div>
+                  <p className="font-semibold">OFFER_NAMES (Flexible Format)</p>
+                  <p className="ml-4">Accept array OR single string:</p>
+                  <pre className="bg-warning-100 dark:bg-warning-950 text-warning-900 dark:text-warning-300 p-2 rounded mt-1 text-xs">
+{`// Multi-offer mode
+var OFFER_NAMES = ['offer1', 'offer2', 'offer3'];
+
+// Single-offer mode (backward compatible)
+var OFFER_NAMES = 'single-offer';`}
+                  </pre>
+                </div>
+                <div>
+                  <p className="font-semibold">CAMPAIGN_MAPPING (Optional)</p>
+                  <p className="ml-4">Manual: Map campaign IDs to offers</p>
+                  <p className="ml-4">Auto: Leave empty {} for round-robin</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Per-Offer Intervals</p>
+                  <p className="ml-4">Each offer has independent MIN_INTERVAL_MS, MAX_INTERVAL_MS, TARGET_REPEAT_RATIO, MIN_REPEAT_RATIO</p>
+                  <p className="ml-4 text-xs mt-1">Defaults: MIN=1000ms, MAX=30000ms, TARGET=5x, MIN=1.0x</p>
+                </div>
+                <div>
+                  <p className="font-semibold">MAX_RUNTIME_MS</p>
+                  <p className="ml-4">Maximum runtime in milliseconds (default: 1500000 = 25 minutes)</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+              <h4 className="font-semibold text-purple-900 dark:text-purple-300 mb-2">📊 Example Scenarios</h4>
+              <div className="text-sm text-purple-800 dark:text-purple-400 space-y-3">
+                <div>
+                  <p className="font-semibold">Scenario 1: Single Offer (Backward Compatible)</p>
+                  <pre className="bg-purple-100 dark:bg-purple-950 text-purple-900 dark:text-purple-300 p-2 rounded mt-1 text-xs">
+{`var OFFER_NAMES = 'my-offer';
+var CAMPAIGN_MAPPING = {};
+// Result: All campaigns get suffixes from 'my-offer'`}
+                  </pre>
+                </div>
+                <div>
+                  <p className="font-semibold">Scenario 2: Three Offers, Auto Distribution</p>
+                  <pre className="bg-purple-100 dark:bg-purple-950 text-purple-900 dark:text-purple-300 p-2 rounded mt-1 text-xs">
+{`var OFFER_NAMES = ['offer-a', 'offer-b', 'offer-c'];
+var CAMPAIGN_MAPPING = {};
+// Result: 10 campaigns → Campaign 1,4,7,10→offer-a, 2,5,8→offer-b, 3,6,9→offer-c`}
+                  </pre>
+                </div>
+                <div>
+                  <p className="font-semibold">Scenario 3: Three Offers, Manual Mapping</p>
+                  <pre className="bg-purple-100 dark:bg-purple-950 text-purple-900 dark:text-purple-300 p-2 rounded mt-1 text-xs">
+{`var OFFER_NAMES = ['premium', 'standard', 'budget'];
+var CAMPAIGN_MAPPING = {
+  '11111111': 'premium',
+  '22222222': 'premium',
+  '33333333': 'standard',
+  '44444444': 'budget'
+};
+// Result: Full control - high-value campaigns get 'premium' offer`}
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+              <h4 className="font-semibold text-purple-900 dark:text-purple-300 mb-2">🚀 How It Works</h4>
+              <div className="text-sm text-purple-800 dark:text-purple-400 space-y-2">
+                <p><strong>Startup Phase:</strong></p>
+                <ul className="list-disc ml-5 space-y-1">
+                  <li>Normalize OFFER_NAMES to array format</li>
+                  <li>Get all enabled campaigns from Google Ads</li>
+                  <li>Assign campaigns to offers (manual mapping or round-robin)</li>
+                  <li>Collect yesterday's data for each offer separately (filtered by assigned campaigns)</li>
+                  <li>Fetch initial recommended interval for each offer</li>
+                </ul>
+                <p className="pt-2"><strong>Update Cycle:</strong></p>
+                <ul className="list-disc ml-5 space-y-1">
+                  <li>For each campaign: Determine assigned offer</li>
+                  <li>Call get-suffix API for that offer (unique suffix per campaign)</li>
+                  <li>Update campaign with unique suffix from its assigned offer</li>
+                  <li>Track per-offer statistics (API calls, campaigns updated, etc.)</li>
+                  <li>Wait average interval across all offers before next cycle</li>
+                </ul>
+                <p className="pt-2"><strong>Per-Offer Intelligence:</strong></p>
+                <ul className="list-disc ml-5 space-y-1">
+                  <li>Each offer maintains independent interval calculation</li>
+                  <li>Yesterday's data collected per offer (only campaigns assigned to that offer)</li>
+                  <li>Three-scenario speedup/stable/slowdown logic per offer</li>
+                  <li>Detailed per-offer statistics logged at end</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg p-4">
+              <h4 className="font-semibold text-violet-900 dark:text-violet-300 mb-2">💡 Pro Tips</h4>
+              <div className="text-sm text-violet-800 dark:text-violet-400 space-y-2">
+                <ul className="list-disc ml-5 space-y-1">
+                  <li><strong>Find Campaign IDs:</strong> Run the <code className="bg-violet-100 dark:bg-violet-950 px-1 py-0.5 rounded">listCampaignIds()</code> helper function</li>
+                  <li><strong>Test First:</strong> Set <code className="bg-violet-100 dark:bg-violet-950 px-1 py-0.5 rounded">DRY_RUN_MODE = true</code> to preview without updating</li>
+                  <li><strong>Start Small:</strong> Test with 2 offers and 4 campaigns before scaling up</li>
+                  <li><strong>Monitor Logs:</strong> Check per-offer statistics at end of execution</li>
+                  <li><strong>API Volume:</strong> V4 makes N API calls per cycle (N = number of campaigns)</li>
+                  <li><strong>Backward Compatible:</strong> Single offer mode works exactly like V2</li>
+                </ul>
               </div>
             </div>
           </div>
