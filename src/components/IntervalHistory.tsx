@@ -12,6 +12,10 @@ interface IntervalData {
   unique_landing_pages?: number;
   average_repeats: number;
   created_at: string;
+  min_interval_override_ms?: number | null;
+  max_interval_override_ms?: number | null;
+  target_repeat_ratio?: number | null;
+  min_repeat_ratio?: number | null;
 }
 
 interface EditingRow {
@@ -20,6 +24,10 @@ interface EditingRow {
   interval_used_ms: number;
   total_clicks: number;
   unique_landing_pages: number;
+  min_interval_override_ms: number | null;
+  max_interval_override_ms: number | null;
+  target_repeat_ratio: number | null;
+  min_repeat_ratio: number | null;
 }
 
 const ITEMS_PER_PAGE = 50;
@@ -93,7 +101,11 @@ export default function IntervalHistory() {
       date: item.date,
       interval_used_ms: item.interval_used_ms,
       total_clicks: item.total_clicks || 0,
-      unique_landing_pages: item.unique_landing_pages || 0
+      unique_landing_pages: item.unique_landing_pages || 0,
+      min_interval_override_ms: item.min_interval_override_ms || null,
+      max_interval_override_ms: item.max_interval_override_ms || null,
+      target_repeat_ratio: item.target_repeat_ratio || null,
+      min_repeat_ratio: item.min_repeat_ratio || null
     });
   };
 
@@ -110,7 +122,11 @@ export default function IntervalHistory() {
         .update({
           interval_used_ms: editingRow.interval_used_ms,
           total_clicks: editingRow.total_clicks,
-          unique_landing_pages: editingRow.unique_landing_pages
+          unique_landing_pages: editingRow.unique_landing_pages,
+          min_interval_override_ms: editingRow.min_interval_override_ms,
+          max_interval_override_ms: editingRow.max_interval_override_ms,
+          target_repeat_ratio: editingRow.target_repeat_ratio,
+          min_repeat_ratio: editingRow.min_repeat_ratio
         })
         .eq('offer_id', editingRow.offer_id)
         .eq('date', editingRow.date);
@@ -298,6 +314,18 @@ export default function IntervalHistory() {
                 <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                   Avg Repeats
                 </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Override script min_interval_ms">
+                  Min Override
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Override script max_interval_ms">
+                  Max Override
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Override script target_repeat_ratio">
+                  Target Ratio
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Override script min_repeat_ratio">
+                  Min Ratio
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                   Trend
                 </th>
@@ -309,7 +337,7 @@ export default function IntervalHistory() {
             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
               {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400">
+                  <td colSpan={13} className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400">
                     {filteredData.length === 0 ? 'No interval history available' : 'No results found'}
                   </td>
                 </tr>
@@ -385,6 +413,84 @@ export default function IntervalHistory() {
                           </span>
                         ) : (
                           `${item.average_repeats.toFixed(2)}x`
+                        )}
+                      </td>
+                      {/* Min Interval Override */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                        {editing ? (
+                          <input
+                            type="number"
+                            value={editingRow?.min_interval_override_ms ?? ''}
+                            onChange={(e) => editingRow && setEditingRow({ 
+                              ...editingRow, 
+                              min_interval_override_ms: e.target.value ? parseInt(e.target.value) : null 
+                            })}
+                            placeholder="—"
+                            className="w-24 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                          />
+                        ) : (
+                          <span className={item.min_interval_override_ms ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-400"}>
+                            {item.min_interval_override_ms ? formatInterval(item.min_interval_override_ms) : '—'}
+                          </span>
+                        )}
+                      </td>
+                      {/* Max Interval Override */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                        {editing ? (
+                          <input
+                            type="number"
+                            value={editingRow?.max_interval_override_ms ?? ''}
+                            onChange={(e) => editingRow && setEditingRow({ 
+                              ...editingRow, 
+                              max_interval_override_ms: e.target.value ? parseInt(e.target.value) : null 
+                            })}
+                            placeholder="—"
+                            className="w-24 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                          />
+                        ) : (
+                          <span className={item.max_interval_override_ms ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-400"}>
+                            {item.max_interval_override_ms ? formatInterval(item.max_interval_override_ms) : '—'}
+                          </span>
+                        )}
+                      </td>
+                      {/* Target Repeat Ratio Override */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                        {editing ? (
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={editingRow?.target_repeat_ratio ?? ''}
+                            onChange={(e) => editingRow && setEditingRow({ 
+                              ...editingRow, 
+                              target_repeat_ratio: e.target.value ? parseFloat(e.target.value) : null 
+                            })}
+                            placeholder="—"
+                            className="w-20 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                          />
+                        ) : (
+                          <span className={item.target_repeat_ratio ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-400"}>
+                            {item.target_repeat_ratio ? `${item.target_repeat_ratio.toFixed(1)}x` : '—'}
+                          </span>
+                        )}
+                      </td>
+                      {/* Min Repeat Ratio Override */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                        {editing ? (
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={editingRow?.min_repeat_ratio ?? ''}
+                            onChange={(e) => editingRow && setEditingRow({ 
+                              ...editingRow, 
+                              min_repeat_ratio: e.target.value ? parseFloat(e.target.value) : null 
+                            })}
+                            placeholder="—"
+                            className="w-20 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                          />
+                        ) : (
+                          <span className={item.min_repeat_ratio ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-400"}>
+                            {item.min_repeat_ratio ? `${item.min_repeat_ratio.toFixed(1)}x` : '—'}
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
@@ -487,11 +593,17 @@ export default function IntervalHistory() {
         <div className="text-sm text-brand-800 dark:text-brand-400 space-y-2">
           <p>The system calculates optimal delay intervals based on landing page frequency:</p>
           <ul className="list-disc ml-5 space-y-1">
-            <li><strong>Formula:</strong> next_interval = yesterday_interval × (5 / average_repeats)</li>
-            <li><strong>Target:</strong> 5 clicks per landing page on average</li>
-            <li><strong>Constraints:</strong> Between 1000ms (min) and 30000ms (max)</li>
-            <li><strong>Updates:</strong> Calculated once per day based on previous day's data</li>
-            <li><strong>Caching:</strong> Same interval used throughout the day (recalculates next day)</li>
+            <li><strong>Three-Scenario Calculation:</strong>
+              <ul className="list-circle ml-5 mt-1">
+                <li>Scenario 1: ratio ≥ TARGET → SPEEDUP (faster interval)</li>
+                <li>Scenario 2: MIN ≤ ratio &lt; TARGET → STABLE (keep yesterday)</li>
+                <li>Scenario 3: ratio &lt; MIN → SLOWDOWN (slower interval)</li>
+              </ul>
+            </li>
+            <li><strong>Formula:</strong> averageRepeats = clicks / unique_landing_pages</li>
+            <li><strong>Default Values:</strong> TARGET=5x, MIN=1.0x, MIN_INTERVAL=1000ms, MAX_INTERVAL=30000ms</li>
+            <li><strong>Override Priority:</strong> Account overrides → Script params → Edge function defaults</li>
+            <li><strong>Per-Account Control:</strong> Edit override columns to customize behavior for specific account+offer combinations without redeploying scripts</li>
           </ul>
         </div>
       </div>

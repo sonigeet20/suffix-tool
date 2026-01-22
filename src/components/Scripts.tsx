@@ -242,6 +242,12 @@ var MIN_INTERVAL_MS = 1000;     // Minimum speed (never go below)
 var MAX_INTERVAL_MS = 30000;    // Maximum speed (never go above)
 
 // ============================================
+// RATIO CONFIGURATION (V2+ DYNAMIC SLOWDOWN)
+// ============================================
+var TARGET_REPEAT_RATIO = 5;    // Target repeats per landing page (speedup)
+var MIN_REPEAT_RATIO = 1.0;     // Minimum repeats per landing page (slowdown trigger)
+
+// ============================================
 // ACCOUNT ID HELPER
 // ============================================
 function getAccountId() {
@@ -479,7 +485,8 @@ function getCurrentIntervalFromAPI() {
       account_timezone: accountTimezone,
       min_interval_ms: MIN_INTERVAL_MS,
       max_interval_ms: MAX_INTERVAL_MS,
-      target_average_repeats: 5,
+      target_repeat_ratio: TARGET_REPEAT_RATIO,
+      min_repeat_ratio: MIN_REPEAT_RATIO,
       default_interval_ms: DEFAULT_INTERVAL_MS
     };
     
