@@ -28,7 +28,7 @@ async function getProxyProviderForOffer(supabase, userId, offerId = null, defaul
     if (offerId && userId) {
       const { data: offer, error: offerErr } = await supabase
         .from('offers')
-        .select('provider_id')
+        .select('provider_id, proxy_protocol')
         .eq('id', offerId)
         .eq('user_id', userId)
         .maybeSingle();
@@ -50,14 +50,16 @@ async function getProxyProviderForOffer(supabase, userId, offerId = null, defaul
         // Fetch specific provider from proxy_providers table
         const { data: provider, error: provErr } = await supabase
           .from('proxy_providers')
-          .select('*')
+          .select('*, proxy_protocol')
           .eq('id', offer.provider_id)
           .eq('user_id', userId)
           .eq('enabled', true)
           .maybeSingle();
 
         if (!provErr && provider) {
-          logger.info(`✅ Using offer provider: ${provider.name} (${provider.provider_type})`);
+          // Offer proxy_protocol overrides provider proxy_protocol
+          const effectiveProtocol = offer.proxy_protocol || provider.proxy_protocol || 'http';
+          logger.info(`✅ Using offer provider: ${provider.name} (${provider.provider_type}), protocol: ${effectiveProtocol}`);
           return {
             success: true,
             provider_id: provider.id,
@@ -65,6 +67,7 @@ async function getProxyProviderForOffer(supabase, userId, offerId = null, defaul
             name: provider.name,
             enabled: provider.enabled,
             ...provider,
+            proxy_protocol: effectiveProtocol, // Override with offer setting if present
           };
         } else {
           logger.warn(`⚠️ Offer provider not found or disabled: ${offer.provider_id}`);
@@ -100,7 +103,7 @@ async function selectRotationProvider(supabase, userId) {
 
     const { data: providers, error: err } = await supabase
       .from('proxy_providers')
-      .select('*')
+      .select('*, proxy_protocol')
       .eq('user_id', userId)
       .eq('enabled', true)
       .order('created_at', { ascending: true });
@@ -136,7 +139,7 @@ async function selectBrightDataBrowserProvider(supabase, userId) {
   try {
     const { data: provider, error } = await supabase
       .from('proxy_providers')
-      .select('*')
+      .select('*, proxy_protocol')
       .eq('user_id', userId)
       .eq('provider_type', 'brightdata_browser')
       .eq('enabled', true)
@@ -192,6 +195,7 @@ async function loadLunaFromSettings(supabase) {
       port: data.luna_proxy_port,
       username: data.luna_proxy_username,
       password: data.luna_proxy_password,
+      proxy_protocol: 'http', // Default to HTTP for settings-based Luna
     };
   } catch (error) {
     logger.error('Error loading Luna settings:', error);
@@ -221,6 +225,7 @@ async function handleLunaProxy(url, provider, options = {}, tracer) {
     proxyUsername: provider.username,
     proxyPassword: provider.password,
     proxyType: 'luna',
+    proxyProtocol: provider.proxy_protocol || 'http',
   };
 
   return tracer(url, proxyOptions);

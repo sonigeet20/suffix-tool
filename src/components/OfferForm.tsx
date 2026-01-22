@@ -58,6 +58,7 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
     geo_strategy: (offer as any)?.geo_strategy || 'weighted',
     geo_weights: (offer as any)?.geo_weights || {},
     provider_id: (offer as any)?.provider_id || null,
+    proxy_protocol: (offer as any)?.proxy_protocol || 'http',
     device_distribution: (offer as any)?.device_distribution || [
       { deviceCategory: 'mobile', weight: 60 },
       { deviceCategory: 'desktop', weight: 30 },
@@ -1048,6 +1049,26 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                       : formData.provider_id === 'USE_ROTATION'
                       ? '🔄 Rotating between all enabled providers'
                       : '🔒 Using selected provider exclusively (no rotation)'
+                    }
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                    Proxy Protocol
+                  </label>
+                  <select
+                    value={formData.proxy_protocol || 'http'}
+                    onChange={(e) => setFormData({ ...formData, proxy_protocol: e.target.value })}
+                    className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-400/20 focus:border-purple-500 dark:focus:border-purple-400 outline-none transition-smooth"
+                  >
+                    <option value="http">HTTP/HTTPS (Standard)</option>
+                    <option value="socks5">SOCKS5 (TLS Fingerprint Bypass)</option>
+                  </select>
+                  <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
+                    {formData.proxy_protocol === 'socks5'
+                      ? '🔐 SOCKS5 bypasses TLS fingerprinting (recommended for cloaking protection)'
+                      : '🌐 Standard HTTP proxy (faster, but may be detected by anti-cloaking)'
                     }
                   </p>
                 </div>

@@ -229,7 +229,11 @@ async function traceRedirectsInteractive(
     interactiveLogger.info(`🚀 Launching fresh browser for new IP...`);
     const host = proxySettings.host;
     const port = proxySettings.port;
-    const proxyServer = `http://${host}:${port}`;
+    // Support both HTTP and SOCKS5 protocols for TLS fingerprinting bypass
+    const proxyProtocol = options.proxyProtocol || 'http';
+    // Use socks5h:// for SOCKS5 (DNS resolution on proxy side)
+    const proxyScheme = proxyProtocol === 'socks5' ? 'socks5h' : proxyProtocol;
+    const proxyServer = `${proxyScheme}://${host}:${port}`;
 
     const launchOptions = {
       headless: 'new',

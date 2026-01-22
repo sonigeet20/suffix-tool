@@ -104,6 +104,7 @@ async function fetchThroughAWSProxy(
   deviceDistribution?: Array<{ deviceCategory: string; weight: number }> | null,
   extractFromLocationHeader?: boolean | null,
   locationExtractHop?: number | null,
+  proxyProtocol?: string | null,
 ): Promise<
   | { success: boolean; chain: any[]; proxy_ip?: string; geo_location?: any }
   | null
@@ -175,6 +176,11 @@ async function fetchThroughAWSProxy(
 
     if (deviceDistribution && deviceDistribution.length > 0) {
       requestBody.device_distribution = deviceDistribution;
+    }
+
+    if (proxyProtocol) {
+      requestBody.proxy_protocol = proxyProtocol;
+      console.log(`🔐 Proxy protocol: ${proxyProtocol}`);
     }
 
     const response = await fetch(`${awsProxyUrl}/trace`, {
@@ -629,6 +635,7 @@ Deno.serve(async (req: Request) => {
     let selectedProvider: any = null;
     let providerId: string | null = null;
     let useRotation = false;
+    let proxyProtocol: string | null = null;
 
     // Check for provider override from offer configuration
     if (effectiveUserId && offer_id) {
@@ -636,13 +643,19 @@ Deno.serve(async (req: Request) => {
         console.log("🔍 Checking for provider override from offer:", offer_id);
         const { data: offerData, error: offerError } = await supabase
           .from("offers")
-          .select("provider_id")
+          .select("provider_id, proxy_protocol")
           .eq("id", offer_id)
           .eq("user_id", effectiveUserId)
           .maybeSingle();
 
         if (!offerError && offerData && offerData.provider_id) {
           console.log("✅ Found provider override:", offerData.provider_id);
+          
+          // Capture proxy_protocol from offer (overrides provider default)
+          if (offerData.proxy_protocol) {
+            proxyProtocol = offerData.proxy_protocol;
+            console.log("🔐 Offer proxy protocol:", proxyProtocol);
+          }
           
           // Check for sentinel value for explicit rotation
           if (offerData.provider_id === "USE_ROTATION") {
@@ -1023,6 +1036,7 @@ Deno.serve(async (req: Request) => {
         device_distribution,
         extract_from_location_header,
         location_extract_hop,
+        proxyProtocol,
       );
 
       if (awsResult) {

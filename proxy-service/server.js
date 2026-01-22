@@ -11,6 +11,7 @@ const winston = require('winston');
 const UserAgent = require('user-agents');
 const { createClient } = require('@supabase/supabase-js');
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 const { traceRedirectsInteractive } = require('./trace-interactive');
 const GeoRotator = require('./lib/geo-rotator');
 const { getProxyProviderForOffer } = require('./lib/proxy-providers-handler');
@@ -514,7 +515,7 @@ async function loadBrightDataApiKey(userId, offerId = null) {
   }
 }
 
-async function initBrowser(forceNew = false) {
+async function initBrowser(forceNew = false, proxyProtocol = 'http') {
   // If forceNew=true (for traces), always launch fresh browser to get new IP
   // If forceNew=false (for health checks), reuse existing browser
   if (!forceNew && browser) return browser;
@@ -528,7 +529,10 @@ async function initBrowser(forceNew = false) {
 
   // CRITICAL: Chrome/Chromium doesn't support auth in --proxy-server URL
   // We'll use page.authenticate() instead after browser launches
-  const proxyServer = `http://${host}:${port}`;
+  // Support both HTTP and SOCKS5 protocols for TLS fingerprinting bypass
+  // Use socks5h:// for SOCKS5 (DNS resolution on proxy side)
+  const proxyScheme = proxyProtocol === 'socks5' ? 'socks5h' : proxyProtocol;
+  const proxyServer = `${proxyScheme}://${host}:${port}`;
 
   logger.info(forceNew ? 'Launching fresh browser for new IP' : 'Initializing browser with proxy:', proxyServer);
 
@@ -702,11 +706,29 @@ async function traceRedirectsHttpOnly(url, options = {}) {
     logger.info(`🔄 HTTP-only: Using Luna proxy (new connection = new IP)`);
   }
 
-  const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPortNum}`;
+  // Support both HTTP and SOCKS5 protocols for TLS fingerprinting bypass
+  const proxyProtocol = options.proxyProtocol || 'http';
+  
+  // Luna proxy requires different hosts for HTTP vs SOCKS5
+  // HTTP: na.lunaproxy.com / SOCKS5: as.lunaproxy.com (Asia region)
+  let effectiveHost = proxyHost;
+  if (proxyHost.includes('lunaproxy.com')) {
+    if (proxyProtocol === 'socks5' && proxyHost.startsWith('na.')) {
+      effectiveHost = 'as.lunaproxy.com'; // Use Asia region for SOCKS5
+      logger.info(`🔄 Switching Luna host for SOCKS5: ${proxyHost} → ${effectiveHost}`);
+    }
+  }
+  
+  // SOCKS5H (with remote DNS resolution) for better privacy and compatibility
+  const proxyScheme = proxyProtocol === 'socks5' ? 'socks5h' : proxyProtocol;
+  const proxyUrl = `${proxyScheme}://${proxyUsername}:${proxyPassword}@${effectiveHost}:${proxyPortNum}`;
+  
+  logger.info(`🔐 Proxy protocol: ${proxyProtocol.toUpperCase()} (${proxyScheme}) | URL: ${proxyScheme}://${effectiveHost}:${proxyPortNum}`);
   
   // Optimization #2: Reuse connections WITHIN this trace (but fresh agent per trace = new IP)
   // Luna rotates IPs on new agent creation, but we can reuse within single trace
-  const traceAgent = new HttpsProxyAgent(proxyUrl, {
+  const AgentClass = proxyProtocol === 'socks5' ? SocksProxyAgent : HttpsProxyAgent;
+  const traceAgent = new AgentClass(proxyUrl, {
     keepAlive: true,   // Reuse within this trace for speed
     maxSockets: 5,     // Allow concurrent hops
     timeout: 15000,
@@ -1400,7 +1422,8 @@ async function traceRedirectsBrowser(url, options = {}) {
 
   try {
     // Launch FRESH browser per trace - each new browser process = potential new IP
-    traceBrowser = await initBrowser(true);
+    const proxyProtocol = options.proxyProtocol || 'http';
+    traceBrowser = await initBrowser(true, proxyProtocol);
     page = await traceBrowser.newPage();
 
     // Use custom proxy settings if provided, otherwise fall back to global
@@ -2318,7 +2341,8 @@ async function traceRedirectsAntiCloaking(url, options = {}) {
 
   try {
     // Launch FRESH browser per trace - each new browser process = potential new IP
-    traceBrowser = await initBrowser(true);
+    const proxyProtocol = options.proxyProtocol || 'http';
+    traceBrowser = await initBrowser(true, proxyProtocol);
     page = await traceBrowser.newPage();
 
     if (!proxySettings) {
@@ -3122,6 +3146,7 @@ app.post('/trace', async (req, res) => {
       mode = 'browser',
       proxy_ip,
       proxy_port,
+      proxy_protocol, // NEW: 'http' or 'socks5' for proxy protocol selection
       follow_http_only,
       geo_pool,
       geo_strategy,
@@ -3279,6 +3304,7 @@ app.post('/trace', async (req, res) => {
         expectedFinalUrl: expected_final_url || null,
         suffixStep: suffix_step || null,
         debug: debug, // Pass debug flag to tracer
+        proxyProtocol: proxy_protocol || 'http',
       });
     } else if (mode === 'brightdata_browser') {
       logger.info('🌐 Using Bright Data Browser API mode (cloud browser with geo-targeting)');
@@ -3349,6 +3375,7 @@ app.post('/trace', async (req, res) => {
         extractFromLocationHeader: extract_from_location_header || false,
         locationExtractHop: normalizedLocationExtractHop || null,
         debug, // Pass debug flag
+        proxyProtocol: proxy_protocol || 'http',
       });
     } else if (mode === 'interactive') {
       logger.info('🎬 Using Interactive mode (anti-cloaking + session engagement)');
@@ -3363,6 +3390,7 @@ app.post('/trace', async (req, res) => {
         locationExtractHop: normalizedLocationExtractHop || null,
         minSessionTime: 4000,
         maxSessionTime: 8000,
+        proxyProtocol: proxy_protocol || 'http',
       }, puppeteer, generateBrowserFingerprint, BLOCKED_DOMAINS, BLOCKED_RESOURCE_TYPES);
     } else {
       logger.info('🌐 Using Browser mode (full rendering)');
@@ -3378,6 +3406,7 @@ app.post('/trace', async (req, res) => {
         extractFromLocationHeader: extract_from_location_header || false,
         locationExtractHop: normalizedLocationExtractHop || null,
         proxySettings: activeProxySettings, // NEW: Pass selected provider credentials
+        proxyProtocol: proxy_protocol || 'http',
       });
     }
 
