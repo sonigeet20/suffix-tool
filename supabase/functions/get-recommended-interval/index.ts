@@ -201,6 +201,12 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Preserve raw script-provided values (before overrides) for auditing
+    const scriptMinInterval = minIntervalMs;
+    const scriptMaxInterval = maxIntervalMs;
+    const scriptTargetRepeatRatio = targetRepeatRatio;
+    const scriptMinRepeatRatio = minRepeatRatio;
+
     // 3. Calculate today's date in account timezone (for cache key)
     const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: accountTimezone }); // YYYY-MM-DD
     console.log(`📅 Today's date in ${accountTimezone}: ${todayDate}`);
@@ -223,10 +229,10 @@ Deno.serve(async (req: Request) => {
             total_clicks: yesterdayClicks,
             unique_landing_pages: yesterdayLandingPages,
             interval_used_ms: recommendedInterval,
-            script_min_interval_ms: minIntervalMs,
-            script_max_interval_ms: maxIntervalMs,
-            script_target_repeat_ratio: targetRepeatRatio,
-            script_min_repeat_ratio: minRepeatRatio,
+            script_min_interval_ms: scriptMinInterval,
+            script_max_interval_ms: scriptMaxInterval,
+            script_target_repeat_ratio: scriptTargetRepeatRatio,
+            script_min_repeat_ratio: scriptMinRepeatRatio,
             updated_at: new Date().toISOString(),
           }, {
             onConflict: 'offer_id,account_id,date'
@@ -267,7 +273,7 @@ Deno.serve(async (req: Request) => {
     // 4. Check if we already calculated interval for today (CACHE CHECK + OVERRIDES)
     const { data: cachedInterval, error: cacheError } = await supabase
       .from('daily_trace_counts')
-      .select('interval_used_ms, updated_at, min_interval_override_ms, max_interval_override_ms, target_repeat_ratio, min_repeat_ratio')
+      .select('interval_used_ms, updated_at, min_interval_override_ms, max_interval_override_ms, target_repeat_ratio, min_repeat_ratio, script_min_interval_ms, script_max_interval_ms, script_target_repeat_ratio, script_min_repeat_ratio')
       .eq('offer_id', offer.id)
       .eq('account_id', accountId || '')
       .eq('date', todayDate)
@@ -294,6 +300,39 @@ Deno.serve(async (req: Request) => {
     }
 
     if (cachedInterval && cachedInterval.interval_used_ms) {
+      // Backfill or refresh script config columns even on cache hit so Interval History has data for all rows
+      const scriptConfigChanged = (
+        cachedInterval.script_min_interval_ms !== scriptMinInterval ||
+        cachedInterval.script_max_interval_ms !== scriptMaxInterval ||
+        cachedInterval.script_target_repeat_ratio !== scriptTargetRepeatRatio ||
+        cachedInterval.script_min_repeat_ratio !== scriptMinRepeatRatio
+      );
+
+      if (scriptConfigChanged) {
+        try {
+          const { error: scriptUpdateError } = await supabase
+            .from('daily_trace_counts')
+            .update({
+              script_min_interval_ms: scriptMinInterval,
+              script_max_interval_ms: scriptMaxInterval,
+              script_target_repeat_ratio: scriptTargetRepeatRatio,
+              script_min_repeat_ratio: scriptMinRepeatRatio,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('offer_id', offer.id)
+            .eq('account_id', accountId || '')
+            .eq('date', todayDate);
+
+          if (scriptUpdateError) {
+            console.warn('⚠️ Failed to backfill script config on cache hit:', scriptUpdateError.message);
+          } else {
+            console.log('✅ Backfilled script config columns on cache hit');
+          }
+        } catch (scriptUpdateException: any) {
+          console.warn('⚠️ Exception while backfilling script config on cache hit:', scriptUpdateException.message);
+        }
+      }
+
       console.log(`✅ [CACHE HIT] Using cached interval for ${todayDate}: ${cachedInterval.interval_used_ms}ms`);
       console.log(`   Cached at: ${cachedInterval.updated_at}`);
       
@@ -453,10 +492,10 @@ Deno.serve(async (req: Request) => {
           date: todayDate,
           trace_count: 0, // Not tracking traces anymore, using Google Ads data
           interval_used_ms: recommendedInterval,
-          script_min_interval_ms: minIntervalMs,
-          script_max_interval_ms: maxIntervalMs,
-          script_target_repeat_ratio: targetRepeatRatio,
-          script_min_repeat_ratio: minRepeatRatio,
+          script_min_interval_ms: scriptMinInterval,
+          script_max_interval_ms: scriptMaxInterval,
+          script_target_repeat_ratio: scriptTargetRepeatRatio,
+          script_min_repeat_ratio: scriptMinRepeatRatio,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'offer_id,account_id,date'
