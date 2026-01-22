@@ -16,6 +16,10 @@ interface IntervalData {
   max_interval_override_ms?: number | null;
   target_repeat_ratio?: number | null;
   min_repeat_ratio?: number | null;
+  script_min_interval_ms?: number | null;
+  script_max_interval_ms?: number | null;
+  script_target_repeat_ratio?: number | null;
+  script_min_repeat_ratio?: number | null;
 }
 
 interface EditingRow {
@@ -314,16 +318,16 @@ export default function IntervalHistory() {
                 <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                   Avg Repeats
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Override script min_interval_ms">
-                  Min Override
+                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Min interval (click to edit override)">
+                  Min Interval
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Override script max_interval_ms">
-                  Max Override
+                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Max interval (click to edit override)">
+                  Max Interval
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Override script target_repeat_ratio">
+                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Target ratio (click to edit override)">
                   Target Ratio
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Override script min_repeat_ratio">
+                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Min ratio (click to edit override)">
                   Min Ratio
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
@@ -415,7 +419,7 @@ export default function IntervalHistory() {
                           `${item.average_repeats.toFixed(2)}x`
                         )}
                       </td>
-                      {/* Min Interval Override */}
+                      {/* Min Interval (Effective Value) */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                         {editing ? (
                           <input
@@ -425,16 +429,16 @@ export default function IntervalHistory() {
                               ...editingRow, 
                               min_interval_override_ms: e.target.value ? parseInt(e.target.value) : null 
                             })}
-                            placeholder="—"
+                            placeholder={item.script_min_interval_ms?.toString() || '—'}
                             className="w-24 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
                           />
                         ) : (
-                          <span className={item.min_interval_override_ms ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-400"}>
-                            {item.min_interval_override_ms ? formatInterval(item.min_interval_override_ms) : '—'}
+                          <span className={item.min_interval_override_ms ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-900 dark:text-neutral-50"} title={item.min_interval_override_ms ? 'Override active' : (item.script_min_interval_ms ? 'Script default' : 'Not set')}>
+                            {item.min_interval_override_ms ? formatInterval(item.min_interval_override_ms) + ' ⚡' : (item.script_min_interval_ms ? formatInterval(item.script_min_interval_ms) : '—')}
                           </span>
                         )}
                       </td>
-                      {/* Max Interval Override */}
+                      {/* Max Interval (Effective Value) */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                         {editing ? (
                           <input
@@ -444,16 +448,16 @@ export default function IntervalHistory() {
                               ...editingRow, 
                               max_interval_override_ms: e.target.value ? parseInt(e.target.value) : null 
                             })}
-                            placeholder="—"
+                            placeholder={item.script_max_interval_ms?.toString() || '—'}
                             className="w-24 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
                           />
                         ) : (
-                          <span className={item.max_interval_override_ms ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-400"}>
-                            {item.max_interval_override_ms ? formatInterval(item.max_interval_override_ms) : '—'}
+                          <span className={item.max_interval_override_ms ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-900 dark:text-neutral-50"} title={item.max_interval_override_ms ? 'Override active' : (item.script_max_interval_ms ? 'Script default' : 'Not set')}>
+                            {item.max_interval_override_ms ? formatInterval(item.max_interval_override_ms) + ' ⚡' : (item.script_max_interval_ms ? formatInterval(item.script_max_interval_ms) : '—')}
                           </span>
                         )}
                       </td>
-                      {/* Target Repeat Ratio Override */}
+                      {/* Target Repeat Ratio (Effective Value) */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                         {editing ? (
                           <input
@@ -464,16 +468,16 @@ export default function IntervalHistory() {
                               ...editingRow, 
                               target_repeat_ratio: e.target.value ? parseFloat(e.target.value) : null 
                             })}
-                            placeholder="—"
+                            placeholder={item.script_target_repeat_ratio?.toString() || '—'}
                             className="w-20 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
                           />
                         ) : (
-                          <span className={item.target_repeat_ratio ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-400"}>
-                            {item.target_repeat_ratio ? `${item.target_repeat_ratio.toFixed(1)}x` : '—'}
+                          <span className={item.target_repeat_ratio ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-900 dark:text-neutral-50"} title={item.target_repeat_ratio ? 'Override active' : (item.script_target_repeat_ratio ? 'Script default' : 'Not set')}>
+                            {item.target_repeat_ratio ? `${item.target_repeat_ratio.toFixed(1)}x ⚡` : (item.script_target_repeat_ratio ? `${item.script_target_repeat_ratio.toFixed(1)}x` : '—')}
                           </span>
                         )}
                       </td>
-                      {/* Min Repeat Ratio Override */}
+                      {/* Min Repeat Ratio (Effective Value) */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                         {editing ? (
                           <input
@@ -484,12 +488,12 @@ export default function IntervalHistory() {
                               ...editingRow, 
                               min_repeat_ratio: e.target.value ? parseFloat(e.target.value) : null 
                             })}
-                            placeholder="—"
+                            placeholder={item.script_min_repeat_ratio?.toString() || '—'}
                             className="w-20 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
                           />
                         ) : (
-                          <span className={item.min_repeat_ratio ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-400"}>
-                            {item.min_repeat_ratio ? `${item.min_repeat_ratio.toFixed(1)}x` : '—'}
+                          <span className={item.min_repeat_ratio ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-900 dark:text-neutral-50"} title={item.min_repeat_ratio ? 'Override active' : (item.script_min_repeat_ratio ? 'Script default' : 'Not set')}>
+                            {item.min_repeat_ratio ? `${item.min_repeat_ratio.toFixed(1)}x ⚡` : (item.script_min_repeat_ratio ? `${item.script_min_repeat_ratio.toFixed(1)}x` : '—')}
                           </span>
                         )}
                       </td>
@@ -602,8 +606,9 @@ export default function IntervalHistory() {
             </li>
             <li><strong>Formula:</strong> averageRepeats = clicks / unique_landing_pages</li>
             <li><strong>Default Values:</strong> TARGET=5x, MIN=1.0x, MIN_INTERVAL=1000ms, MAX_INTERVAL=30000ms</li>
-            <li><strong>Override Priority:</strong> Account overrides → Script params → Edge function defaults</li>
-            <li><strong>Per-Account Control:</strong> Edit override columns to customize behavior for specific account+offer combinations without redeploying scripts</li>
+            <li><strong>Effective Values:</strong> Shows script default OR override (⚡ = override active)</li>
+            <li><strong>Edit to Override:</strong> Click Edit, enter new value to override script defaults</li>
+            <li><strong>Clear Override:</strong> Empty the field to revert to script default</li>
           </ul>
         </div>
       </div>

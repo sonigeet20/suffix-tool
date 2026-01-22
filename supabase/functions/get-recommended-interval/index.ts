@@ -223,6 +223,10 @@ Deno.serve(async (req: Request) => {
             total_clicks: yesterdayClicks,
             unique_landing_pages: yesterdayLandingPages,
             interval_used_ms: recommendedInterval,
+            script_min_interval_ms: minIntervalMs,
+            script_max_interval_ms: maxIntervalMs,
+            script_target_repeat_ratio: targetRepeatRatio,
+            script_min_repeat_ratio: minRepeatRatio,
             updated_at: new Date().toISOString(),
           }, {
             onConflict: 'offer_id,account_id,date'
@@ -437,6 +441,7 @@ Deno.serve(async (req: Request) => {
     console.log(`✅ Response: interval=${recommendedInterval}ms, fallback=${usedFallback}`);
 
     // Store today's calculated interval for caching (so future calls today return same value)
+    // Also store script-provided configuration values for reference in Intervals view
     try {
       const { error: storeError } = await supabase
         .from('daily_trace_counts')
@@ -448,6 +453,10 @@ Deno.serve(async (req: Request) => {
           date: todayDate,
           trace_count: 0, // Not tracking traces anymore, using Google Ads data
           interval_used_ms: recommendedInterval,
+          script_min_interval_ms: minIntervalMs,
+          script_max_interval_ms: maxIntervalMs,
+          script_target_repeat_ratio: targetRepeatRatio,
+          script_min_repeat_ratio: minRepeatRatio,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'offer_id,account_id,date'
