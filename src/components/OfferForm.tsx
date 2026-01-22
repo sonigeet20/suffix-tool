@@ -308,6 +308,41 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
 
       const url = selectedTrackingUrl || formData.tracking_template || formData.final_url;
 
+      // Select referrer based on rotation mode
+      const enabledReferrers = referrers.filter(r => (r.enabled !== false) && r.url);
+      let selectedReferrer = '';
+      let referrerHops: number[] | undefined = undefined;
+      
+      if (enabledReferrers.length > 0) {
+        let selectedReferrerObj;
+        if (formData.referrer_rotation_mode === 'random') {
+          const idx = Math.floor(Math.random() * enabledReferrers.length);
+          selectedReferrerObj = enabledReferrers[idx];
+        } else if (formData.referrer_rotation_mode === 'weighted-random') {
+          const total = enabledReferrers.reduce((sum, r) => sum + (r.weight || 1), 0);
+          let r = Math.random() * total;
+          for (const ref of enabledReferrers) {
+            r -= (ref.weight || 1);
+            if (r <= 0) {
+              selectedReferrerObj = ref;
+              break;
+            }
+          }
+          if (!selectedReferrerObj) {
+            selectedReferrerObj = enabledReferrers[0];
+          }
+        } else {
+          selectedReferrerObj = enabledReferrers[0];
+        }
+        
+        if (selectedReferrerObj) {
+          selectedReferrer = selectedReferrerObj.url;
+          referrerHops = selectedReferrerObj.hops && selectedReferrerObj.hops.length > 0 
+            ? selectedReferrerObj.hops 
+            : undefined;
+        }
+      }
+
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trace-redirects`;
 
       const response = await fetch(apiUrl, {
@@ -328,6 +363,14 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
           geo_pool: geoPool.length > 0 ? geoPool : undefined,
           geo_strategy: geoPool.length > 0 ? geoStrategy : undefined,
           geo_weights: geoPool.length > 0 && geoStrategy === 'weighted' ? geoWeights : undefined,
+          referrer: selectedReferrer || formData.custom_referrer || undefined,
+          referrer_hops: referrerHops,
+          offer_id: offer?.id || undefined,
+          user_id: session.user.id,
+          proxy_protocol: formData.proxy_protocol || 'http',
+          extract_from_location_header: formData.extract_from_location_header || false,
+          location_extract_hop: formData.location_extract_hop || null,
+          device_distribution: deviceDistribution,
         }),
       });
 
