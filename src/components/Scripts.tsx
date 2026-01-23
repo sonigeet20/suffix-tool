@@ -251,9 +251,9 @@ var MIN_REPEAT_RATIO = 1.0;     // Minimum repeats per landing page (slowdown tr
 // CALL BUDGET CONFIGURATION
 // ============================================
 // Max daily API calls = yesterday's clicks × this multiplier
-// Example: 100 clicks × 5 = 500 max calls per day
+// Example: 100 clicks × 10 = 1000 max calls per day
 // Database override (per account+offer) takes highest priority
-var CALL_BUDGET_MULTIPLIER = 5;
+var CALL_BUDGET_MULTIPLIER = 10;
 
 // ============================================
 // ACCOUNT ID HELPER
@@ -1403,9 +1403,9 @@ var MIN_REPEAT_RATIO = 1.0;
 // CALL BUDGET CONFIGURATION
 // ============================================
 // Max daily API calls = yesterday's clicks × this multiplier
-// Example: 100 clicks × 5 = 500 max calls per day
+// Example: 100 clicks × 10 = 1000 max calls per day
 // Database override (per account+offer) takes highest priority
-var CALL_BUDGET_MULTIPLIER = 5;
+var CALL_BUDGET_MULTIPLIER = 10;
 
 // ============================================
 // CAMPAIGN FILTERING

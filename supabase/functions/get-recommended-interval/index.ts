@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Configuration constants
 const BASE_INTERVAL_MS = 5000;      // Fallback for fresh campaigns
-const DEFAULT_BUDGET_MULTIPLIER = 5.0;  // Default call budget: yesterday_clicks × 5
+const DEFAULT_BUDGET_MULTIPLIER = 10.0;  // Default call budget: yesterday_clicks × 10
 
 // Default constraints (used if script doesn't provide them)
 const DEFAULT_TARGET_AVERAGE_REPEATS = 5;
