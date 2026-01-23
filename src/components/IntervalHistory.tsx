@@ -518,11 +518,11 @@ export default function IntervalHistory() {
                             })}
                             placeholder="5.0"
                             className="w-20 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
-                            title="Max daily calls = yesterday clicks × this multiplier. Default: 5x"
+                            title="Max daily calls = yesterday clicks × this multiplier. Default: 10x"
                           />
                         ) : (
-                          <span className={item.call_budget_multiplier ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-900 dark:text-neutral-50"} title={item.call_budget_multiplier ? `DB override: ${item.call_budget_multiplier}x budget multiplier` : 'Using script default (5x)'}>
-                            {item.call_budget_multiplier ? `${item.call_budget_multiplier.toFixed(1)}x ⚡` : '5.0x'}
+                          <span className={item.call_budget_multiplier ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-900 dark:text-neutral-50"} title={item.call_budget_multiplier ? `DB override: ${item.call_budget_multiplier}x budget multiplier` : 'Using script default (10x)'}>
+                            {item.call_budget_multiplier ? `${item.call_budget_multiplier.toFixed(1)}x ⚡` : '10.0x'}
                           </span>
                         )}
                       </td>
