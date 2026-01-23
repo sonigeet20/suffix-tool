@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Activity, Database, TrendingUp, Settings as SettingsIcon, RefreshCw, Zap, Plus, Copy, CheckCircle, X, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { Activity, Database, TrendingUp, Settings as SettingsIcon, RefreshCw, Zap, Plus, Copy, CheckCircle, X, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface QueueStats {
   offer_name: string;
@@ -468,15 +468,6 @@ export function V5WebhookManager() {
     } finally {
       setSavingOverride(null);
     }
-  };
-
-  const toggleOverride = async (offerId: string, currentEnabled: boolean) => {
-    const { error } = await supabase
-      .from('v5_trace_overrides')
-      .update({ enabled: !currentEnabled })
-      .eq('id', offerId);
-    
-    if (!error) loadData();
   };
 
   const toggleMappingExpanded = (mappingId: string) => {
@@ -1018,7 +1009,7 @@ export function V5WebhookManager() {
                           Tracking Template (Add to Google Ads)
                         </label>
                         <button
-                          onClick={() => copyToClipboard(mapping.trackier.trackingTemplate, `template-${mapping.id}`)}
+                          onClick={() => copyToClipboard(mapping.trackier?.trackingTemplate || '', `template-${mapping.id}`)}
                           className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-smooth"
                         >
                           {copiedField === `template-${mapping.id}` ? (
@@ -1036,7 +1027,7 @@ export function V5WebhookManager() {
                       </div>
                       <div className="bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 p-3">
                         <code className="text-xs text-neutral-600 dark:text-neutral-400 break-all">
-                          {mapping.trackier.trackingTemplate}
+                          {mapping.trackier?.trackingTemplate}
                         </code>
                       </div>
                       <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
@@ -1048,10 +1039,10 @@ export function V5WebhookManager() {
                     <div className="bg-neutral-50 dark:bg-neutral-850 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                          Postback URL (Add to Trackier Campaign {mapping.trackier.campaignId})
+                          Postback URL (Add to Trackier Campaign {mapping.trackier?.campaignId})
                         </label>
                         <button
-                          onClick={() => copyToClipboard(mapping.trackier.webhookUrlWithParams, `webhook-${mapping.id}`)}
+                          onClick={() => copyToClipboard(mapping.trackier?.webhookUrlWithParams || '', `webhook-${mapping.id}`)}
                           className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-smooth"
                         >
                           {copiedField === `webhook-${mapping.id}` ? (
