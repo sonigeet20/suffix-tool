@@ -4,7 +4,8 @@ import {
   X, Save, Play, RefreshCw, AlertCircle,
   Clock, ArrowRight, CheckCircle, XCircle,
   ChevronDown, ChevronUp, ExternalLink, Copy,
-  Plus, Trash2, ToggleLeft, ToggleRight
+  Plus, Trash2, ToggleLeft, ToggleRight, Upload,
+  Download, ArrowLeft
 } from 'lucide-react';
 
 interface OfferFormProps {
@@ -96,6 +97,16 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
   const [selectedStepForSave, setSelectedStepForSave] = useState<number | null>(null);
   const [activeTraceSettings, setActiveTraceSettings] = useState<any>(null);
+
+  // Bulk upload state
+  const [showBulkUrlModal, setShowBulkUrlModal] = useState(false);
+  const [showBulkReferrerModal, setShowBulkReferrerModal] = useState(false);
+  const [bulkInputText, setBulkInputText] = useState('');
+  const [bulkRotationMode, setBulkRotationMode] = useState<string>('sequential');
+  const [bulkParsedEntries, setBulkParsedEntries] = useState<Array<TrackingUrlEntry | ReferrerEntry>>([]);
+  const [bulkParseErrors, setBulkParseErrors] = useState<string[]>([]);
+  const [bulkSkippedDuplicates, setBulkSkippedDuplicates] = useState(0);
+  const [showBulkPreview, setShowBulkPreview] = useState(false);
 
   const [providers, setProviders] = useState<Array<{ id: string; name: string; provider_type: string; enabled: boolean }>>([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
@@ -262,6 +273,198 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
 
   const removeParamFromFilter = (param: string) => {
     setParamFilter(paramFilter.filter(p => p !== param));
+  };
+
+  // Bulk upload helper functions
+  const generateUrlCsvTemplate = () => {
+    const csv = `url,weight,label
+https://tracker.example.com/click,70,Primary Tracker
+https://backup.example.com/track,30,Backup Tracker
+https://alternative.example.com/click,50,Alternative`;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tracking-urls-template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const generateReferrerCsvTemplate = () => {
+    const csv = `url,weight,label,hops
+https://google.com,50,Google Search,1;2
+https://facebook.com,30,Facebook,
+https://instagram.com,20,Instagram,1;2;3`;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'referrers-template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const parseBulkUrlInput = (text: string): { entries: TrackingUrlEntry[], errors: string[] } => {
+    const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+    const entries: TrackingUrlEntry[] = [];
+    const errors: string[] = [];
+
+    lines.forEach((line, index) => {
+      const lineNumber = index + 1;
+      
+      // Skip header row if present
+      if (line.toLowerCase().startsWith('url,weight,label') || line.toLowerCase().startsWith('url,weight')) {
+        return;
+      }
+
+      const parts = line.split(',').map(p => p.trim());
+      const url = parts[0] || '';
+      
+      // Validate URL
+      if (!url) {
+        errors.push(`Line ${lineNumber}: URL is required`);
+        return;
+      }
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        errors.push(`Line ${lineNumber}: URL must start with http:// or https://`);
+        return;
+      }
+
+      // Parse weight (optional, default 50)
+      let weight = 50;
+      if (parts[1] && parts[1].length > 0) {
+        const parsedWeight = parseInt(parts[1], 10);
+        if (isNaN(parsedWeight) || parsedWeight < 1 || parsedWeight > 100) {
+          errors.push(`Line ${lineNumber}: Weight must be between 1 and 100`);
+          return;
+        }
+        weight = parsedWeight;
+      }
+
+      // Parse label (optional)
+      const label = parts[2] || '';
+
+      entries.push({ url, weight, enabled: true, label });
+    });
+
+    return { entries, errors };
+  };
+
+  const parseBulkReferrerInput = (text: string): { entries: ReferrerEntry[], errors: string[] } => {
+    const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+    const entries: ReferrerEntry[] = [];
+    const errors: string[] = [];
+
+    lines.forEach((line, index) => {
+      const lineNumber = index + 1;
+      
+      // Skip header row if present
+      if (line.toLowerCase().startsWith('url,weight,label,hops') || line.toLowerCase().startsWith('url,weight')) {
+        return;
+      }
+
+      const parts = line.split(',').map(p => p.trim());
+      const url = parts[0] || '';
+      
+      // Validate URL
+      if (!url) {
+        errors.push(`Line ${lineNumber}: URL is required`);
+        return;
+      }
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        errors.push(`Line ${lineNumber}: URL must start with http:// or https://`);
+        return;
+      }
+
+      // Parse weight (optional, default 50)
+      let weight = 50;
+      if (parts[1] && parts[1].length > 0) {
+        const parsedWeight = parseInt(parts[1], 10);
+        if (isNaN(parsedWeight) || parsedWeight < 1 || parsedWeight > 100) {
+          errors.push(`Line ${lineNumber}: Weight must be between 1 and 100`);
+          return;
+        }
+        weight = parsedWeight;
+      }
+
+      // Parse label (optional)
+      const label = parts[2] || '';
+
+      // Parse hops (optional, semicolon-separated like "1;2;3")
+      let hops: number[] | undefined = undefined;
+      if (parts[3] && parts[3].length > 0) {
+        const hopParts = parts[3].split(';').map(h => h.trim()).filter(h => h.length > 0);
+        const parsedHops = hopParts.map(h => parseInt(h, 10));
+        if (parsedHops.some(h => isNaN(h) || h < 1)) {
+          errors.push(`Line ${lineNumber}: Hops must be positive integers separated by semicolons (e.g., 1;2;3)`);
+          return;
+        }
+        hops = parsedHops;
+      }
+
+      entries.push({ url, weight, enabled: true, label, hops });
+    });
+
+    return { entries, errors };
+  };
+
+  const handleParseBulkInput = (type: 'url' | 'referrer') => {
+    const parseResult = type === 'url' 
+      ? parseBulkUrlInput(bulkInputText)
+      : parseBulkReferrerInput(bulkInputText);
+
+    setBulkParseErrors(parseResult.errors);
+    
+    if (parseResult.errors.length === 0 && parseResult.entries.length > 0) {
+      // Check for duplicates
+      const existingUrls = type === 'url' 
+        ? trackingUrls.map(u => u.url.toLowerCase())
+        : referrers.map(r => r.url.toLowerCase());
+      
+      const newEntries = parseResult.entries.filter(entry => {
+        const isDuplicate = existingUrls.includes(entry.url.toLowerCase());
+        if (isDuplicate) {
+          setBulkSkippedDuplicates(prev => prev + 1);
+        }
+        return !isDuplicate;
+      });
+
+      setBulkParsedEntries(newEntries);
+      setShowBulkPreview(true);
+    }
+  };
+
+  const confirmBulkUpload = (type: 'url' | 'referrer') => {
+    if (type === 'url') {
+      setTrackingUrls([...trackingUrls, ...bulkParsedEntries as TrackingUrlEntry[]]);
+      setFormData(prev => ({ ...prev, tracking_url_rotation_mode: bulkRotationMode }));
+    } else {
+      setReferrers([...referrers, ...bulkParsedEntries as ReferrerEntry[]]);
+      setFormData(prev => ({ ...prev, referrer_rotation_mode: bulkRotationMode }));
+    }
+
+    // Reset bulk upload state
+    setBulkInputText('');
+    setBulkParsedEntries([]);
+    setBulkParseErrors([]);
+    setShowBulkPreview(false);
+    setShowBulkUrlModal(false);
+    setShowBulkReferrerModal(false);
+    setBulkSkippedDuplicates(0);
+  };
+
+  const closeBulkModal = () => {
+    setBulkInputText('');
+    setBulkParsedEntries([]);
+    setBulkParseErrors([]);
+    setShowBulkPreview(false);
+    setShowBulkUrlModal(false);
+    setShowBulkReferrerModal(false);
+    setBulkSkippedDuplicates(0);
   };
 
   const executeTrace = async () => {
@@ -1197,14 +1400,27 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Tracking URLs</h3>
-                    <button
-                      type="button"
-                      onClick={addTrackingUrl}
-                      className="flex items-center gap-2 px-4 py-2 bg-brand-600 dark:bg-brand-500 text-white rounded-lg hover:bg-brand-700 dark:hover:bg-brand-600 transition-smooth text-sm font-medium"
-                    >
-                      <Plus size={16} />
-                      Add URL
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkRotationMode(formData.tracking_url_rotation_mode);
+                          setShowBulkUrlModal(true);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-neutral-600 dark:bg-neutral-700 text-white rounded-lg hover:bg-neutral-700 dark:hover:bg-neutral-600 transition-smooth text-sm font-medium"
+                      >
+                        <Upload size={16} />
+                        Bulk Addition
+                      </button>
+                      <button
+                        type="button"
+                        onClick={addTrackingUrl}
+                        className="flex items-center gap-2 px-4 py-2 bg-brand-600 dark:bg-brand-500 text-white rounded-lg hover:bg-brand-700 dark:hover:bg-brand-600 transition-smooth text-sm font-medium"
+                      >
+                        <Plus size={16} />
+                        Add URL
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mb-4">
@@ -1292,14 +1508,27 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
                 <div className="border-t border-gray-200 dark:border-neutral-700 pt-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-neutral-100">Referrers</h3>
-                    <button
-                      type="button"
-                      onClick={addReferrer}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                    >
-                      <Plus size={16} />
-                      Add Referrer
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkRotationMode(formData.referrer_rotation_mode);
+                          setShowBulkReferrerModal(true);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-neutral-600 dark:bg-neutral-700 text-white rounded-lg hover:bg-neutral-700 dark:hover:bg-neutral-600 transition-colors text-sm font-medium"
+                      >
+                        <Upload size={16} />
+                        Bulk Addition
+                      </button>
+                      <button
+                        type="button"
+                        onClick={addReferrer}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        <Plus size={16} />
+                        Add Referrer
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mb-4">
@@ -2024,6 +2253,343 @@ export default function OfferForm({ offer, onClose, onSave }: OfferFormProps) {
           )}
         </div>
       </div>
+
+      {/* Bulk URL Upload Modal */}
+      {showBulkUrlModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-neutral-200 dark:border-neutral-800">
+            <div className="flex items-center justify-between p-6 border-b border-neutral-200 dark:border-neutral-800">
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
+                {showBulkPreview ? 'Preview Bulk URLs' : 'Bulk Upload Tracking URLs'}
+              </h2>
+              <button
+                onClick={closeBulkModal}
+                className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-smooth"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {!showBulkPreview ? (
+                <div className="space-y-4">
+                  <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-lg p-4">
+                    <p className="text-sm text-brand-900 dark:text-brand-300 mb-3">
+                      Upload multiple tracking URLs at once. You can paste URLs one per line or use CSV format with headers.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={generateUrlCsvTemplate}
+                      className="flex items-center gap-2 px-3 py-2 bg-brand-600 dark:bg-brand-500 text-white text-sm rounded-lg hover:bg-brand-700 dark:hover:bg-brand-600 transition-smooth"
+                    >
+                      <Download size={16} />
+                      Download CSV Template
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Rotation Mode
+                    </label>
+                    <select
+                      value={bulkRotationMode}
+                      onChange={(e) => setBulkRotationMode(e.target.value)}
+                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 dark:focus:ring-brand-400/20 focus:border-brand-500 dark:focus:border-brand-400 outline-none transition-smooth"
+                    >
+                      <option value="sequential">Sequential (rotates in order)</option>
+                      <option value="random">Random (picks randomly)</option>
+                      <option value="weighted-random">Weighted Random (probability based on weights)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Paste URLs
+                    </label>
+                    <textarea
+                      value={bulkInputText}
+                      onChange={(e) => setBulkInputText(e.target.value)}
+                      rows={12}
+                      className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 dark:focus:ring-brand-400/20 focus:border-brand-500 dark:focus:border-brand-400 outline-none transition-smooth font-mono text-sm"
+                      placeholder="Paste one URL per line or CSV format:&#10;&#10;url,weight,label&#10;https://tracker.example.com/click,70,Primary&#10;https://backup.example.com/track,30,Backup&#10;&#10;Or simple format (weight defaults to 50):&#10;https://tracker1.example.com&#10;https://tracker2.example.com"
+                    />
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
+                      CSV Format: <code className="bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">url,weight,label</code> (weight and label are optional)
+                    </p>
+                  </div>
+
+                  {bulkParseErrors.length > 0 && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                      <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-300 mb-2">
+                        Validation Errors:
+                      </p>
+                      <ul className="text-sm text-yellow-800 dark:text-yellow-400 space-y-1">
+                        {bulkParseErrors.map((error, idx) => (
+                          <li key={idx}>• {error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
+                    <p className="text-sm text-emerald-900 dark:text-emerald-300">
+                      <span className="font-semibold">{bulkParsedEntries.length}</span> new URLs will be added
+                      {bulkSkippedDuplicates > 0 && (
+                        <span className="ml-2 text-orange-700 dark:text-orange-400">
+                          ({bulkSkippedDuplicates} duplicates skipped)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-neutral-50 dark:bg-neutral-850">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 dark:text-neutral-300">URL</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 dark:text-neutral-300">Weight</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 dark:text-neutral-300">Label</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                        {bulkParsedEntries.map((entry, idx) => (
+                          <tr key={idx} className="hover:bg-neutral-50 dark:hover:bg-neutral-850">
+                            <td className="px-4 py-3 text-sm text-neutral-900 dark:text-neutral-100 font-mono break-all">
+                              {entry.url}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300">
+                              {entry.weight}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300">
+                              {entry.label || '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-neutral-200 dark:border-neutral-800 p-6 flex justify-end gap-3">
+              {showBulkPreview ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowBulkPreview(false)}
+                    className="flex items-center gap-2 px-4 py-2 bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-smooth"
+                  >
+                    <ArrowLeft size={16} />
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => confirmBulkUpload('url')}
+                    className="flex items-center gap-2 px-4 py-2 bg-brand-600 dark:bg-brand-500 text-white rounded-lg hover:bg-brand-700 dark:hover:bg-brand-600 transition-smooth"
+                  >
+                    <CheckCircle size={16} />
+                    Confirm & Add
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={closeBulkModal}
+                    className="px-4 py-2 bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-smooth"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleParseBulkInput('url')}
+                    disabled={!bulkInputText.trim()}
+                    className="px-4 py-2 bg-brand-600 dark:bg-brand-500 text-white rounded-lg hover:bg-brand-700 dark:hover:bg-brand-600 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Parse & Preview
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Referrer Upload Modal */}
+      {showBulkReferrerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-neutral-200 dark:border-neutral-800">
+            <div className="flex items-center justify-between p-6 border-b border-neutral-200 dark:border-neutral-800">
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
+                {showBulkPreview ? 'Preview Bulk Referrers' : 'Bulk Upload Referrers'}
+              </h2>
+              <button
+                onClick={closeBulkModal}
+                className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-smooth"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {!showBulkPreview ? (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <p className="text-sm text-blue-900 dark:text-blue-300 mb-3">
+                      Upload multiple referrers at once. You can paste URLs one per line or use CSV format with headers.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={generateReferrerCsvTemplate}
+                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 dark:bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-smooth"
+                    >
+                      <Download size={16} />
+                      Download CSV Template
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Rotation Mode
+                    </label>
+                    <select
+                      value={bulkRotationMode}
+                      onChange={(e) => setBulkRotationMode(e.target.value)}
+                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-400/20 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-smooth"
+                    >
+                      <option value="sequential">Sequential (rotates in order)</option>
+                      <option value="random">Random (picks randomly)</option>
+                      <option value="weighted-random">Weighted Random (probability based on weights)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                      Paste Referrers
+                    </label>
+                    <textarea
+                      value={bulkInputText}
+                      onChange={(e) => setBulkInputText(e.target.value)}
+                      rows={12}
+                      className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-400/20 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-smooth font-mono text-sm"
+                      placeholder="Paste one referrer per line or CSV format:&#10;&#10;url,weight,label,hops&#10;https://google.com,50,Google,1;2&#10;https://facebook.com,30,Facebook,&#10;&#10;Or simple format (defaults: weight=50, hops=all):&#10;https://google.com&#10;https://facebook.com"
+                    />
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
+                      CSV Format: <code className="bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">url,weight,label,hops</code> (weight, label, and hops are optional)
+                      <br />
+                      Hops format: semicolon-separated numbers like <code className="bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">1;2;3</code>
+                    </p>
+                  </div>
+
+                  {bulkParseErrors.length > 0 && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                      <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-300 mb-2">
+                        Validation Errors:
+                      </p>
+                      <ul className="text-sm text-yellow-800 dark:text-yellow-400 space-y-1">
+                        {bulkParseErrors.map((error, idx) => (
+                          <li key={idx}>• {error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
+                    <p className="text-sm text-emerald-900 dark:text-emerald-300">
+                      <span className="font-semibold">{bulkParsedEntries.length}</span> new referrers will be added
+                      {bulkSkippedDuplicates > 0 && (
+                        <span className="ml-2 text-orange-700 dark:text-orange-400">
+                          ({bulkSkippedDuplicates} duplicates skipped)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-neutral-50 dark:bg-neutral-850">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 dark:text-neutral-300">Referrer URL</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 dark:text-neutral-300">Weight</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 dark:text-neutral-300">Label</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 dark:text-neutral-300">Hops</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                        {bulkParsedEntries.map((entry, idx) => {
+                          const refEntry = entry as ReferrerEntry;
+                          return (
+                            <tr key={idx} className="hover:bg-neutral-50 dark:hover:bg-neutral-850">
+                              <td className="px-4 py-3 text-sm text-neutral-900 dark:text-neutral-100 font-mono break-all">
+                                {refEntry.url}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300">
+                                {refEntry.weight}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300">
+                                {refEntry.label || '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300">
+                                {refEntry.hops ? refEntry.hops.join(', ') : 'All'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-neutral-200 dark:border-neutral-800 p-6 flex justify-end gap-3">
+              {showBulkPreview ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowBulkPreview(false)}
+                    className="flex items-center gap-2 px-4 py-2 bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-smooth"
+                  >
+                    <ArrowLeft size={16} />
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => confirmBulkUpload('referrer')}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-smooth"
+                  >
+                    <CheckCircle size={16} />
+                    Confirm & Add
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={closeBulkModal}
+                    className="px-4 py-2 bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-smooth"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleParseBulkInput('referrer')}
+                    disabled={!bulkInputText.trim()}
+                    className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Parse & Preview
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

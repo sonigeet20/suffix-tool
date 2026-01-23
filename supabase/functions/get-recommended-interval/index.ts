@@ -403,10 +403,10 @@ Deno.serve(async (req: Request) => {
     }
     console.log(`✅ Found yesterday's interval: ${yesterdayInterval}ms`);
 
-    // 7. Calculate interval based on call budget with ratio adjustments
+    // 7. Calculate interval based on yesterday's interval with ratio adjustments, enforced by budget floor
     // Budget formula: maxDailyCalls = yesterdayClicks × budgetMultiplier
-    // Base interval: budgetInterval = 86400000 / maxDailyCalls
-    // Then apply ratio-based speedup/stable/slowdown adjustments
+    // Budget floor: budgetInterval = 86400000 / maxDailyCalls (minimum allowed to not exceed budget)
+    // Ratio adjustments: Apply to yesterdayInterval, then enforce budget floor
     let recommendedInterval = BASE_INTERVAL_MS;
     let averageRepeats = 0;
     let usedFallback = false;
@@ -417,41 +417,53 @@ Deno.serve(async (req: Request) => {
     if (yesterdayClicks > 0 && yesterdayLandingPages > 0) {
       averageRepeats = yesterdayClicks / yesterdayLandingPages;
       
-      // Calculate budget-based baseline interval
+      // Calculate budget floor (minimum interval to not exceed max daily calls)
       maxDailyCalls = Math.round(yesterdayClicks * budgetMultiplier);
       budgetInterval = Math.round(86400000 / maxDailyCalls); // 24 hours in ms
-      let calculated = budgetInterval; // Start with budget baseline
       
-      console.log(`📊 Budget-Based Calculation with Ratio Adjustments:`);
+      console.log(`📊 Ratio-Based Calculation with Budget Safety Floor:`);
+      console.log(`   Yesterday Interval: ${yesterdayInterval}ms (baseline for ratio adjustments)`);
       console.log(`   Yesterday Clicks: ${yesterdayClicks}`);
       console.log(`   Budget Multiplier: ${budgetMultiplier}x (source: ${budgetMultiplierSource})`);
       console.log(`   Max Daily Calls: ${maxDailyCalls} (${yesterdayClicks} × ${budgetMultiplier})`);
-      console.log(`   Budget Baseline Interval: ${budgetInterval}ms (86400000 / ${maxDailyCalls})`);
+      console.log(`   Budget Floor: ${budgetInterval}ms (86400000 / ${maxDailyCalls}) - minimum allowed`);
       console.log(`   Unique Landing Pages: ${yesterdayLandingPages}`);
       console.log(`   Average Repeats: ${yesterdayClicks}/${yesterdayLandingPages} = ${averageRepeats.toFixed(2)}`);
       console.log(`   Target Ratio: ${targetRepeatRatio}:1 repeats/page`);
       console.log(`   Minimum Ratio: ${minRepeatRatio}:1 repeats/page`);
       
-      // SCENARIO 1: SPEEDUP - Ratio is above or at target (apply speedup to budget baseline)
+      let calculated = yesterdayInterval; // Start with yesterday's actual interval
+      
+      // SCENARIO 1: SPEEDUP - Ratio is above or at target (reduce interval = speed up)
       if (averageRepeats >= targetRepeatRatio) {
-        calculated = Math.round(budgetInterval * (targetRepeatRatio / averageRepeats));
-        adjustmentReason = 'budget_speedup';
+        calculated = Math.round(yesterdayInterval * (targetRepeatRatio / averageRepeats));
+        adjustmentReason = 'speedup';
         console.log(`✅ SCENARIO 1 - SPEEDUP: ratio ${averageRepeats.toFixed(2)} >= target ${targetRepeatRatio}`);
-        console.log(`   Formula: ${budgetInterval} * (${targetRepeatRatio}/${averageRepeats.toFixed(2)}) = ${calculated}ms (FASTER than budget)`);
+        console.log(`   Raw Formula: ${yesterdayInterval} * (${targetRepeatRatio}/${averageRepeats.toFixed(2)}) = ${calculated}ms`);
       }
-      // SCENARIO 2: STABLE - Ratio is between target and minimum (keep budget baseline)
+      // SCENARIO 2: STABLE - Ratio is between target and minimum (keep yesterday's speed)
       else if (averageRepeats >= minRepeatRatio) {
-        calculated = budgetInterval;
-        adjustmentReason = 'budget_stable';
+        calculated = yesterdayInterval;
+        adjustmentReason = 'stable';
         console.log(`✅ SCENARIO 2 - STABLE: ratio ${averageRepeats.toFixed(2)} is between ${minRepeatRatio} and ${targetRepeatRatio}`);
-        console.log(`   Keep budget baseline: ${budgetInterval}ms (NO CHANGE)`);
+        console.log(`   Keep yesterday's speed: ${yesterdayInterval}ms (NO CHANGE)`);
       }
-      // SCENARIO 3: SLOWDOWN - Ratio is below minimum (apply slowdown to budget baseline)
+      // SCENARIO 3: SLOWDOWN - Ratio is below minimum (increase interval = slow down)
       else {
-        calculated = Math.round(budgetInterval * (minRepeatRatio / averageRepeats));
-        adjustmentReason = 'budget_slowdown';
+        calculated = Math.round(yesterdayInterval * (minRepeatRatio / averageRepeats));
+        adjustmentReason = 'slowdown';
         console.log(`⚠️  SCENARIO 3 - SLOWDOWN: ratio ${averageRepeats.toFixed(2)} < minimum ${minRepeatRatio}`);
-        console.log(`   Formula: ${budgetInterval} * (${minRepeatRatio}/${averageRepeats.toFixed(2)}) = ${calculated}ms (SLOWER than budget)`);
+        console.log(`   Formula: ${yesterdayInterval} * (${minRepeatRatio}/${averageRepeats.toFixed(2)}) = ${calculated}ms (SLOWER)`);
+      }
+      
+      // ENFORCE BUDGET FLOOR: Never go below budget interval (which would exceed max daily calls)
+      if (calculated < budgetInterval) {
+        console.log(`   🚨 BUDGET ENFORCEMENT: ${calculated}ms would exceed ${maxDailyCalls} calls/day limit`);
+        console.log(`   Enforcing budget floor: ${budgetInterval}ms`);
+        calculated = budgetInterval;
+        adjustmentReason = adjustmentReason + '_budget_enforced';
+      } else {
+        console.log(`   ✅ Within budget: ${calculated}ms will not exceed ${maxDailyCalls} calls/day`);
       }
       
       // Clamp to min/max constraints
@@ -462,6 +474,11 @@ Deno.serve(async (req: Request) => {
       } else {
         console.log(`   ✅ Within bounds: ${recommendedInterval}ms`);
       }
+      
+      console.log(`🎯 FINAL RESULT: ${recommendedInterval}ms (${adjustmentReason})`);
+      console.log(`   Projected daily calls: ${Math.round(86400000 / recommendedInterval)} (budget limit: ${maxDailyCalls})`);
+      console.log(`   Budget floor was: ${budgetInterval}ms (would make ${maxDailyCalls} calls/day)`);
+      console.log(`   Yesterday baseline was: ${yesterdayInterval}ms`);
     } else {
       usedFallback = true;
       // Day-0 or no-data: use script-provided default, clamped to constraints
@@ -492,11 +509,13 @@ Deno.serve(async (req: Request) => {
       account_timezone: accountTimezone,
       stats_date: yesterdayDate,
       formula: {
-        description: 'Budget-based with ratio adjustments: budgetInterval = 86400000 / (clicks × multiplier), then apply SPEEDUP/STABLE/SLOWDOWN based on ratio. Clamped to MIN/MAX constraints.',
-        budget_formula: 'maxDailyCalls = yesterdayClicks × budgetMultiplier, budgetInterval = 86400000 / maxDailyCalls',
-        scenario_1_speedup: 'interval = budgetInterval * (target / ratio) when ratio >= target',
-        scenario_2_stable: 'interval = budgetInterval (no change) when min <= ratio < target',
-        scenario_3_slowdown: 'interval = budgetInterval * (min / ratio) when ratio < min',
+        description: 'Ratio adjustments on yesterdayInterval with budget FLOOR enforcement. Budget prevents exceeding max daily calls, but does not set baseline pace.',
+        budget_formula: 'maxDailyCalls = yesterdayClicks × budgetMultiplier, budgetInterval = 86400000 / maxDailyCalls (FLOOR only)',
+        adjustment_baseline: 'yesterdayInterval (or default) is the baseline for all ratio adjustments',
+        budget_enforcement: 'finalInterval = max(budgetInterval, calculated) - applied AFTER ratio adjustments as safety floor',
+        scenario_1_speedup: 'calculated = yesterdayInterval * (target / ratio) when ratio >= target',
+        scenario_2_stable: 'calculated = yesterdayInterval (no change) when min <= ratio < target',
+        scenario_3_slowdown: 'calculated = yesterdayInterval * (min / ratio) when ratio < min',
         call_budget_multiplier: budgetMultiplier,
         target_repeat_ratio: targetRepeatRatio,
         min_repeat_ratio: minRepeatRatio,
