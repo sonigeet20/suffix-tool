@@ -101,12 +101,30 @@ Deno.serve(async (req: Request) => {
       console.log(`[v5-webhook ${requestId}] Resolved account_id:`, accountId);
     }
 
-    // v5_webhook_queue currently lacks trackier_campaign_id, so omit it to prevent insert failure.
+    // Get unused suffix from bucket (if not already provided)
+    let suffixToQueue = newSuffix;
+    if (!suffixToQueue) {
+      console.log(`[v5-webhook ${requestId}] Fetching suffix from bucket...`);
+      const { data: bucketData } = await supabase.rpc('v5_get_multiple_suffixes', {
+        p_account_id: accountId,
+        p_offer_name: offerName,
+        p_count: 1
+      });
+      
+      if (bucketData && bucketData.length > 0) {
+        suffixToQueue = bucketData[0].suffix;
+        console.log(`[v5-webhook ${requestId}] Got suffix from bucket:`, suffixToQueue.substring(0, 50));
+      } else {
+        console.warn(`[v5-webhook ${requestId}] No suffix in bucket for ${offerName}`);
+      }
+    }
+
+    // Queue webhook with suffix attached (ready for Google script to apply)
     const payload = {
       account_id: accountId,
       offer_name: offerName,
       campaign_id: campaignId,
-      new_suffix: newSuffix,
+      new_suffix: suffixToQueue,
       status: 'pending',
       trackier_conversion_id: conversionId,
       trackier_click_id: clickId,
@@ -121,7 +139,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log(`[v5-webhook ${requestId}] queued`, payload);
+    console.log(`[v5-webhook ${requestId}] queued with suffix`, payload);
 
     // Auto-create mapping if missing (best-effort, non-blocking)
     try {
@@ -129,10 +147,37 @@ Deno.serve(async (req: Request) => {
         p_account_id: accountId,
         p_campaign_id: campaignId,
         p_offer_name: offerName,
-        p_campaign_name: body.campaign_name || body.campaignName || null
+        p_campaign_name: params.campaign_name || params.campaignName || null
       });
     } catch (e) {
       console.warn(`[v5-webhook ${requestId}] Mapping insert skipped:`, e?.message || e);
+    }
+
+    // Trigger trace immediately to refill bucket (non-blocking background)
+    try {
+      console.log(`[v5-webhook ${requestId}] Triggering trace for ${offerName}...`);
+      const traceUrl = `${supabaseUrl}/functions/v1/get-suffix?offer_name=${encodeURIComponent(offerName)}`;
+      fetch(traceUrl, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${supabaseKey}` }
+      }).then(async (traceResp) => {
+        if (traceResp.ok) {
+          const traceData = await traceResp.json();
+          if (traceData.success && traceData.suffix) {
+            // Store traced suffix to bucket
+            await supabase.rpc('v5_store_traced_suffixes', {
+              p_account_id: accountId,
+              p_offer_name: offerName,
+              p_suffixes: [{ suffix: traceData.suffix, source: 'traced' }]
+            });
+            console.log(`[v5-webhook ${requestId}] Trace complete, stored to bucket`);
+          }
+        }
+      }).catch((e) => {
+        console.warn(`[v5-webhook ${requestId}] Trace error:`, e?.message);
+      });
+    } catch (e) {
+      console.warn(`[v5-webhook ${requestId}] Trace trigger error:`, e?.message || e);
     }
 
     return new Response(

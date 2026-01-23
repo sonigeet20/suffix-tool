@@ -941,19 +941,25 @@ function listCampaignIds() {
   const googleAdsV5AllIn = `// =============================================================
 // GOOGLE ADS SCRIPT (V5 WEBHOOK ALL-IN)
 // Single-webhook-per-offer, offer+account controls, bucket + queue
-// - Consumes Trackier webhook queue (/functions/v1/v5-fetch-queue)
-// - Falls back to offer bucket (/functions/v1/v5-get-multiple-suffixes)
-// - Marks usage (/functions/v1/v5-mark-suffixes-used)
-// - Stores new traced suffixes (/functions/v1/v5-store-traced-suffixes)
-// - Fetches zero-click suffixes once daily (last 7 days)
-// - Sends optional daily landing-page stats (cached for the day)
+// 
+// FLOW:
+// 1. Webhook arrives → Gets suffix from bucket → Triggers trace → Queues (suffix attached)
+// 2. Script polls queue → Gets pending webhooks (suffix already populated)
+// 3. For each webhook:
+//    - Apply suffix to Google Ads campaign
+//    - Mark queue item as completed
+// 4. Zero-click suffixes (once daily) → Stored in bucket
+// 5. Background traces (triggered by webhook) → Update bucket
+//
+// BUCKET = Single source of truth for all suffixes
+// Trace happens in WEBHOOK HANDLER, not in this script
 //
 // HOW TO USE
 // 1) Set SUPABASE_URL to your project URL (already injected here).
 // 2) Fill OFFER_BY_CAMPAIGN or OFFER_DEFAULT. Campaign mapping wins.
 // 3) Optional: set ALLOWED_CAMPAIGN_IDS to limit updates.
 // 4) Schedule hourly (or faster) in Google Ads scripts.
-// 5) Trackier should call the v5 webhook endpoint to populate the queue.
+// 5) Trackier calls v5-webhook-conversion → handles trace + bucket + queue
 // =============================================================
 
 var SUPABASE_URL = '${supabaseUrl}';
@@ -967,10 +973,8 @@ var OFFER_BY_CAMPAIGN = {};
 // Optional allow-list: leave empty to update all enabled campaigns
 var ALLOWED_CAMPAIGN_IDS = [];
 
-// Batch + fallback controls
-var BATCH_SIZE = 15; // how many webhooks/suffixes per run
-var ZERO_CLICK_FALLBACK = true; // pull bucket when queue empty
-var ZERO_CLICK_COUNT = 10; // how many suffixes to pull on fallback
+// Batch controls
+var BATCH_SIZE = 15; // how many webhooks per run
 
 // Zero-click fetch controls
 var ZERO_CLICK_LOOKBACK_DAYS = 7; // fetch last 7 days
@@ -1000,12 +1004,8 @@ function main() {
     }
   }
 
-  // Step 3: Process webhook queue
+  // Step 3: Process webhook queue (suffix already attached by webhook handler)
   var webhooks = fetchWebhookQueue(BATCH_SIZE);
-  if (webhooks.length === 0 && ZERO_CLICK_FALLBACK) {
-    Logger.log('[FALLBACK] Queue empty, pulling from bucket...');
-    webhooks = fallbackFromBucket(ZERO_CLICK_COUNT);
-  }
 
   if (webhooks.length === 0) {
     Logger.log('[IDLE] Nothing to process.');
@@ -1015,13 +1015,6 @@ function main() {
   var summary = applySuffixes(webhooks);
   if (summary.queueIds.length > 0) {
     markQueueItemsProcessed(summary.queueIds);
-  }
-  if (summary.bucketIds.length > 0) {
-    markSuffixesUsed(summary.bucketIds);
-  }
-
-  if (summary.tracedToStore.length > 0) {
-    storeTracedSuffixes(summary.tracedToStore);
   }
 
   Logger.log('[DONE] Webhooks processed: ' + summary.processed + ', ads updated: ' + summary.updatedAds);
@@ -1062,46 +1055,10 @@ function fetchWebhookQueue(limit) {
   }
 }
 
-function fallbackFromBucket(count) {
-  try {
-    var payload = {
-      account_id: ACCOUNT_ID,
-      offer_name: OFFER_DEFAULT,
-      count: count || ZERO_CLICK_COUNT
-    };
-    var options = {
-      method: 'post',
-      contentType: 'application/json',
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true
-    };
-    var response = UrlFetchApp.fetch(SUPABASE_URL + '/functions/v1/v5-get-multiple-suffixes', options);
-    var code = response.getResponseCode();
-    if (code !== 200) {
-      Logger.log('[BUCKET] Non-200 response: ' + code);
-      return [];
-    }
-    var data = JSON.parse(response.getContentText());
-    if (!data || !data.success || !data.suffixes) return [];
-    return data.suffixes.map(function(item) {
-      return {
-        id: item.id, // bucket suffix ID
-        new_suffix: item.suffix,
-        campaign_id: null, // Apply to any campaign
-        offer_name: item.offer_name || OFFER_DEFAULT,
-        source: 'zero_click'
-      };
-    });
-  } catch (e) {
-    Logger.log('[BUCKET] Fallback failed: ' + e);
-    return [];
-  }
-}
+
 
 function applySuffixes(webhooks) {
   var queueIds = [];
-  var bucketIds = [];
-  var tracedToStore = [];
   var updatedAds = 0;
 
   var iterator = getEligibleAds();
@@ -1113,7 +1070,12 @@ function applySuffixes(webhooks) {
       continue;
     }
 
-    var offerName = resolveOfferName(match, campaignId);
+    // Suffix is already attached by webhook handler
+    if (!match.new_suffix) {
+      Logger.log('[SKIP] No suffix attached for campaign ' + campaignId);
+      continue;
+    }
+    
     var baseUrl = ad.urls().getFinalUrl();
     var nextUrl = appendSuffix(baseUrl, match.new_suffix);
     if (nextUrl === baseUrl) {
@@ -1123,26 +1085,17 @@ function applySuffixes(webhooks) {
 
     ad.urls().setFinalUrl(nextUrl);
     updatedAds++;
+    Logger.log('[UPDATE] Campaign ' + campaignId + ' updated with suffix: ' + match.new_suffix);
 
-    // Track queue IDs vs bucket IDs separately
+    // Mark queue item for completion
     if (match.queue_id) {
       queueIds.push(match.queue_id);
-    } else if (match.id) {
-      bucketIds.push(match.id);
     }
-
-    tracedToStore.push({
-      suffix: match.new_suffix,
-      source: match.source || 'webhook',
-      offer_name: offerName
-    });
   }
 
   return {
-    processed: queueIds.length + bucketIds.length,
+    processed: queueIds.length,
     queueIds: queueIds,
-    bucketIds: bucketIds,
-    tracedToStore: tracedToStore,
     updatedAds: updatedAds
   };
 }
@@ -1184,22 +1137,11 @@ function appendSuffix(url, suffix) {
   return url + separator + cleanedSuffix;
 }
 
-function markSuffixesUsed(ids) {
-  if (!ids || ids.length === 0) return;
-  try {
-    var payload = { suffix_ids: ids };
-    var options = {
-      method: 'post',
-      contentType: 'application/json',
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true
-    };
-    var resp = UrlFetchApp.fetch(SUPABASE_URL + '/functions/v1/v5-mark-suffixes-used', options);
-    Logger.log('[MARK-BUCKET] Response: ' + resp.getResponseCode());
-  } catch (e) {
-    Logger.log('[MARK-BUCKET] Failed: ' + e);
-  }
-}
+
+
+
+
+
 
 function markQueueItemsProcessed(queueIds) {
   if (!queueIds || queueIds.length === 0) return;
@@ -1219,35 +1161,7 @@ function markQueueItemsProcessed(queueIds) {
   }
 }
 
-function storeTracedSuffixes(items) {
-  try {
-    // Group by offer to minimize inserts
-    var grouped = {};
-    items.forEach(function(item) {
-      var offerName = item.offer_name || OFFER_DEFAULT;
-      if (!grouped[offerName]) grouped[offerName] = [];
-      grouped[offerName].push({ suffix: item.suffix, source: item.source || 'webhook' });
-    });
 
-    for (var offer in grouped) {
-      var payload = {
-        account_id: ACCOUNT_ID,
-        offer_name: offer,
-        suffixes: grouped[offer]
-      };
-      var options = {
-        method: 'post',
-        contentType: 'application/json',
-        payload: JSON.stringify(payload),
-        muteHttpExceptions: true
-      };
-      var resp = UrlFetchApp.fetch(SUPABASE_URL + '/functions/v1/v5-store-traced-suffixes', options);
-      Logger.log('[STORE] ' + offer + ' -> ' + resp.getResponseCode());
-    }
-  } catch (e) {
-    Logger.log('[STORE] Failed: ' + e);
-  }
-}
 
 // =============================================================
 // ZERO-CLICK SUFFIX FETCHING (DAILY)
