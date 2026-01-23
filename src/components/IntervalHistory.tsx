@@ -16,6 +16,7 @@ interface IntervalData {
   max_interval_override_ms?: number | null;
   target_repeat_ratio?: number | null;
   min_repeat_ratio?: number | null;
+  call_budget_multiplier?: number | null;
   script_min_interval_ms?: number | null;
   script_max_interval_ms?: number | null;
   script_target_repeat_ratio?: number | null;
@@ -32,6 +33,7 @@ interface EditingRow {
   max_interval_override_ms: number | null;
   target_repeat_ratio: number | null;
   min_repeat_ratio: number | null;
+  call_budget_multiplier: number | null;
 }
 
 const ITEMS_PER_PAGE = 50;
@@ -109,7 +111,8 @@ export default function IntervalHistory() {
       min_interval_override_ms: item.min_interval_override_ms || null,
       max_interval_override_ms: item.max_interval_override_ms || null,
       target_repeat_ratio: item.target_repeat_ratio || null,
-      min_repeat_ratio: item.min_repeat_ratio || null
+      min_repeat_ratio: item.min_repeat_ratio || null,
+      call_budget_multiplier: item.call_budget_multiplier || null
     });
   };
 
@@ -130,7 +133,8 @@ export default function IntervalHistory() {
           min_interval_override_ms: editingRow.min_interval_override_ms,
           max_interval_override_ms: editingRow.max_interval_override_ms,
           target_repeat_ratio: editingRow.target_repeat_ratio,
-          min_repeat_ratio: editingRow.min_repeat_ratio
+          min_repeat_ratio: editingRow.min_repeat_ratio,
+          call_budget_multiplier: editingRow.call_budget_multiplier
         })
         .eq('offer_id', editingRow.offer_id)
         .eq('date', editingRow.date);
@@ -330,6 +334,9 @@ export default function IntervalHistory() {
                 <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Min ratio (click to edit override)">
                   Min Ratio
                 </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-brand-600 dark:text-brand-400 uppercase tracking-wider" title="Budget multiplier (click to edit override)">
+                  Budget Mult.
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                   Trend
                 </th>
@@ -498,6 +505,28 @@ export default function IntervalHistory() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="1"
+                            max="20"
+                            value={editingRow?.call_budget_multiplier ?? ''}
+                            onChange={(e) => editingRow && setEditingRow({ 
+                              ...editingRow, 
+                              call_budget_multiplier: e.target.value ? parseFloat(e.target.value) : null 
+                            })}
+                            placeholder="5.0"
+                            className="w-20 px-2 py-1 text-right border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-850 text-neutral-900 dark:text-neutral-50 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                            title="Max daily calls = yesterday clicks × this multiplier. Default: 5x"
+                          />
+                        ) : (
+                          <span className={item.call_budget_multiplier ? "font-semibold text-brand-600 dark:text-brand-400" : "text-neutral-900 dark:text-neutral-50"} title={item.call_budget_multiplier ? `DB override: ${item.call_budget_multiplier}x budget multiplier` : 'Using script default (5x)'}>
+                            {item.call_budget_multiplier ? `${item.call_budget_multiplier.toFixed(1)}x ⚡` : '5.0x'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                         {trend === 0 ? (
                           <span className="text-neutral-400">—</span>
                         ) : trend > 0 ? (
@@ -595,17 +624,20 @@ export default function IntervalHistory() {
       <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-lg p-4">
         <h4 className="font-semibold text-brand-900 dark:text-brand-300 mb-2">💡 How Intervals Work</h4>
         <div className="text-sm text-brand-800 dark:text-brand-400 space-y-2">
-          <p>The system calculates optimal delay intervals based on landing page frequency:</p>
+          <p>The system calculates optimal delay intervals based on daily call budget and landing page frequency:</p>
           <ul className="list-disc ml-5 space-y-1">
-            <li><strong>Three-Scenario Calculation:</strong>
+            <li><strong>Call Budget Safety Net:</strong> maxDailyCalls = yesterdayClicks × budgetMultiplier (default 5x)</li>
+            <li><strong>Budget Baseline:</strong> budgetInterval = 86400000ms / maxDailyCalls</li>
+            <li><strong>Three-Scenario Adjustments:</strong>
               <ul className="list-circle ml-5 mt-1">
-                <li>Scenario 1: ratio ≥ TARGET → SPEEDUP (faster interval)</li>
-                <li>Scenario 2: MIN ≤ ratio &lt; TARGET → STABLE (keep yesterday)</li>
-                <li>Scenario 3: ratio &lt; MIN → SLOWDOWN (slower interval)</li>
+                <li>Scenario 1: ratio ≥ TARGET → SPEEDUP (faster than budget baseline)</li>
+                <li>Scenario 2: MIN ≤ ratio &lt; TARGET → STABLE (keep budget baseline)</li>
+                <li>Scenario 3: ratio &lt; MIN → SLOWDOWN (slower than budget baseline)</li>
               </ul>
             </li>
             <li><strong>Formula:</strong> averageRepeats = clicks / unique_landing_pages</li>
-            <li><strong>Default Values:</strong> TARGET=5x, MIN=1.0x, MIN_INTERVAL=1000ms, MAX_INTERVAL=30000ms</li>
+            <li><strong>Default Values:</strong> BUDGET=5x, TARGET=5x, MIN=1.0x, MIN_INTERVAL=1000ms, MAX_INTERVAL=30000ms</li>
+            <li><strong>Budget Multiplier:</strong> Controls daily API call limit. Higher = more calls, lower = fewer calls.</li>
             <li><strong>Effective Values:</strong> Shows script default OR override (⚡ = override active)</li>
             <li><strong>Edit to Override:</strong> Click Edit, enter new value to override script defaults</li>
             <li><strong>Clear Override:</strong> Empty the field to revert to script default</li>

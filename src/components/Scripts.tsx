@@ -248,6 +248,14 @@ var TARGET_REPEAT_RATIO = 5;    // Target repeats per landing page (speedup)
 var MIN_REPEAT_RATIO = 1.0;     // Minimum repeats per landing page (slowdown trigger)
 
 // ============================================
+// CALL BUDGET CONFIGURATION
+// ============================================
+// Max daily API calls = yesterday's clicks × this multiplier
+// Example: 100 clicks × 5 = 500 max calls per day
+// Database override (per account+offer) takes highest priority
+var CALL_BUDGET_MULTIPLIER = 5;
+
+// ============================================
 // ACCOUNT ID HELPER
 // ============================================
 function getAccountId() {
@@ -487,6 +495,7 @@ function getCurrentIntervalFromAPI() {
       max_interval_ms: MAX_INTERVAL_MS,
       target_repeat_ratio: TARGET_REPEAT_RATIO,
       min_repeat_ratio: MIN_REPEAT_RATIO,
+      call_budget_multiplier: CALL_BUDGET_MULTIPLIER,
       default_interval_ms: DEFAULT_INTERVAL_MS
     };
     
@@ -1391,6 +1400,14 @@ var TARGET_REPEAT_RATIO = 5;
 var MIN_REPEAT_RATIO = 1.0;
 
 // ============================================
+// CALL BUDGET CONFIGURATION
+// ============================================
+// Max daily API calls = yesterday's clicks × this multiplier
+// Example: 100 clicks × 5 = 500 max calls per day
+// Database override (per account+offer) takes highest priority
+var CALL_BUDGET_MULTIPLIER = 5;
+
+// ============================================
 // CAMPAIGN FILTERING
 // ============================================
 var CAMPAIGN_IDS = []; // Leave empty to process all campaigns
@@ -1671,6 +1688,7 @@ function getIntervalForOffer(offerName) {
       max_interval_ms: MAX_INTERVAL_MS,
       target_repeat_ratio: TARGET_REPEAT_RATIO,
       min_repeat_ratio: MIN_REPEAT_RATIO,
+      call_budget_multiplier: CALL_BUDGET_MULTIPLIER,
       default_interval_ms: DEFAULT_INTERVAL_MS
     };
     
