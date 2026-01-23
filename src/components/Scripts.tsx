@@ -938,6 +938,330 @@ function listCampaignIds() {
   Logger.log('='.repeat(60));
 }`;
 
+  const googleAdsV5AllIn = `// =============================================================
+// GOOGLE ADS SCRIPT (V5 WEBHOOK ALL-IN)
+// Single-webhook-per-offer, offer+account controls, bucket + queue
+// - Consumes Trackier webhook queue (/functions/v1/v5-fetch-queue)
+// - Falls back to offer bucket (/functions/v1/v5-get-multiple-suffixes)
+// - Marks usage (/functions/v1/v5-mark-suffixes-used)
+// - Stores new traced suffixes (/functions/v1/v5-store-traced-suffixes)
+// - Sends optional daily landing-page stats (cached for the day)
+//
+// HOW TO USE
+// 1) Set SUPABASE_URL to your project URL (already injected here).
+// 2) Fill OFFER_BY_CAMPAIGN or OFFER_DEFAULT. Campaign mapping wins.
+// 3) Optional: set ALLOWED_CAMPAIGN_IDS to limit updates.
+// 4) Schedule hourly (or faster) in Google Ads scripts.
+// 5) Trackier should call the v5 webhook endpoint to populate the queue.
+// =============================================================
+
+var SUPABASE_URL = '${supabaseUrl}';
+var OFFER_DEFAULT = 'OFFER_NAME'; // used when no campaign-specific mapping found
+var ACCOUNT_ID = ''; // auto-set at runtime
+
+// Map Campaign IDs -> Offer names (single webhook per offer)
+// Example: {'1234567890': 'OfferA', '2345678901': 'OfferB'}
+var OFFER_BY_CAMPAIGN = {};
+
+// Optional allow-list: leave empty to update all enabled campaigns
+var ALLOWED_CAMPAIGN_IDS = [];
+
+// Batch + fallback controls
+var BATCH_SIZE = 15; // how many webhooks/suffixes per run
+var ZERO_CLICK_FALLBACK = true; // pull bucket when queue empty
+var ZERO_CLICK_COUNT = 10; // how many suffixes to pull on fallback
+
+// Daily stats cache (repeat ratio helper)
+var CACHE_KEY_STATS = 'v5-daily-stats';
+var CACHE_TTL_SECONDS = 6 * 60 * 60; // 6 hours cache
+
+// =============================================================
+// ENTRY POINT
+// =============================================================
+function main() {
+  ACCOUNT_ID = getAccountId();
+  Logger.log('=== V5 WEBHOOK (ALL-IN) ===');
+  Logger.log('Account: ' + ACCOUNT_ID);
+
+  var stats = getCachedLandingPages();
+  if (!stats) {
+    stats = collectYesterdayLandingPages();
+    if (stats) {
+      cacheStats(stats);
+    }
+  }
+
+  var webhooks = fetchWebhookQueue(BATCH_SIZE);
+  if (webhooks.length === 0 && ZERO_CLICK_FALLBACK) {
+    Logger.log('[FALLBACK] Queue empty, pulling from bucket...');
+    webhooks = fallbackFromBucket(ZERO_CLICK_COUNT);
+  }
+
+  if (webhooks.length === 0) {
+    Logger.log('[IDLE] Nothing to process.');
+    return;
+  }
+
+  var summary = applySuffixes(webhooks);
+  if (summary.processedIds.length > 0) {
+    markSuffixesUsed(summary.processedIds);
+  }
+
+  if (summary.tracedToStore.length > 0) {
+    storeTracedSuffixes(summary.tracedToStore);
+  }
+
+  Logger.log('[DONE] Webhooks processed: ' + summary.processed + ', ads updated: ' + summary.updatedAds);
+}
+
+// =============================================================
+// CORE FLOW
+// =============================================================
+function fetchWebhookQueue(limit) {
+  try {
+    var url = SUPABASE_URL + '/functions/v1/v5-fetch-queue?' +
+      'account_id=' + encodeURIComponent(ACCOUNT_ID) +
+      '&limit=' + encodeURIComponent(limit || BATCH_SIZE);
+
+    var response = UrlFetchApp.fetch(url, { method: 'get', muteHttpExceptions: true });
+    var code = response.getResponseCode();
+    if (code !== 200) {
+      Logger.log('[QUEUE] Non-200 response: ' + code);
+      return [];
+    }
+    var data = JSON.parse(response.getContentText());
+    if (!data || !data.success || !data.webhooks) return [];
+    Logger.log('[QUEUE] Received ' + data.webhooks.length + ' items');
+    return data.webhooks;
+  } catch (e) {
+    Logger.log('[QUEUE] Fetch failed: ' + e);
+    return [];
+  }
+}
+
+function fallbackFromBucket(count) {
+  try {
+    var payload = {
+      account_id: ACCOUNT_ID,
+      offer_name: OFFER_DEFAULT,
+      count: count || ZERO_CLICK_COUNT
+    };
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    var response = UrlFetchApp.fetch(SUPABASE_URL + '/functions/v1/v5-get-multiple-suffixes', options);
+    var code = response.getResponseCode();
+    if (code !== 200) {
+      Logger.log('[BUCKET] Non-200 response: ' + code);
+      return [];
+    }
+    var data = JSON.parse(response.getContentText());
+    if (!data || !data.success || !data.suffixes) return [];
+    return data.suffixes.map(function(item) {
+      return {
+        id: item.id,
+        new_suffix: item.suffix,
+        campaign_id: null,
+        offer_name: OFFER_DEFAULT,
+        source: 'zero_click'
+      };
+    });
+  } catch (e) {
+    Logger.log('[BUCKET] Fallback failed: ' + e);
+    return [];
+  }
+}
+
+function applySuffixes(webhooks) {
+  var processedIds = [];
+  var tracedToStore = [];
+  var updatedAds = 0;
+
+  var iterator = getEligibleAds();
+  while (iterator.hasNext()) {
+    var ad = iterator.next();
+    var campaignId = String(ad.getCampaign().getId());
+    var match = popNextForCampaign(webhooks, campaignId);
+    if (!match) {
+      continue;
+    }
+
+    var offerName = resolveOfferName(match, campaignId);
+    var baseUrl = ad.urls().getFinalUrl();
+    var nextUrl = appendSuffix(baseUrl, match.new_suffix);
+    if (nextUrl === baseUrl) {
+      Logger.log('[SKIP] No change for ad ' + ad.getId());
+      continue;
+    }
+
+    ad.urls().setFinalUrl(nextUrl);
+    updatedAds++;
+    processedIds.push(match.id);
+
+    tracedToStore.push({
+      suffix: match.new_suffix,
+      source: match.source || 'webhook',
+      offer_name: offerName
+    });
+  }
+
+  return {
+    processed: processedIds.length,
+    processedIds: processedIds,
+    tracedToStore: tracedToStore,
+    updatedAds: updatedAds
+  };
+}
+
+function popNextForCampaign(list, campaignId) {
+  for (var i = 0; i < list.length; i++) {
+    var item = list[i];
+    if (item.campaign_id && String(item.campaign_id) !== String(campaignId)) {
+      continue;
+    }
+    list.splice(i, 1);
+    return item;
+  }
+  return null;
+}
+
+function getEligibleAds() {
+  var selector = AdsApp.ads().withCondition('Status = ENABLED');
+  if (ALLOWED_CAMPAIGN_IDS.length > 0) {
+    var orParts = ALLOWED_CAMPAIGN_IDS.map(function(id) { return 'CampaignId = ' + id; });
+    selector = selector.withCondition(orParts.join(' OR '));
+  }
+  return selector.get();
+}
+
+function resolveOfferName(item, campaignId) {
+  if (item.offer_name) return item.offer_name;
+  if (OFFER_BY_CAMPAIGN[campaignId]) return OFFER_BY_CAMPAIGN[campaignId];
+  return OFFER_DEFAULT;
+}
+
+function appendSuffix(url, suffix) {
+  if (!url) return url;
+  if (!suffix) return url;
+
+  var hasQuery = url.indexOf('?') !== -1;
+  var separator = hasQuery ? '&' : '?';
+  var cleanedSuffix = suffix.replace(/^\?+/, '');
+  return url + separator + cleanedSuffix;
+}
+
+function markSuffixesUsed(ids) {
+  if (!ids || ids.length === 0) return;
+  try {
+    var payload = { suffix_ids: ids };
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    var resp = UrlFetchApp.fetch(SUPABASE_URL + '/functions/v1/v5-mark-suffixes-used', options);
+    Logger.log('[MARK] Response: ' + resp.getResponseCode());
+  } catch (e) {
+    Logger.log('[MARK] Failed: ' + e);
+  }
+}
+
+function storeTracedSuffixes(items) {
+  try {
+    // Group by offer to minimize inserts
+    var grouped = {};
+    items.forEach(function(item) {
+      var offerName = item.offer_name || OFFER_DEFAULT;
+      if (!grouped[offerName]) grouped[offerName] = [];
+      grouped[offerName].push({ suffix: item.suffix, source: item.source || 'webhook' });
+    });
+
+    for (var offer in grouped) {
+      var payload = {
+        account_id: ACCOUNT_ID,
+        offer_name: offer,
+        suffixes: grouped[offer]
+      };
+      var options = {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      };
+      var resp = UrlFetchApp.fetch(SUPABASE_URL + '/functions/v1/v5-store-traced-suffixes', options);
+      Logger.log('[STORE] ' + offer + ' -> ' + resp.getResponseCode());
+    }
+  } catch (e) {
+    Logger.log('[STORE] Failed: ' + e);
+  }
+}
+
+// =============================================================
+// LANDING PAGE STATS (DAILY CACHE)
+// =============================================================
+function collectYesterdayLandingPages() {
+  try {
+    var query = 'SELECT EffectiveFinalUrl, Clicks ' +
+                'FROM FINAL_URL_REPORT ' +
+                'DURING YESTERDAY';
+    var report = AdsApp.report(query);
+    var rows = report.rows();
+
+    var landingPages = {};
+    while (rows.hasNext()) {
+      var row = rows.next();
+      var url = row['EffectiveFinalUrl'] || '';
+      var clicks = parseInt(row['Clicks'], 10) || 0;
+      if (url && clicks > 0) {
+        landingPages[url] = (landingPages[url] || 0) + clicks;
+      }
+    }
+
+    if (Object.keys(landingPages).length === 0) return null;
+    Logger.log('[STATS] Cached yesterday landing pages: ' + Object.keys(landingPages).length);
+    return landingPages;
+  } catch (e) {
+    Logger.log('[STATS] Failed to collect: ' + e);
+    return null;
+  }
+}
+
+function cacheStats(stats) {
+  try {
+    var cache = CacheService.getScriptCache();
+    cache.put(CACHE_KEY_STATS, JSON.stringify(stats), CACHE_TTL_SECONDS);
+  } catch (e) {
+    Logger.log('[CACHE] Failed to write: ' + e);
+  }
+}
+
+function getCachedLandingPages() {
+  try {
+    var cache = CacheService.getScriptCache();
+    var raw = cache.get(CACHE_KEY_STATS);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    Logger.log('[CACHE] Read miss: ' + e);
+    return null;
+  }
+}
+
+// =============================================================
+// HELPERS
+// =============================================================
+function getAccountId() {
+  try {
+    return AdsApp.currentAccount().getCustomerId();
+  } catch (e) {
+    return 'unknown';
+  }
+}`;
+
   const googleAdsMultiOfferV4 = `// ============================================
 // MULTI-OFFER ADAPTIVE INTERVAL SCRIPT (V4)
 // ============================================
@@ -3838,6 +4162,50 @@ curl -X POST "http://YOUR_EC2_IP:3000/trace" \\
           <div className="px-6 py-4">
             <pre className="bg-neutral-50 dark:bg-neutral-950 p-4 rounded-lg overflow-x-auto text-sm border border-neutral-200 dark:border-neutral-800">
               <code className="text-neutral-800 dark:text-neutral-200">{webhookMasterScript}</code>
+            </pre>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-brand-200 dark:border-brand-800 overflow-hidden">
+          <div className="bg-gradient-to-r from-brand-50 to-orange-50 dark:from-brand-900/20 dark:to-orange-900/20 px-6 py-4 border-b border-brand-200 dark:border-brand-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Code2 className="text-brand-600 dark:text-brand-400" size={24} />
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">Google Ads Script (V5 Webhook All-In) 🚀</h3>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                  Single webhook per offer, offer+account controls, queue + bucket + zero-click fallback, daily stats cache
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => copyToClipboard(googleAdsV5AllIn, 'google-ads-v5')}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-600 dark:bg-brand-500 text-white rounded-lg hover:bg-brand-700 dark:hover:bg-brand-600 transition-smooth"
+            >
+              {copiedScript === 'google-ads-v5' ? (
+                <>
+                  <CheckCircle size={18} />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy size={18} />
+                  Copy
+                </>
+              )}
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-lg p-4">
+              <h4 className="font-semibold text-brand-900 dark:text-brand-300 mb-2">🔥 V5 Flow</h4>
+              <div className="text-sm text-brand-800 dark:text-brand-300 space-y-1">
+                <p>1) Polls webhook queue (offer + account scoped) then updates matching campaigns.</p>
+                <p>2) Falls back to bucket (zero-click + traced) when queue is empty.</p>
+                <p>3) Marks used suffix IDs and re-stores suffixes to bucket for inventory.</p>
+                <p>4) Caches yesterday landing page stats to avoid repeated report fetch.</p>
+              </div>
+            </div>
+            <pre className="bg-neutral-900 dark:bg-neutral-950 text-neutral-100 dark:text-neutral-200 text-sm p-4 rounded overflow-x-auto max-h-96">
+              {googleAdsV5AllIn}
             </pre>
           </div>
         </div>
