@@ -309,7 +309,7 @@ https://instagram.com,20,Instagram,1;2;3`;
   };
 
   const parseBulkUrlInput = (text: string): { entries: TrackingUrlEntry[], errors: string[] } => {
-    const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const entries: TrackingUrlEntry[] = [];
     const errors: string[] = [];
 
@@ -355,7 +355,7 @@ https://instagram.com,20,Instagram,1;2;3`;
   };
 
   const parseBulkReferrerInput = (text: string): { entries: ReferrerEntry[], errors: string[] } => {
-    const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const entries: ReferrerEntry[] = [];
     const errors: string[] = [];
 
