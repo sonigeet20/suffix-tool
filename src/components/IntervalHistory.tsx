@@ -505,7 +505,7 @@ export default function IntervalHistory() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                        {isEditing ? (
+                        {editing ? (
                           <input
                             type="number"
                             step="0.5"
