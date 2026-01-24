@@ -284,27 +284,69 @@ Deno.serve(async (req: Request) => {
       .eq('date', todayDate)
       .maybeSingle();
 
+    // If today's row doesn't have overrides, check for most recent overrides to carry forward
+    let latestOverrides = cachedInterval;
+    if (!cachedInterval || (
+      cachedInterval.min_interval_override_ms === null &&
+      cachedInterval.max_interval_override_ms === null &&
+      cachedInterval.target_repeat_ratio === null &&
+      cachedInterval.min_repeat_ratio === null &&
+      cachedInterval.call_budget_multiplier === null
+    )) {
+      const { data: recentOverrides } = await supabase
+        .from('daily_trace_counts')
+        .select('min_interval_override_ms, max_interval_override_ms, target_repeat_ratio, min_repeat_ratio, call_budget_multiplier')
+        .eq('offer_id', offer.id)
+        .eq('account_id', accountId || '')
+        .lt('date', todayDate)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recentOverrides && (
+        recentOverrides.min_interval_override_ms !== null ||
+        recentOverrides.max_interval_override_ms !== null ||
+        recentOverrides.target_repeat_ratio !== null ||
+        recentOverrides.min_repeat_ratio !== null ||
+        recentOverrides.call_budget_multiplier !== null
+      )) {
+        console.log('🔄 Carrying forward overrides from previous date');
+        latestOverrides = { ...cachedInterval, ...recentOverrides };
+      }
+    }
+
     // Apply overrides from database (takes precedence over script values)
     let budgetMultiplierSource = 'script';
-    if (cachedInterval) {
-      if (cachedInterval.min_interval_override_ms !== null && cachedInterval.min_interval_override_ms !== undefined) {
-        minIntervalMs = cachedInterval.min_interval_override_ms;
+    let carriedMinIntervalOverride: number | null = null;
+    let carriedMaxIntervalOverride: number | null = null;
+    let carriedTargetRatioOverride: number | null = null;
+    let carriedMinRatioOverride: number | null = null;
+    let carriedBudgetMultiplierOverride: number | null = null;
+    
+    if (latestOverrides) {
+      if (latestOverrides.min_interval_override_ms !== null && latestOverrides.min_interval_override_ms !== undefined) {
+        minIntervalMs = latestOverrides.min_interval_override_ms;
+        carriedMinIntervalOverride = latestOverrides.min_interval_override_ms;
         console.log(`✅ [OVERRIDE] Using database min_interval: ${minIntervalMs}ms (overriding script value)`);
       }
-      if (cachedInterval.max_interval_override_ms !== null && cachedInterval.max_interval_override_ms !== undefined) {
-        maxIntervalMs = cachedInterval.max_interval_override_ms;
+      if (latestOverrides.max_interval_override_ms !== null && latestOverrides.max_interval_override_ms !== undefined) {
+        maxIntervalMs = latestOverrides.max_interval_override_ms;
+        carriedMaxIntervalOverride = latestOverrides.max_interval_override_ms;
         console.log(`✅ [OVERRIDE] Using database max_interval: ${maxIntervalMs}ms (overriding script value)`);
       }
-      if (cachedInterval.target_repeat_ratio !== null && cachedInterval.target_repeat_ratio !== undefined) {
-        targetRepeatRatio = cachedInterval.target_repeat_ratio;
+      if (latestOverrides.target_repeat_ratio !== null && latestOverrides.target_repeat_ratio !== undefined) {
+        targetRepeatRatio = latestOverrides.target_repeat_ratio;
+        carriedTargetRatioOverride = latestOverrides.target_repeat_ratio;
         console.log(`✅ [OVERRIDE] Using database target_repeat_ratio: ${targetRepeatRatio} (overriding script value)`);
       }
-      if (cachedInterval.min_repeat_ratio !== null && cachedInterval.min_repeat_ratio !== undefined) {
-        minRepeatRatio = cachedInterval.min_repeat_ratio;
+      if (latestOverrides.min_repeat_ratio !== null && latestOverrides.min_repeat_ratio !== undefined) {
+        minRepeatRatio = latestOverrides.min_repeat_ratio;
+        carriedMinRatioOverride = latestOverrides.min_repeat_ratio;
         console.log(`✅ [OVERRIDE] Using database min_repeat_ratio: ${minRepeatRatio} (overriding script value)`);
       }
-      if (cachedInterval.call_budget_multiplier !== null && cachedInterval.call_budget_multiplier !== undefined) {
-        budgetMultiplier = cachedInterval.call_budget_multiplier;
+      if (latestOverrides.call_budget_multiplier !== null && latestOverrides.call_budget_multiplier !== undefined) {
+        budgetMultiplier = latestOverrides.call_budget_multiplier;
+        carriedBudgetMultiplierOverride = latestOverrides.call_budget_multiplier;
         budgetMultiplierSource = 'database';
         console.log(`✅ [OVERRIDE] Using database call_budget_multiplier: ${budgetMultiplier}x (overriding script value)`);
       }
@@ -316,7 +358,28 @@ Deno.serve(async (req: Request) => {
     }
     console.log(`💰 Final budget multiplier: ${budgetMultiplier}x (source: ${budgetMultiplierSource})`);
 
+    // Check if overrides were updated AFTER the cached interval was calculated
+    // This allows mid-day override changes to trigger immediate recalculation
+    let shouldRecalculate = false;
     if (cachedInterval && cachedInterval.interval_used_ms) {
+      // Check if any override exists and is different from what we just fetched
+      const hasActiveOverrides = (
+        carriedMinIntervalOverride !== null ||
+        carriedMaxIntervalOverride !== null ||
+        carriedTargetRatioOverride !== null ||
+        carriedMinRatioOverride !== null ||
+        carriedBudgetMultiplierOverride !== null
+      );
+
+      // If overrides exist, we should recalculate to apply them
+      // (even if we have a cached interval from earlier today)
+      if (hasActiveOverrides) {
+        shouldRecalculate = true;
+        console.log('🔄 Overrides detected - will recalculate interval despite cache hit');
+      }
+    }
+
+    if (cachedInterval && cachedInterval.interval_used_ms && !shouldRecalculate) {
       // Backfill or refresh script config columns even on cache hit so Interval History has data for all rows
       const scriptConfigChanged = (
         cachedInterval.script_min_interval_ms !== scriptMinInterval ||
@@ -530,6 +593,7 @@ Deno.serve(async (req: Request) => {
 
     // Store today's calculated interval for caching (so future calls today return same value)
     // Also store script-provided configuration values for reference in Intervals view
+    // Carry forward any overrides from previous dates
     try {
       const { error: storeError } = await supabase
         .from('daily_trace_counts')
@@ -545,6 +609,11 @@ Deno.serve(async (req: Request) => {
           script_max_interval_ms: scriptMaxInterval,
           script_target_repeat_ratio: scriptTargetRepeatRatio,
           script_min_repeat_ratio: scriptMinRepeatRatio,
+          min_interval_override_ms: carriedMinIntervalOverride,
+          max_interval_override_ms: carriedMaxIntervalOverride,
+          target_repeat_ratio: carriedTargetRatioOverride,
+          min_repeat_ratio: carriedMinRatioOverride,
+          call_budget_multiplier: carriedBudgetMultiplierOverride,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'offer_id,account_id,date'
