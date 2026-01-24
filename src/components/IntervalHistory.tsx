@@ -125,8 +125,15 @@ export default function IntervalHistory() {
   const handleSaveEdit = async () => {
     if (!editingRow) return;
 
+    console.log('🔧 Saving edit for:', {
+      offer_id: editingRow.offer_id,
+      account_id: editingRow.account_id,
+      date: editingRow.date,
+      interval_used_ms: editingRow.interval_used_ms
+    });
+
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('daily_trace_counts')
         .update({
           interval_used_ms: editingRow.interval_used_ms,
@@ -140,7 +147,10 @@ export default function IntervalHistory() {
         })
         .eq('offer_id', editingRow.offer_id)
         .eq('account_id', editingRow.account_id)
-        .eq('date', editingRow.date);
+        .eq('date', editingRow.date)
+        .select();
+
+      console.log('✅ Update result:', { error, data, rowsUpdated: data?.length });
 
       if (error) throw error;
 
@@ -223,12 +233,12 @@ export default function IntervalHistory() {
     return `${(ms / 1000).toFixed(1)}s`;
   };
 
-  const isEditing = (offer_id: string, date: string) => {
-    return editingRow?.offer_id === offer_id && editingRow?.date === date;
+  const isEditing = (offer_id: string, account_id: string, date: string) => {
+    return editingRow?.offer_id === offer_id && editingRow?.account_id === account_id && editingRow?.date === date;
   };
 
-  const isDeletePending = (offer_id: string, date: string) => {
-    return deleteConfirm?.offer_id === offer_id && deleteConfirm?.date === date;
+  const isDeletePending = (offer_id: string, account_id: string, date: string) => {
+    return deleteConfirm?.offer_id === offer_id && deleteConfirm?.account_id === account_id && deleteConfirm?.date === date;
   };
 
   if (loading) {
@@ -364,8 +374,8 @@ export default function IntervalHistory() {
                     ? item.interval_used_ms - prevItem.interval_used_ms 
                     : 0;
                   
-                  const editing = isEditing(item.offer_id, item.date);
-                  const deleting = isDeletePending(item.offer_id, item.date);
+                  const editing = isEditing(item.offer_id, item.account_id, item.date);
+                  const deleting = isDeletePending(item.offer_id, item.account_id, item.date);
 
                   return (
                     <tr key={`${item.offer_id}-${item.date}-${item.created_at}`} className={`hover:bg-neutral-50 dark:hover:bg-neutral-850 ${deleting ? 'bg-error-50 dark:bg-error-900/20' : ''}`}>
