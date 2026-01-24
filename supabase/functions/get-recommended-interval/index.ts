@@ -196,7 +196,7 @@ Deno.serve(async (req: Request) => {
         if (body.min_repeat_ratio !== undefined) minRepeatRatio = body.min_repeat_ratio;
         if (body.call_budget_multiplier !== undefined) budgetMultiplier = body.call_budget_multiplier;
         
-        console.log(`📬 POST data: clicks=${yesterdayClicks}, landing_pages=${yesterdayLandingPages}, timezone=${accountTimezone}`);
+        console.log(` POST data: clicks=${yesterdayClicks}, landing_pages=${yesterdayLandingPages}, timezone=${accountTimezone}`);
         console.log(`⚙️  Script constraints: MIN=${minIntervalMs}ms, MAX=${maxIntervalMs}ms, TARGET=${targetAverageRepeats}, DEFAULT=${defaultIntervalMs}`);
         console.log(`⚙️  Ratio constraints: TARGET=${targetRepeatRatio}:1 repeats/page, MIN=${minRepeatRatio}:1 repeats/page`);
         console.log(`⚙️  Budget multiplier: ${budgetMultiplier}x (from script or default)`);
@@ -358,24 +358,26 @@ Deno.serve(async (req: Request) => {
     }
     console.log(`💰 Final budget multiplier: ${budgetMultiplier}x (source: ${budgetMultiplierSource})`);
 
-    // Check if overrides were updated AFTER the cached interval was calculated
-    // This allows mid-day override changes to trigger immediate recalculation
+    // Check if overrides CHANGED since the cached interval was calculated
+    // Only recalculate if overrides are DIFFERENT from what's in the cache
     let shouldRecalculate = false;
     if (cachedInterval && cachedInterval.interval_used_ms) {
-      // Check if any override exists and is different from what we just fetched
-      const hasActiveOverrides = (
-        carriedMinIntervalOverride !== null ||
-        carriedMaxIntervalOverride !== null ||
-        carriedTargetRatioOverride !== null ||
-        carriedMinRatioOverride !== null ||
-        carriedBudgetMultiplierOverride !== null
+      // Compare cached overrides with current overrides
+      const overridesChanged = (
+        (carriedMinIntervalOverride !== cachedInterval.min_interval_override_ms) ||
+        (carriedMaxIntervalOverride !== cachedInterval.max_interval_override_ms) ||
+        (carriedTargetRatioOverride !== cachedInterval.target_repeat_ratio) ||
+        (carriedMinRatioOverride !== cachedInterval.min_repeat_ratio) ||
+        (carriedBudgetMultiplierOverride !== cachedInterval.call_budget_multiplier)
       );
 
-      // If overrides exist, we should recalculate to apply them
-      // (even if we have a cached interval from earlier today)
-      if (hasActiveOverrides) {
+      if (overridesChanged) {
         shouldRecalculate = true;
-        console.log('🔄 Overrides detected - will recalculate interval despite cache hit');
+        console.log('🔄 Overrides CHANGED since cache - will recalculate interval');
+        console.log(`   Cached: min=${cachedInterval.min_interval_override_ms}, max=${cachedInterval.max_interval_override_ms}, target=${cachedInterval.target_repeat_ratio}, minRatio=${cachedInterval.min_repeat_ratio}, budget=${cachedInterval.call_budget_multiplier}`);
+        console.log(`   Current: min=${carriedMinIntervalOverride}, max=${carriedMaxIntervalOverride}, target=${carriedTargetRatioOverride}, minRatio=${carriedMinRatioOverride}, budget=${carriedBudgetMultiplierOverride}`);
+      } else {
+        console.log('✅ Overrides unchanged - using cached interval');
       }
     }
 
