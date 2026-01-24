@@ -25,6 +25,7 @@ interface IntervalData {
 
 interface EditingRow {
   offer_id: string;
+  account_id: string;
   date: string;
   interval_used_ms: number;
   total_clicks: number;
@@ -44,7 +45,7 @@ export default function IntervalHistory() {
   const [selectedOffer, setSelectedOffer] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [editingRow, setEditingRow] = useState<EditingRow | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ offer_id: string; date: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ offer_id: string; account_id: string; date: string } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -104,6 +105,7 @@ export default function IntervalHistory() {
   const handleEdit = (item: IntervalData) => {
     setEditingRow({
       offer_id: item.offer_id,
+      account_id: item.account_id,
       date: item.date,
       interval_used_ms: item.interval_used_ms,
       total_clicks: item.total_clicks || 0,
@@ -137,6 +139,7 @@ export default function IntervalHistory() {
           call_budget_multiplier: editingRow.call_budget_multiplier
         })
         .eq('offer_id', editingRow.offer_id)
+        .eq('account_id', editingRow.account_id)
         .eq('date', editingRow.date);
 
       if (error) throw error;
@@ -150,13 +153,14 @@ export default function IntervalHistory() {
     }
   };
 
-  const handleDelete = async (offer_id: string, date: string) => {
-    if (deleteConfirm?.offer_id === offer_id && deleteConfirm?.date === date) {
+  const handleDelete = async (offer_id: string, account_id: string, date: string) => {
+    if (deleteConfirm?.offer_id === offer_id && deleteConfirm?.account_id === account_id && deleteConfirm?.date === date) {
       try {
         const { error } = await supabase
           .from('daily_trace_counts')
           .delete()
           .eq('offer_id', offer_id)
+          .eq('account_id', account_id)
           .eq('date', date);
 
         if (error) throw error;
@@ -169,7 +173,7 @@ export default function IntervalHistory() {
         alert('Failed to delete: ' + error.message);
       }
     } else {
-      setDeleteConfirm({ offer_id, date });
+      setDeleteConfirm({ offer_id, account_id, date });
       setTimeout(() => setDeleteConfirm(null), 3000);
     }
   };
@@ -569,7 +573,7 @@ export default function IntervalHistory() {
                               <Edit2 size={16} />
                             </button>
                             <button
-                              onClick={() => handleDelete(item.offer_id, item.date)}
+                              onClick={() => handleDelete(item.offer_id, item.account_id, item.date)}
                               className={`p-1.5 rounded transition-smooth ${
                                 deleting
                                   ? 'bg-error-600 text-white hover:bg-error-700'
