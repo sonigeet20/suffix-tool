@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase, Offer } from '../lib/supabase';
-import { Plus, Edit, Trash2, Link2, ExternalLink, Copy, CheckCircle, ChevronDown, ChevronUp, ArrowRight, Webhook, Files, BarChart3 } from 'lucide-react';
+import { Plus, Edit, Trash2, Link2, ExternalLink, Copy, CheckCircle, ChevronDown, ChevronUp, ArrowRight, Webhook, Files, Megaphone } from 'lucide-react';
 import OfferForm from './OfferForm';
 import TrackierSetup from './TrackierSetup';
 import GoogleAdsModal from './GoogleAdsModal';
@@ -301,10 +301,10 @@ export default function OfferList() {
                   <div className="flex gap-1 flex-shrink-0 ml-3">
                     <button
                       onClick={() => setGoogleAdsOffer(offer)}
-                      className="p-1.5 text-neutral-500 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-smooth"
+                      className="p-1.5 text-neutral-500 hover:text-blue-600 dark:text-neutral-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-md transition-smooth"
                       title="Google Ads Configuration"
                     >
-                      <BarChart3 size={16} />
+                      <Megaphone size={16} />
                     </button>
                     <button
                       onClick={() => setTrackierOffer(offer)}
