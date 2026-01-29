@@ -901,8 +901,8 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                               )}
                             </td>
                             <td className="px-4 py-2 text-xs text-neutral-600 dark:text-neutral-400">
-                              {click.trace_error ? (
-                                <span className="text-red-600 dark:text-red-400">{click.trace_error}</span>
+                              {click.block_reason ? (
+                                <span className="text-red-600 dark:text-red-400">{click.block_reason}</span>
                               ) : click.trace_final_url ? (
                                 <span className="truncate block max-w-xs">{click.trace_final_url}</span>
                               ) : (

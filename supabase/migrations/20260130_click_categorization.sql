@@ -70,7 +70,7 @@ BEGIN
       gace.id,
       gace.user_agent,
       gace.redirect_url,
-      (categorize_click(gace.user_agent, gace.redirect_url)).category,
+      (categorize_click(gace.user_agent, gace.redirect_url)).category as click_category,
       gace.clicked_at
     FROM google_ads_click_events gace
     WHERE gace.clicked_at >= NOW() - (p_days || ' days')::INTERVAL
@@ -78,14 +78,14 @@ BEGIN
   ),
   stats AS (
     SELECT 
-      offer_name,
+      c.offer_name,
       COUNT(*) as total,
-      COUNT(*) FILTER (WHERE category = 'real_user') as real_user_count,
-      COUNT(*) FILTER (WHERE category = 'google_bot') as google_bot_count,
-      COUNT(*) FILTER (WHERE category = 'invalid') as invalid_count,
-      COUNT(*) FILTER (WHERE category = 'real_user' AND clicked_at::DATE = CURRENT_DATE) as today_real_users
-    FROM categorized
-    GROUP BY offer_name
+      COUNT(*) FILTER (WHERE c.click_category = 'real_user') as real_user_count,
+      COUNT(*) FILTER (WHERE c.click_category = 'google_bot') as google_bot_count,
+      COUNT(*) FILTER (WHERE c.click_category = 'invalid') as invalid_count,
+      COUNT(*) FILTER (WHERE c.click_category = 'real_user' AND c.clicked_at::DATE = CURRENT_DATE) as today_real_users
+    FROM categorized c
+    GROUP BY c.offer_name
   )
   SELECT 
     s.offer_name,
@@ -132,7 +132,7 @@ RETURNS TABLE (
     suffix TEXT,
     trace_success BOOLEAN,
     trace_final_url TEXT,
-    trace_error TEXT,
+    block_reason TEXT,
     user_agent TEXT,
     redirect_url TEXT,
     click_category TEXT,
@@ -148,7 +148,7 @@ BEGIN
     gace.suffix,
     gace.trace_success,
     gace.trace_final_url,
-    gace.trace_error,
+    gace.block_reason,
     gace.user_agent,
     gace.redirect_url,
     (categorize_click(gace.user_agent, gace.redirect_url)).category as click_category,
