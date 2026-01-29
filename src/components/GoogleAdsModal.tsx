@@ -36,6 +36,8 @@ interface GoogleAdsConfig {
   apply_filters?: boolean;
   single_geo_targets?: string[];
   multi_geo_targets?: string[];
+  silent_fetch_enabled?: boolean;
+  silent_fetch_url?: string;
   filtering?: {
     enabled: boolean;
     bot_detection: boolean;
