@@ -759,14 +759,14 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                     </label>
                     <input
                       type="number"
-                      min="1"
+                      min="0"
                       max="100"
                       value={multiGeoCount}
-                      onChange={(e) => setMultiGeoCount(parseInt(e.target.value) || 10)}
+                      onChange={(e) => setMultiGeoCount(parseInt(e.target.value) || 0)}
                       disabled={filling}
                       className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg text-neutral-900 dark:text-white text-sm disabled:opacity-50"
                     />
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Suffixes per multi geo</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Suffixes per multi geo (0 to skip)</p>
                   </div>
                 </div>
 
@@ -796,9 +796,9 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                     <p className="text-neutral-600 dark:text-neutral-400">No buckets yet. Click "Fill Buckets" to start.</p>
                   </div>
                 ) : (
-                  <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden">
+                  <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
                     <table className="w-full text-sm">
-                      <thead className="bg-neutral-50 dark:bg-neutral-800/50">
+                      <thead className="bg-neutral-50 dark:bg-neutral-800/50 sticky top-0">
                         <tr>
                           <th className="px-4 py-2 text-left text-neutral-700 dark:text-neutral-300">Country</th>
                           <th className="px-4 py-2 text-right text-neutral-700 dark:text-neutral-300">Total</th>

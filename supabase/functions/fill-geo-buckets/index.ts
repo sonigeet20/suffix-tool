@@ -51,7 +51,11 @@ serve(async (req) => {
 
     console.log(`[fill-geo-buckets] Starting bucket fill for ${offer_name}`)
     console.log(`[fill-geo-buckets] Single geo: ${single_geo_targets.length} countries x ${single_geo_count} = ${single_geo_targets.length * single_geo_count}`)
-    console.log(`[fill-geo-buckets] Multi geo: ${multi_geo_targets.length} groups x ${multi_geo_count} = ${multi_geo_targets.length * multi_geo_count}`)
+    if (multi_geo_count > 0) {
+      console.log(`[fill-geo-buckets] Multi geo: ${multi_geo_targets.length} groups x ${multi_geo_count} = ${multi_geo_targets.length * multi_geo_count}`)
+    } else {
+      console.log(`[fill-geo-buckets] Multi geo: SKIPPED (count = 0)`)
+    }
 
     // Check if feature is enabled
     const { data: settings } = await supabase
@@ -107,223 +111,263 @@ serve(async (req) => {
 
     const startTime = Date.now()
 
-    // Fill single geo buckets
-    for (const country of single_geo_targets) {
-      try {
-        // Check if bucket needs filling
-        const currentStat = currentStats?.find((s: any) => s.target_country === country)
-        const availableSuffixes = currentStat?.available_suffixes || 0
+    // Fill single geo buckets (parallel per country)
+    const singleGeoResults = await Promise.all(
+      single_geo_targets.map(async (country) => {
+        try {
+          // Check if bucket needs filling
+          const currentStat = currentStats?.find((s: any) => s.target_country === country)
+          const availableSuffixes = currentStat?.available_suffixes || 0
 
-        if (availableSuffixes >= single_geo_count && !force) {
-          console.log(`[fill-geo-buckets] Skipping ${country} - already has ${availableSuffixes} suffixes`)
-          results.single_geo.push({
-            country,
-            status: 'skipped',
-            reason: 'sufficient_suffixes',
-            available: availableSuffixes
-          })
-          continue
-        }
-
-        const needed = single_geo_count - availableSuffixes
-        console.log(`[fill-geo-buckets] Filling ${country} with ${needed} suffixes`)
-
-        // Generate suffixes for this geo using the existing get-suffix function
-        let successCount = 0
-        let failCount = 0
-        
-        for (let i = 0; i < needed; i++) {
-          try {
-            // Call existing get-suffix function with offer_name as URL parameter
-            const getSuffixUrl = `${supabaseUrl}/functions/v1/get-suffix?offer_name=${encodeURIComponent(offer_name)}`
-            const suffixResponse = await fetch(getSuffixUrl, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${supabaseKey}`,
-              }
-            })
-
-            if (!suffixResponse.ok) {
-              const errorText = await suffixResponse.text()
-              console.error(`[fill-geo-buckets] get-suffix failed for ${country}: ${errorText}`)
-              failCount++
-              continue
+          if (availableSuffixes >= single_geo_count && !force) {
+            console.log(`[fill-geo-buckets] Skipping ${country} - already has ${availableSuffixes} suffixes`)
+            return {
+              entry: {
+                country,
+                status: 'skipped',
+                reason: 'sufficient_suffixes',
+                available: availableSuffixes
+              },
+              requested: 0,
+              generated: 0,
+              failed: 0
             }
+          }
 
-            const suffixResult = await suffixResponse.json()
-            
-            // Extract suffix from get-suffix response
-            const suffix = suffixResult.suffix || suffixResult.tracking_suffix
-            if (!suffix) {
-              console.error(`[fill-geo-buckets] No suffix in response for ${country}`)
-              failCount++
-              continue
-            }
+          const needed = single_geo_count - availableSuffixes
+          console.log(`[fill-geo-buckets] Filling ${country} with ${needed} suffixes`)
 
-            // Store in geo_suffix_buckets
-            const { error: insertError } = await supabase
-              .from('geo_suffix_buckets')
-              .insert({
-                offer_name: offer_name,
-                target_country: country,
-                suffix: suffix,
-                hop_count: suffixResult.hop_count || 0,
-                final_url: suffixResult.final_url || offer.url,
-                traced_at: new Date().toISOString(),
-                is_used: false,
-                metadata: {
-                  trace_mode: suffixResult.mode_used || 'http_only',
-                  generated_by: 'fill-geo-buckets'
+          // Generate suffixes for this geo using the existing get-suffix function
+          let successCount = 0
+          let failCount = 0
+          
+          for (let i = 0; i < needed; i++) {
+            try {
+              // Call existing get-suffix function with offer_name as URL parameter
+              const getSuffixUrl = `${supabaseUrl}/functions/v1/get-suffix?offer_name=${encodeURIComponent(offer_name)}`
+              const suffixResponse = await fetch(getSuffixUrl, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${supabaseKey}`,
                 }
               })
 
-            if (insertError) {
-              // Handle duplicate suffix
-              if (insertError.code === '23505') {
-                console.warn(`[fill-geo-buckets] Duplicate suffix for ${country}`)
+              if (!suffixResponse.ok) {
+                const errorText = await suffixResponse.text()
+                console.error(`[fill-geo-buckets] get-suffix failed for ${country}: ${errorText}`)
                 failCount++
                 continue
               }
-              console.error(`[fill-geo-buckets] Failed to insert suffix: ${insertError.message}`)
-              failCount++
-              continue
-            }
 
-            successCount++
-          } catch (err: any) {
-            console.error(`[fill-geo-buckets] Error generating suffix for ${country}:`, err)
-            failCount++
+              const suffixResult = await suffixResponse.json()
+              
+              // Extract suffix from get-suffix response
+              const suffix = suffixResult.suffix || suffixResult.tracking_suffix
+              if (!suffix) {
+                console.error(`[fill-geo-buckets] No suffix in response for ${country}`)
+                failCount++
+                continue
+              }
+
+              // Store in geo_suffix_buckets
+              const { error: insertError } = await supabase
+                .from('geo_suffix_buckets')
+                .insert({
+                  offer_name: offer_name,
+                  target_country: country,
+                  suffix: suffix,
+                  hop_count: suffixResult.hop_count || 0,
+                  final_url: suffixResult.final_url || offer.url,
+                  traced_at: new Date().toISOString(),
+                  is_used: false,
+                  metadata: {
+                    trace_mode: suffixResult.mode_used || 'http_only',
+                    generated_by: 'fill-geo-buckets'
+                  }
+                })
+
+              if (insertError) {
+                // Handle duplicate suffix
+                if (insertError.code === '23505') {
+                  console.warn(`[fill-geo-buckets] Duplicate suffix for ${country}`)
+                  failCount++
+                  continue
+                }
+                console.error(`[fill-geo-buckets] Failed to insert suffix: ${insertError.message}`)
+                failCount++
+                continue
+              }
+
+              successCount++
+            } catch (err: any) {
+              console.error(`[fill-geo-buckets] Error generating suffix for ${country}:`, err)
+              failCount++
+            }
+          }
+
+          return {
+            entry: {
+              country,
+              status: 'filled',
+              requested: needed,
+              generated: successCount,
+              failed: failCount
+            },
+            requested: needed,
+            generated: successCount,
+            failed: failCount
+          }
+
+        } catch (err: any) {
+          console.error(`[fill-geo-buckets] Error processing ${country}:`, err)
+          return {
+            entry: {
+              country,
+              status: 'error',
+              error: err.message
+            },
+            requested: 0,
+            generated: 0,
+            failed: 0
           }
         }
+      })
+    )
 
-        results.single_geo.push({
-          country,
-          status: 'filled',
-          requested: needed,
-          generated: successCount,
-          failed: failCount
-        })
-        results.total_requested += needed
-        results.total_generated += successCount
-        results.total_failed += failCount
-
-      } catch (err: any) {
-        console.error(`[fill-geo-buckets] Error processing ${country}:`, err)
-        results.single_geo.push({
-          country,
-          status: 'error',
-          error: err.message
-        })
-      }
+    for (const result of singleGeoResults) {
+      results.single_geo.push(result.entry)
+      results.total_requested += result.requested
+      results.total_generated += result.generated
+      results.total_failed += result.failed
     }
 
-    // Fill multi-geo buckets
-    for (const geoGroup of multi_geo_targets) {
-      try {
-        // Check if bucket needs filling
-        const currentStat = currentStats?.find((s: any) => s.target_country === geoGroup)
-        const availableSuffixes = currentStat?.available_suffixes || 0
+    // Fill multi-geo buckets (parallel per group) - skip if count is 0
+    const multiGeoResults = multi_geo_count > 0 ? await Promise.all(
+      multi_geo_targets.map(async (geoGroup) => {
+        try {
+          // Check if bucket needs filling
+          const currentStat = currentStats?.find((s: any) => s.target_country === geoGroup)
+          const availableSuffixes = currentStat?.available_suffixes || 0
 
-        if (availableSuffixes >= multi_geo_count && !force) {
-          console.log(`[fill-geo-buckets] Skipping ${geoGroup} - already has ${availableSuffixes} suffixes`)
-          results.multi_geo.push({
-            geo_group: geoGroup,
-            status: 'skipped',
-            reason: 'sufficient_suffixes',
-            available: availableSuffixes
-          })
-          continue
-        }
-
-        const needed = multi_geo_count - availableSuffixes
-        console.log(`[fill-geo-buckets] Filling ${geoGroup} with ${needed} suffixes`)
-
-        // Generate suffixes for this geo group using the existing get-suffix function
-        let successCount = 0
-        let failCount = 0
-        
-        for (let i = 0; i < needed; i++) {
-          try {
-            // Call existing get-suffix function with offer_name as URL parameter
-            const getSuffixUrl = `${supabaseUrl}/functions/v1/get-suffix?offer_name=${encodeURIComponent(offer_name)}`
-            const suffixResponse = await fetch(getSuffixUrl, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${supabaseKey}`,
-              }
-            })
-
-            if (!suffixResponse.ok) {
-              const errorText = await suffixResponse.text()
-              console.error(`[fill-geo-buckets] get-suffix failed for ${geoGroup}: ${errorText}`)
-              failCount++
-              continue
+          if (availableSuffixes >= multi_geo_count && !force) {
+            console.log(`[fill-geo-buckets] Skipping ${geoGroup} - already has ${availableSuffixes} suffixes`)
+            return {
+              entry: {
+                geo_group: geoGroup,
+                status: 'skipped',
+                reason: 'sufficient_suffixes',
+                available: availableSuffixes
+              },
+              requested: 0,
+              generated: 0,
+              failed: 0
             }
+          }
 
-            const suffixResult = await suffixResponse.json()
-            
-            // Extract suffix from get-suffix response
-            const suffix = suffixResult.suffix || suffixResult.tracking_suffix
-            if (!suffix) {
-              console.error(`[fill-geo-buckets] No suffix in response for ${geoGroup}`)
-              failCount++
-              continue
-            }
+          const needed = multi_geo_count - availableSuffixes
+          console.log(`[fill-geo-buckets] Filling ${geoGroup} with ${needed} suffixes`)
 
-            // Store in geo_suffix_buckets
-            const { error: insertError } = await supabase
-              .from('geo_suffix_buckets')
-              .insert({
-                offer_name: offer_name,
-                target_country: geoGroup,
-                suffix: suffix,
-                hop_count: suffixResult.hop_count || 0,
-                final_url: suffixResult.final_url || offer.url,
-                traced_at: new Date().toISOString(),
-                is_used: false,
-                metadata: {
-                  trace_mode: suffixResult.mode_used || 'http_only',
-                  generated_by: 'fill-geo-buckets'
+          // Generate suffixes for this geo group using the existing get-suffix function
+          let successCount = 0
+          let failCount = 0
+          
+          for (let i = 0; i < needed; i++) {
+            try {
+              // Call existing get-suffix function with offer_name as URL parameter
+              const getSuffixUrl = `${supabaseUrl}/functions/v1/get-suffix?offer_name=${encodeURIComponent(offer_name)}`
+              const suffixResponse = await fetch(getSuffixUrl, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${supabaseKey}`,
                 }
               })
 
-            if (insertError) {
-              if (insertError.code === '23505') {
-                console.warn(`[fill-geo-buckets] Duplicate suffix for ${geoGroup}`)
+              if (!suffixResponse.ok) {
+                const errorText = await suffixResponse.text()
+                console.error(`[fill-geo-buckets] get-suffix failed for ${geoGroup}: ${errorText}`)
                 failCount++
                 continue
               }
-              console.error(`[fill-geo-buckets] Failed to insert suffix: ${insertError.message}`)
-              failCount++
-              continue
-            }
 
-            successCount++
-          } catch (err: any) {
-            console.error(`[fill-geo-buckets] Error generating suffix for ${geoGroup}:`, err)
-            failCount++
+              const suffixResult = await suffixResponse.json()
+              
+              // Extract suffix from get-suffix response
+              const suffix = suffixResult.suffix || suffixResult.tracking_suffix
+              if (!suffix) {
+                console.error(`[fill-geo-buckets] No suffix in response for ${geoGroup}`)
+                failCount++
+                continue
+              }
+
+              // Store in geo_suffix_buckets
+              const { error: insertError } = await supabase
+                .from('geo_suffix_buckets')
+                .insert({
+                  offer_name: offer_name,
+                  target_country: geoGroup,
+                  suffix: suffix,
+                  hop_count: suffixResult.hop_count || 0,
+                  final_url: suffixResult.final_url || offer.url,
+                  traced_at: new Date().toISOString(),
+                  is_used: false,
+                  metadata: {
+                    trace_mode: suffixResult.mode_used || 'http_only',
+                    generated_by: 'fill-geo-buckets'
+                  }
+                })
+
+              if (insertError) {
+                if (insertError.code === '23505') {
+                  console.warn(`[fill-geo-buckets] Duplicate suffix for ${geoGroup}`)
+                  failCount++
+                  continue
+                }
+                console.error(`[fill-geo-buckets] Failed to insert suffix: ${insertError.message}`)
+                failCount++
+                continue
+              }
+
+              successCount++
+            } catch (err: any) {
+              console.error(`[fill-geo-buckets] Error generating suffix for ${geoGroup}:`, err)
+              failCount++
+            }
+          }
+
+          return {
+            entry: {
+              geo_group: geoGroup,
+              status: 'filled',
+              requested: needed,
+              generated: successCount,
+              failed: failCount
+            },
+            requested: needed,
+            generated: successCount,
+            failed: failCount
+          }
+
+        } catch (error) {
+          console.error(`[fill-geo-buckets] Exception filling ${geoGroup}:`, error)
+          return {
+            entry: {
+              geo_group: geoGroup,
+              status: 'exception',
+              error: error.message
+            },
+            requested: 0,
+            generated: 0,
+            failed: 0
           }
         }
+      })
+    ) : []
 
-        results.multi_geo.push({
-          geo_group: geoGroup,
-          status: 'filled',
-          requested: needed,
-          generated: successCount,
-          failed: failCount
-        })
-        results.total_requested += needed
-        results.total_generated += successCount
-        results.total_failed += failCount
-
-      } catch (error) {
-        console.error(`[fill-geo-buckets] Exception filling ${geoGroup}:`, error)
-        results.multi_geo.push({
-          geo_group: geoGroup,
-          status: 'exception',
-          error: error.message
-        })
-      }
+    for (const result of multiGeoResults) {
+      results.multi_geo.push(result.entry)
+      results.total_requested += result.requested
+      results.total_generated += result.generated
+      results.total_failed += result.failed
     }
 
     results.duration_ms = Date.now() - startTime

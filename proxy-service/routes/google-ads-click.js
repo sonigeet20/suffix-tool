@@ -22,6 +22,15 @@ try {
 // GeoIP Service client
 const GEOIP_SERVICE_URL = process.env.GEOIP_SERVICE_URL || 'http://localhost:3000';
 
+const GEO_PREFILL_COOLDOWN_MS = 10 * 60 * 1000;
+const lastPrefillByOffer = new Map();
+
+function normalizeCountryCode(code) {
+  if (!code || typeof code !== 'string') return null;
+  const trimmed = code.trim().toUpperCase();
+  return trimmed.length === 2 ? trimmed : null;
+}
+
 async function queryGeoIPService(clientIp) {
   try {
     const response = await axios.get(`${GEOIP_SERVICE_URL}/geoip/${clientIp}`, {
@@ -53,20 +62,21 @@ async function queryGeoIPService(clientIp) {
  * 2. If blocked AND force_transparent=true → redirect without suffix
  * 3. If blocked AND force_transparent=false → return 403 error
  * 4. If not blocked → try to serve suffix from bucket
- * 5. If bucket empty AND force_transparent=true → redirect without suffix
- * 6. If bucket empty AND force_transparent=false → return 503 error
+ * 5. If bucket empty → clean 302 redirect without suffix
  */
 async function handleClick(req, res) {
   const startTime = Date.now();
   
   try {
-    const { offer_name, url: landingPageUrl, force_transparent } = req.query;
+    // Accept both 'url' and 'redirect_url' parameter names (Google Ads uses redirect_url)
+    const { offer_name, url: landingPageUrl, redirect_url: redirectUrlParam, force_transparent } = req.query;
+    const finalUrl = landingPageUrl || redirectUrlParam;
 
     // Validate required parameters
-    if (!offer_name || !landingPageUrl) {
+    if (!offer_name || !finalUrl) {
       return res.status(400).json({
-        error: 'Missing required parameters: offer_name, url',
-        received: { offer_name, url: landingPageUrl }
+        error: 'Missing required parameters: offer_name, url (or redirect_url)',
+        received: { offer_name, url: landingPageUrl, redirect_url: redirectUrlParam }
       });
     }
 
@@ -75,14 +85,15 @@ async function handleClick(req, res) {
     // Get client info
     const clientIp = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'] || '';
-    const clientCountry = req.headers['cloudfront-viewer-country'] || 
-                          req.headers['x-country'] || 
-                          'US'; // Default fallback
+    const rawClientCountry = req.headers['cloudfront-viewer-country'] || 
+                req.headers['x-country'] || 
+                'US'; // Default fallback
+    const clientCountry = normalizeCountryCode(rawClientCountry) || rawClientCountry;
 
     // Load offer configuration
     const { data: offer, error: offerError } = await supabase
       .from('offers')
-      .select('google_ads_config')
+      .select('google_ads_config, geo_pool')
       .eq('offer_name', offer_name)
       .single();
 
@@ -92,6 +103,20 @@ async function handleClick(req, res) {
     }
 
     const googleAdsConfig = offer.google_ads_config || {};
+    const rawGeoPool = Array.isArray(offer.geo_pool) && offer.geo_pool.length > 0
+      ? offer.geo_pool
+      : (Array.isArray(googleAdsConfig.single_geo_targets) ? googleAdsConfig.single_geo_targets : []);
+    const geoPool = rawGeoPool.map(normalizeCountryCode).filter(Boolean);
+
+    if (geoPool.length > 0) {
+      const lastPrefill = lastPrefillByOffer.get(offer_name) || 0;
+      if (Date.now() - lastPrefill > GEO_PREFILL_COOLDOWN_MS) {
+        lastPrefillByOffer.set(offer_name, Date.now());
+        triggerGeoPoolPrefill(offer_name, geoPool, googleAdsConfig).catch(err => {
+          console.error('[google-ads-click] Geo pool prefill failed:', err.message || err);
+        });
+      }
+    }
     
     // Check bot/IP blocking rules
     const blockResult = await checkIfBlocked(
@@ -116,13 +141,13 @@ async function handleClick(req, res) {
           clientIp,
           userAgent,
           req.headers['referer'],
-          landingPageUrl,
+          finalUrl,
           Date.now() - startTime,
           true, // blocked flag
           blockResult.reason
         ).catch(err => console.error('[google-ads-click] Failed to log blocked click:', err));
         
-        return res.redirect(302, landingPageUrl);
+        return res.redirect(302, finalUrl);
       }
       
       // Otherwise, reject the click
@@ -134,23 +159,28 @@ async function handleClick(req, res) {
     }
 
     // Try to get suffix from bucket (with FOR UPDATE SKIP LOCKED for concurrency)
+    const shouldUseRandomPoolCountry = geoPool.length > 0 && !geoPool.includes(normalizeCountryCode(clientCountry));
+    const bucketTargetCountry = shouldUseRandomPoolCountry
+      ? geoPool[Math.floor(Math.random() * geoPool.length)]
+      : clientCountry;
+
     const { data: suffixData, error: suffixError } = await supabase
       .rpc('get_geo_suffix', {
         p_offer_name: offer_name,
-        p_target_country: clientCountry
+        p_target_country: bucketTargetCountry
       });
 
-    let finalUrl = landingPageUrl;
+    let redirectUrl = finalUrl;
     let hasSuffix = false;
     let eventId = null;
 
     if (suffixData && suffixData.length > 0) {
       // Got a suffix from bucket
       const suffix = suffixData[0];
-      finalUrl = `${landingPageUrl}${landingPageUrl.includes('?') ? '&' : '?'}${suffix.suffix}`;
+      redirectUrl = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}${suffix.suffix}`;
       hasSuffix = true;
       
-      console.log(`[google-ads-click] Served suffix from bucket: ${suffix.suffix.substring(0, 50)}...`);
+      console.log(`[google-ads-click] Served suffix from bucket (${bucketTargetCountry}): ${suffix.suffix.substring(0, 50)}...`);
       
       // Log click event (fire and forget)
       logClickEvent(
@@ -171,33 +201,21 @@ async function handleClick(req, res) {
       });
       
       // Trigger async trace to refill bucket (fire and forget)
-      triggerAsyncTrace(offer_name, clientCountry).catch(err => {
+      triggerAsyncTrace(offer_name, bucketTargetCountry).catch(err => {
         console.error(`[google-ads-click] Failed to trigger async trace:`, err);
       });
       
     } else {
       // No suffix available in bucket
-      console.warn(`[google-ads-click] No suffix available for ${offer_name} in ${clientCountry}`);
-      
-      // If force_transparent=true, redirect without suffix
-      if (force_transparent === 'true') {
-        console.log(`[google-ads-click] Transparent redirect (no suffix)`);
-      } else {
-        // Return error - no suffix available and transparent not forced
-        return res.status(503).json({
-          error: 'No suffix available',
-          offer_name,
-          country: clientCountry,
-          message: 'Bucket empty - add force_transparent=true for transparent redirect'
-        });
-      }
+      console.warn(`[google-ads-click] No suffix available for ${offer_name} in ${bucketTargetCountry}`);
+      console.log('[google-ads-click] Clean redirect (no suffix)');
     }
 
     // Increment click stats (async, non-blocking)
     supabase
       .rpc('increment_click_stats', {
         p_offer_name: offer_name,
-        p_target_country: clientCountry,
+        p_target_country: bucketTargetCountry,
         p_has_suffix: hasSuffix
       })
       .then(() => {
@@ -212,16 +230,15 @@ async function handleClick(req, res) {
     console.log(`[google-ads-click] Redirect completed in ${responseTime}ms`);
 
     // Perform redirect (302 temporary redirect)
-    return res.redirect(302, finalUrl);
+    return res.redirect(302, redirectUrl);
 
   } catch (error) {
     console.error('[google-ads-click] Fatal error:', error);
     
     // On error, redirect to landing page without suffix (fail-safe)
-    const { url: landingPageUrl } = req.query;
-    if (landingPageUrl) {
+    if (finalUrl) {
       console.log('[google-ads-click] Error fallback - transparent redirect');
-      return res.redirect(302, landingPageUrl);
+      return res.redirect(302, finalUrl);
     }
     
     return res.status(500).json({
@@ -288,6 +305,54 @@ async function triggerAsyncTrace(offerName, targetCountry) {
     }
   } catch (error) {
     console.error(`[google-ads-click] Async trace exception:`, error);
+  }
+}
+
+/**
+ * Prefill buckets for all countries in the offer's geo pool
+ */
+async function triggerGeoPoolPrefill(offerName, geoPool, googleAdsConfig = {}) {
+  try {
+    if (!supabaseUrl || !supabaseKey) {
+      console.warn('[google-ads-click] Supabase env missing - cannot prefill geo pool');
+      return;
+    }
+
+    const payload = {
+      offer_name: offerName,
+      single_geo_targets: geoPool,
+    };
+
+    if (Array.isArray(googleAdsConfig.multi_geo_targets) && googleAdsConfig.multi_geo_targets.length > 0) {
+      payload.multi_geo_targets = googleAdsConfig.multi_geo_targets;
+    }
+
+    if (typeof googleAdsConfig.single_geo_count === 'number') {
+      payload.single_geo_count = googleAdsConfig.single_geo_count;
+    }
+
+    if (typeof googleAdsConfig.multi_geo_count === 'number') {
+      payload.multi_geo_count = googleAdsConfig.multi_geo_count;
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/fill-geo-buckets`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[google-ads-click] Geo pool prefill failed: ${errorText}`);
+      return;
+    }
+
+    console.log(`[google-ads-click] Geo pool prefill triggered for ${offerName}: ${geoPool.join(', ')}`);
+  } catch (error) {
+    console.error('[google-ads-click] Geo pool prefill exception:', error);
   }
 }
 
