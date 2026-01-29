@@ -826,6 +826,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                       <thead className="bg-neutral-50 dark:bg-neutral-800/50">
                         <tr>
                           <th className="px-4 py-2 text-left text-neutral-700 dark:text-neutral-300">Time</th>
+                          <th className="px-4 py-2 text-left text-neutral-700 dark:text-neutral-300">User IP</th>
                           <th className="px-4 py-2 text-left text-neutral-700 dark:text-neutral-300">Suffix</th>
                           <th className="px-4 py-2 text-left text-neutral-700 dark:text-neutral-300">Country</th>
                           <th className="px-4 py-2 text-center text-neutral-700 dark:text-neutral-300">Trace Status</th>
@@ -837,6 +838,26 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                           <tr key={click.id} className="border-t border-neutral-200 dark:border-neutral-800">
                             <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">
                               {new Date(click.click_timestamp).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-2 font-mono text-xs">
+                              <span 
+                                className={`${
+                                  click.user_ip?.startsWith('172.') || 
+                                  click.user_ip?.startsWith('10.') || 
+                                  click.user_ip?.startsWith('192.168.')
+                                    ? 'text-orange-600 dark:text-orange-400'
+                                    : 'text-green-600 dark:text-green-400'
+                                }`}
+                                title={
+                                  click.user_ip?.startsWith('172.') || 
+                                  click.user_ip?.startsWith('10.') || 
+                                  click.user_ip?.startsWith('192.168.')
+                                    ? 'Private/Internal IP'
+                                    : 'Public IP'
+                                }
+                              >
+                                {click.user_ip || 'N/A'}
+                              </span>
                             </td>
                             <td className="px-4 py-2 font-mono text-xs text-neutral-900 dark:text-white group relative">
                               <div className="flex items-center gap-2">

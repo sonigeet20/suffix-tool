@@ -204,35 +204,25 @@ async function handleClick(req, res) {
     );
 
     if (blockResult.blocked) {
-      console.log(`[google-ads-click] Click blocked: ${blockResult.reason}`);
+      console.log(`[google-ads-click] Click blocked: ${blockResult.reason} - BUT REDIRECTING ANYWAY (force all redirects)`);
       
-      // If Google Ads says force_transparent, we MUST redirect even if blocked
-      if (force_transparent === 'true') {
-        console.log(`[google-ads-click] Force transparent override - redirecting despite block`);
-        
-        // Log the blocked click
-        await logClickEvent(
-          offer_name,
-          '', // No suffix
-          clientCountry,
-          clientIp,
-          userAgent,
-          req.headers['referer'],
-          finalUrl,
-          Date.now() - startTime,
-          true, // blocked flag
-          blockResult.reason
-        ).catch(err => console.error('[google-ads-click] Failed to log blocked click:', err));
-        
-        return res.redirect(302, finalUrl);
-      }
+      // ALWAYS redirect to final URL, even if blocked (to avoid google.com/asnc redirects)
+      // Log the blocked click for analytics
+      await logClickEvent(
+        offer_name,
+        '', // No suffix
+        clientCountry,
+        clientIp,
+        userAgent,
+        req.headers['referer'],
+        finalUrl,
+        Date.now() - startTime,
+        true, // blocked flag
+        blockResult.reason
+      ).catch(err => console.error('[google-ads-click] Failed to log blocked click:', err));
       
-      // Otherwise, reject the click
-      return res.status(403).json({
-        error: 'Click blocked',
-        reason: blockResult.reason,
-        message: 'This click was filtered by bot/IP protection'
-      });
+      // Redirect immediately to avoid Google verification
+      return res.redirect(302, finalUrl);
     }
 
     // Try to get suffix from bucket (with FOR UPDATE SKIP LOCKED for concurrency)

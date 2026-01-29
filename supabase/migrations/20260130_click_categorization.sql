@@ -116,7 +116,49 @@ FROM google_ads_click_events gace
 GROUP BY gace.offer_name, (categorize_click(gace.user_agent, gace.redirect_url)).category, gace.clicked_at::DATE
 ORDER BY gace.clicked_at::DATE DESC, gace.offer_name;
 
+-- Function to get recent click events with categorization
+CREATE OR REPLACE FUNCTION get_recent_click_events(
+    p_offer_name TEXT DEFAULT NULL,
+    p_limit INTEGER DEFAULT 10
+)
+RETURNS TABLE (
+    id BIGINT,
+    click_timestamp TIMESTAMP WITH TIME ZONE,
+    user_ip TEXT,
+    target_country TEXT,
+    suffix TEXT,
+    trace_success BOOLEAN,
+    trace_final_url TEXT,
+    trace_error TEXT,
+    user_agent TEXT,
+    redirect_url TEXT,
+    click_category TEXT,
+    category_reason TEXT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    gace.id,
+    gace.clicked_at as click_timestamp,
+    gace.user_ip,
+    gace.target_country,
+    gace.suffix,
+    gace.trace_success,
+    gace.trace_final_url,
+    gace.trace_error,
+    gace.user_agent,
+    gace.redirect_url,
+    (categorize_click(gace.user_agent, gace.redirect_url)).category as click_category,
+    (categorize_click(gace.user_agent, gace.redirect_url)).reason as category_reason
+  FROM google_ads_click_events gace
+  WHERE (p_offer_name IS NULL OR gace.offer_name = p_offer_name)
+  ORDER BY gace.clicked_at DESC
+  LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
 -- Comments
 COMMENT ON FUNCTION categorize_click(TEXT, TEXT) IS 'Categorize a click as real_user, google_bot, or invalid based on user agent and redirect URL';
 COMMENT ON FUNCTION get_click_stats_by_category(TEXT, INTEGER) IS 'Get aggregated click statistics by category (real users vs bots) for dashboard';
+COMMENT ON FUNCTION get_recent_click_events(TEXT, INTEGER) IS 'Get recent click events with IP, category, and trace status for monitoring';
 COMMENT ON VIEW click_analytics_dashboard IS 'Real-time analytics dashboard showing click categorization and performance metrics';
