@@ -84,17 +84,17 @@ async function handleClick(req, res) {
     console.log(`[google-ads-click] Click received for offer: ${offer_name}`);
 
     // Get client info - extract REAL user IP from headers (prioritize in order):
-    // 1. X-Forwarded-For (first IP = original client IP)
-    // 2. CF-Connecting-IP (Cloudflare)
+    // 1. CF-Connecting-IP (Cloudflare - most reliable for real user IP)
+    // 2. X-Forwarded-For (first IP = original client IP, but NLB adds itself here)
     // 3. X-Real-IP (nginx/proxy)
     // 4. req.ip (fallback to express detected IP)
-    let clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || 
-                   req.headers['cf-connecting-ip'] ||
+    let clientIp = req.headers['cf-connecting-ip'] ||
+                   req.headers['x-forwarded-for']?.split(',')[0].trim() ||
                    req.headers['x-real-ip'] ||
                    req.ip || 
                    req.connection.remoteAddress;
     
-    console.log(`[google-ads-click] Client IP extracted: ${clientIp} (x-forwarded-for: ${req.headers['x-forwarded-for']}, cf-connecting-ip: ${req.headers['cf-connecting-ip']}, req.ip: ${req.ip})`);
+    console.log(`[google-ads-click] Client IP extracted: ${clientIp} (cf-connecting-ip: ${req.headers['cf-connecting-ip']}, x-forwarded-for: ${req.headers['x-forwarded-for']}, req.ip: ${req.ip})`);
     
     const userAgent = req.headers['user-agent'] || '';
     
