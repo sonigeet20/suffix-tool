@@ -42,6 +42,10 @@ $$ LANGUAGE plpgsql;
 -- ============================================================================
 ALTER TABLE google_ads_silent_fetch_stats ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policy if it exists, then create
+DROP POLICY IF EXISTS "Service role has full access to silent_fetch_stats"
+    ON google_ads_silent_fetch_stats;
+
 CREATE POLICY "Service role has full access to silent_fetch_stats"
     ON google_ads_silent_fetch_stats
     FOR ALL

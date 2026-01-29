@@ -24,6 +24,12 @@ interface ClickStats {
   target_country: string | null;
 }
 
+interface SilentFetchStats {
+  fetch_date: string;
+  total_fetches: number;
+  unique_countries: number;
+}
+
 interface GoogleAdsConfig {
   enabled: boolean;
   max_traces_per_day?: number;
@@ -56,6 +62,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
   const [selectedDomain, setSelectedDomain] = useState<string>('');
   const [bucketStats, setBucketStats] = useState<BucketStat[]>([]);
   const [clickStats, setClickStats] = useState<ClickStats | null>(null);
+  const [silentFetchStats, setSilentFetchStats] = useState<SilentFetchStats[] | null>(null);
   const [template, setTemplate] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -77,6 +84,15 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
   useEffect(() => {
     loadData();
   }, [offerName]);
+
+  // Reload stats periodically when silent fetch is enabled
+  useEffect(() => {
+    if (config.silent_fetch_enabled) {
+      loadSilentFetchStats();
+      const interval = setInterval(loadSilentFetchStats, 30000); // Refresh every 30s
+      return () => clearInterval(interval);
+    }
+  }, [config.silent_fetch_enabled, offerName]);
 
   // Update template when domain changes
   useEffect(() => {
@@ -183,6 +199,23 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
       setClickStats(data);
     } catch (err: any) {
       console.error('Error loading click stats:', err);
+    }
+  };
+
+  const loadSilentFetchStats = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_silent_fetch_stats', {
+        p_offer_name: offerName,
+        p_days: 7
+      });
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      setSilentFetchStats(data || []);
+    } catch (err: any) {
+      console.error('Error loading silent fetch stats:', err);
     }
   };
 
@@ -466,38 +499,64 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
 
                 {/* Silent Fetch Mode */}
                 <div className="p-4 border border-neutral-200 dark:border-neutral-800 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={config.silent_fetch_enabled || false}
-                      onChange={(e) => setConfig({ ...config, silent_fetch_enabled: e.target.checked })}
-                      className="w-4 h-4 text-brand-600 bg-neutral-100 border-neutral-300 rounded focus:ring-brand-500"
-                    />
+                  <div className="flex items-start justify-between mb-3">
                     <div>
-                      <span className="text-sm font-medium text-neutral-900 dark:text-white">
-                        Enable Silent Fetch Mode
-                      </span>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
-                        Silently hit tracking URL in background, bypass bucket system entirely
+                      <label className="flex items-center gap-2 cursor-pointer mb-2">
+                        <input
+                          type="checkbox"
+                          checked={config.silent_fetch_enabled || false}
+                          onChange={(e) => setConfig({ ...config, silent_fetch_enabled: e.target.checked })}
+                          className="w-4 h-4 text-brand-600 bg-neutral-100 border-neutral-300 rounded focus:ring-brand-500"
+                        />
+                        <div>
+                          <span className="text-sm font-medium text-neutral-900 dark:text-white">
+                            Enable Silent Fetch Mode
+                          </span>
+                        </div>
+                      </label>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 ml-6">
+                        Silently hit tracking URL in background via client-side fetch. Cookies are set in user's browser. Bypasses bucket system entirely.
                       </p>
                     </div>
-                  </label>
+                    {config.silent_fetch_enabled && (
+                      <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full font-medium whitespace-nowrap">
+                        Active
+                      </span>
+                    )}
+                  </div>
                   
                   {config.silent_fetch_enabled && (
-                    <div className="mt-3 ml-6">
-                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                        Tracking URL (optional)
-                      </label>
-                      <input
-                        type="url"
-                        value={config.silent_fetch_url || ''}
-                        onChange={(e) => setConfig({ ...config, silent_fetch_url: e.target.value })}
-                        placeholder="Leave empty to use offer URL"
-                        className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-white focus:ring-2 focus:ring-brand-500"
-                      />
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                        If empty, will use offer URL from settings. The URL will be hit with user's IP and country headers.
-                      </p>
+                    <div className="mt-4 ml-6 space-y-4 border-l-2 border-blue-200 dark:border-blue-800 pl-4">
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                          Tracking URL
+                        </label>
+                        <input
+                          type="url"
+                          value={config.silent_fetch_url || ''}
+                          onChange={(e) => setConfig({ ...config, silent_fetch_url: e.target.value })}
+                          placeholder="Leave empty to use offer URL"
+                          className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-white focus:ring-2 focus:ring-brand-500"
+                        />
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                          If empty, will use offer URL from settings. The URL will be hit with user's IP and country headers.
+                        </p>
+                      </div>
+
+                      {/* Silent Fetch Stats */}
+                      {silentFetchStats && silentFetchStats.length > 0 && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                          <p className="text-xs font-medium text-blue-900 dark:text-blue-300 mb-2">📊 Silent Fetch Activity (Last 7 days)</p>
+                          <div className="space-y-1 text-xs text-blue-800 dark:text-blue-400">
+                            {silentFetchStats.slice(0, 3).map((stat) => (
+                              <div key={stat.fetch_date} className="flex justify-between">
+                                <span>{new Date(stat.fetch_date).toLocaleDateString()}</span>
+                                <span>{stat.total_fetches} requests • {stat.unique_countries} countries</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
