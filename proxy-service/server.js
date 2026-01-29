@@ -82,6 +82,12 @@ const webhookSuffixRoutes = require('./routes/webhook-suffix-handler');
 app.use('/api/webhook-campaign', webhookCampaignRoutes);
 app.use('/api/webhook-suffix', webhookSuffixRoutes);
 
+// Google Ads Click Handler Routes (Fast redirect system)
+const googleAdsClickHandlers = require('./routes/google-ads-click');
+app.get('/click', googleAdsClickHandlers.handleClick);
+app.get('/click/health', googleAdsClickHandlers.handleHealthCheck);
+app.get('/click/bucket-stats', googleAdsClickHandlers.handleBucketStats);
+
 // Utility function to convert bytes to human-readable format
 function formatBytes(bytes) {
   if (bytes === null || bytes === undefined) return 'unknown';

@@ -1,0 +1,86 @@
+
+🔍 Found 39 unique root domains from 48 tracker URLs
+
+📊 Checking domain availability...
+
+Batch 1/13...
+❌ fff.com.vn - Invalid response
+⛔ my.games - Taken
+⛔ 2performant.com - Taken
+Batch 2/13...
+❌ dmm.co.jp - Invalid response
+⛔ johren.net - Taken
+⛔ 6sc.co - Taken
+Batch 3/13...
+❌ ebis.ne.jp - Invalid response
+⛔ johren.games - Taken
+⛔ dmm.com - Taken
+Batch 4/13...
+⛔ adsever.in - Taken
+⛔ aiotrack.org - Taken
+⛔ adsplay.in - Taken
+Batch 5/13...
+⛔ andromobi.com - Taken
+⛔ ai-track.net - Taken
+⛔ ai-trk.com - Taken
+Batch 6/13...
+⛔ mememasti.com - Taken
+⛔ ads-astra.com - Taken
+⛔ adition.com - Taken
+Batch 7/13...
+⛔ breaknewz.com - Taken
+⛔ bulletinweb.com - Taken
+❌ khelgali.com - Invalid response
+Batch 8/13...
+❌ crickcounty.com - Invalid response
+❌ techtubebox.com - Invalid response
+❌ travellercounty.com - Invalid response
+Batch 9/13...
+❌ adaxxcloud.com - Invalid response
+❌ dfinery.io - Invalid response
+❌ ab-x.link - Invalid response
+Batch 10/13...
+❌ adbrix.io - Invalid response
+❌ adcell.com - Invalid response
+❌ addrevenue.io - Invalid response
+Batch 11/13...
+❌ adform.com - Invalid response
+❌ adflowtracker.com - Invalid response
+❌ adform.net - Invalid response
+Batch 12/13...
+❌ adlucent.com - Invalid response
+❌ seadform.net - Invalid response
+❌ adjust.com - Invalid response
+Batch 13/13...
+❌ tjzuh.com - Invalid response
+❌ admitad.com - Invalid response
+❌ day24.online - Invalid response
+
+============================================================
+📋 SUMMARY
+============================================================
+✅ Available for purchase: 0
+⛔ Already registered: 17
+❌ Errors/Unknown: 22
+
+⚠️  ERRORS (check manually):
+============================================================
+  • fff.com.vn - Invalid response format
+  • dmm.co.jp - Invalid response format
+  • ebis.ne.jp - Invalid response format
+  • khelgali.com - Invalid response format
+  • crickcounty.com - Invalid response format
+  • techtubebox.com - Invalid response format
+  • travellercounty.com - Invalid response format
+  • adaxxcloud.com - Invalid response format
+  • dfinery.io - Invalid response format
+  • ab-x.link - Invalid response format
+  • adbrix.io - Invalid response format
+  • adcell.com - Invalid response format
+  • addrevenue.io - Invalid response format
+  • adform.com - Invalid response format
+  • adflowtracker.com - Invalid response format
+  ... and 7 more errors
+
+✨ Check complete!
+

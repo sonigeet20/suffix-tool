@@ -359,13 +359,14 @@ async function handleBucketStats(req, res) {
 async function checkIfBlocked(clientIp, userAgent, clientCountry, googleAdsConfig) {
   const config = googleAdsConfig.filtering || {};
   
-  // Skip all checks if filtering is disabled
-  if (config.enabled === false) {
+  // Skip all checks if filtering is EXPLICITLY disabled or not configured
+  // Default: NO FILTERING unless user explicitly enables it
+  if (config.enabled !== true) { // Must be explicitly true to enable
     return { blocked: false, reason: null };
   }
 
   // 1. BOT DETECTION - Use isbot library (900+ patterns) or fallback to regex
-  if (config.bot_detection !== false) { // Enabled by default
+  if (config.bot_detection === true) { // Must be EXPLICITLY true to enable
     // Try isbot library first (most comprehensive)
     if (isbot) {
       try {
@@ -465,7 +466,7 @@ async function checkIfBlocked(clientIp, userAgent, clientCountry, googleAdsConfi
   }
 
   // 7. DATA CENTER DETECTION - Query centralized GeoIP service
-  if (config.block_datacenters !== false) { // Enabled by default if configured
+  if (config.block_datacenters === true) { // Must be EXPLICITLY true to enable
     try {
       const geoipData = await queryGeoIPService(clientIp);
       
@@ -481,7 +482,7 @@ async function checkIfBlocked(clientIp, userAgent, clientCountry, googleAdsConfi
   }
 
   // 8. VPN/PROXY DETECTION - Check for VPN/proxy providers and suspicious ISPs
-  if (config.block_vpn_proxy !== false) { // Enabled by default if configured
+  if (config.block_vpn_proxy === true) { // Must be EXPLICITLY true to enable
     try {
       const geoipData = await queryGeoIPService(clientIp);
       
@@ -501,9 +502,9 @@ async function checkIfBlocked(clientIp, userAgent, clientCountry, googleAdsConfi
   }
 
   // 9. REPEAT IP DETECTION - Block IPs that have received suffixes recently
-  // Default: 7 days window. If same IP returns, give clean redirect (no suffix)
-  const repeatIpWindow = config.repeat_ip_window_days || 7;
-  if (repeatIpWindow > 0) {
+  // Only enabled if explicitly configured in frontend
+  const repeatIpWindow = config.repeat_ip_window_days;
+  if (config.block_repeat_ips === true && repeatIpWindow && repeatIpWindow > 0) {
     try {
       const cutoffTime = new Date(Date.now() - repeatIpWindow * 24 * 60 * 60 * 1000).toISOString();
       
