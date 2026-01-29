@@ -125,7 +125,7 @@ CREATE OR REPLACE FUNCTION get_recent_click_events(
     p_limit INTEGER DEFAULT 10
 )
 RETURNS TABLE (
-    id BIGINT,
+    id UUID,
     click_timestamp TIMESTAMP WITH TIME ZONE,
     user_ip TEXT,
     target_country TEXT,
