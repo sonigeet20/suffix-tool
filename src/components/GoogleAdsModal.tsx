@@ -62,6 +62,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
   
   const [trackingDomains, setTrackingDomains] = useState<string[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<string>('');
+  const [finalUrl, setFinalUrl] = useState<string>('');
   const [bucketStats, setBucketStats] = useState<BucketStat[]>([]);
   const [clickStats, setClickStats] = useState<ClickStats | null>(null);
   const [silentFetchStats, setSilentFetchStats] = useState<SilentFetchStats[] | null>(null);
@@ -100,14 +101,20 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
     }
   }, [config.silent_fetch_enabled, offerName]);
 
-  // Update template when domain changes
+  // Update template when domain or finalUrl changes
   useEffect(() => {
-    if (selectedDomain) {
+    if (selectedDomain && finalUrl) {
+      const encodedUrl = encodeURIComponent(finalUrl);
+      setTemplate(
+        `https://${selectedDomain}/click?offer_name=${offerName}&force_transparent=true&meta_refresh=true&redirect_url=${encodedUrl}`
+      );
+    } else if (selectedDomain && !finalUrl) {
+      // Fallback with {lpurl} if no final URL provided
       setTemplate(
         `https://${selectedDomain}/click?offer_name=${offerName}&force_transparent=true&meta_refresh=true&redirect_url={lpurl}`
       );
     }
-  }, [selectedDomain, offerName]);
+  }, [selectedDomain, offerName, finalUrl]);
 
   const loadData = async () => {
     try {
@@ -131,7 +138,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
       // Load offer config
       const { data: offer, error: offerError } = await supabase
         .from('offers')
-        .select('google_ads_config')
+        .select('google_ads_config, final_url')
         .eq('offer_name', offerName)
         .single();
 
@@ -139,6 +146,10 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
 
       if (offer?.google_ads_config) {
         setConfig(offer.google_ads_config);
+      }
+      
+      if (offer?.final_url) {
+        setFinalUrl(offer.final_url);
       }
 
       // Load bucket stats
@@ -361,7 +372,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-neutral-900 rounded-lg max-w-5xl w-full my-8">
+      <div className="bg-white dark:bg-neutral-900 rounded-lg max-w-5xl w-full my-8 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-neutral-200 dark:border-neutral-800">
           <div>
@@ -380,7 +391,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto flex-1">
           {error && (
             <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -429,6 +440,23 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                     ))}
                   </select>
                 )}
+              </div>
+
+              {/* Final URL Input */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                  Final URL (Landing Page) *
+                </label>
+                <input
+                  type="url"
+                  value={finalUrl}
+                  onChange={(e) => setFinalUrl(e.target.value)}
+                  placeholder="e.g., https://surfshark.com/"
+                  className="w-full px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent text-neutral-900 dark:text-white"
+                />
+                <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                  Enter the final landing page URL where users will be redirected (from your Offers tab)
+                </p>
               </div>
 
               {/* Template URL */}
