@@ -112,37 +112,49 @@ async function handleClick(req, res) {
       // Get tracking URL (use custom URL or fallback to offer URL)
       const trackingUrl = googleAdsConfig.silent_fetch_url || offer.url;
       
-      // Fire-and-forget: Hit tracking URL in background
-      triggerSilentFetch(offer_name, trackingUrl, clientIp, userAgent, clientCountry).catch(err => {
-        console.error('[google-ads-click] Silent fetch failed:', err.message || err);
-      });
-      
       // Log stats (async, non-blocking)
       logSilentFetchStats(offer_name, clientCountry, clientIp).catch(err => {
         console.error('[google-ads-click] Failed to log silent fetch stats:', err);
       });
       
-      // Return clean redirect immediately (no suffix)
+      // Return HTML with client-side fetch (for cookies) + redirect
       const responseTime = Date.now() - startTime;
       console.log(`[google-ads-click] Silent fetch redirect completed in ${responseTime}ms`);
       
-      if (useMetaRefresh) {
-        const html = `<!DOCTYPE html>
+      const html = `<!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="refresh" content="0;url=${finalUrl}">
   <meta name="referrer" content="no-referrer">
   <title>Redirecting...</title>
+  <script>
+    // Client-side silent fetch - ensures cookies are set in user's browser
+    (function() {
+      var trackingUrl = ${JSON.stringify(trackingUrl)};
+      var landingUrl = ${JSON.stringify(finalUrl)};
+      
+      // Fire tracking URL silently (cookies will be set in user's browser)
+      fetch(trackingUrl, {
+        method: 'GET',
+        mode: 'no-cors', // Bypass CORS, don't need response
+        credentials: 'include' // Include cookies
+      }).catch(function(err) {
+        console.log('Silent fetch error (expected):', err);
+      });
+      
+      // Redirect to landing page after 100ms (gives time for fetch to start)
+      setTimeout(function() {
+        window.location.href = landingUrl;
+      }, 100);
+    })();
+  </script>
 </head>
 <body>
   <p>Redirecting...</p>
 </body>
 </html>`;
-        res.setHeader('Content-Type', 'text/html');
-        return res.send(html);
-      }
       
-      return res.redirect(302, finalUrl);
+      res.setHeader('Content-Type', 'text/html');
+      return res.send(html);
     }
     
     // Continue with normal bucket logic (unchanged)
@@ -802,31 +814,6 @@ async function checkAndAlert(offerName, eventId) {
     }
   } catch (error) {
     console.error('[google-ads-click] Failed to check/send alert:', error);
-  }
-}
-
-/**
- * Trigger silent fetch - hits tracking URL without waiting for response
- * Fire and forget - doesn't block the redirect
- */
-async function triggerSilentFetch(offerName, trackingUrl, clientIp, userAgent, clientCountry) {
-  try {
-    console.log(`[google-ads-click] Triggering silent fetch for ${offerName}: ${trackingUrl}`);
-    
-    // Hit the tracking URL with original headers
-    await axios.get(trackingUrl, {
-      headers: {
-        'User-Agent': userAgent || 'Mozilla/5.0',
-        'X-Forwarded-For': clientIp,
-        'X-Country': clientCountry
-      },
-      validateStatus: () => true // Accept any status code
-    });
-    
-    console.log(`[google-ads-click] Silent fetch completed for ${offerName}`);
-  } catch (error) {
-    console.error(`[google-ads-click] Silent fetch exception for ${offerName}:`, error.message);
-    // Don't throw - this should never block the redirect
   }
 }
 
