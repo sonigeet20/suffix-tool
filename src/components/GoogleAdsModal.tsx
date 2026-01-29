@@ -82,7 +82,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
   useEffect(() => {
     if (selectedDomain) {
       setTemplate(
-        `https://${selectedDomain}/click?offer_name=${offerName}&force_transparent=true&redirect_url={lpurl}`
+        `https://${selectedDomain}/click?offer_name=${offerName}&force_transparent=true&meta_refresh=true&redirect_url={lpurl}`
       );
     }
   }, [selectedDomain, offerName]);

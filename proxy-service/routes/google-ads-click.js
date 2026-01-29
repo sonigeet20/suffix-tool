@@ -69,8 +69,9 @@ async function handleClick(req, res) {
   
   try {
     // Accept both 'url' and 'redirect_url' parameter names (Google Ads uses redirect_url)
-    const { offer_name, url: landingPageUrl, redirect_url: redirectUrlParam, force_transparent } = req.query;
+    const { offer_name, url: landingPageUrl, redirect_url: redirectUrlParam, force_transparent, meta_refresh } = req.query;
     const finalUrl = landingPageUrl || redirectUrlParam;
+    const useMetaRefresh = meta_refresh === 'true';
 
     // Validate required parameters
     if (!offer_name || !finalUrl) {
@@ -229,7 +230,23 @@ async function handleClick(req, res) {
     const responseTime = Date.now() - startTime;
     console.log(`[google-ads-click] Redirect completed in ${responseTime}ms`);
 
-    // Perform redirect (302 temporary redirect)
+    // Perform redirect (meta refresh hides referrer, 302 is standard)
+    if (useMetaRefresh) {
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+  <meta name="referrer" content="no-referrer">
+  <title>Redirecting...</title>
+</head>
+<body>
+  <p>Redirecting...</p>
+</body>
+</html>`;
+      res.setHeader('Content-Type', 'text/html');
+      return res.send(html);
+    }
+
     return res.redirect(302, redirectUrl);
 
   } catch (error) {
