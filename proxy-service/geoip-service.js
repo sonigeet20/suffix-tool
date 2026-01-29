@@ -52,12 +52,18 @@ app.get('/geoip/:ip', (req, res) => {
 
     const ip = req.params.ip;
     
-    // Validate IP format
-    if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
+    // Simple IP validation - accept if it contains colons (IPv6) or dots (IPv4)
+    // Let maxmind handle the actual validation
+    if (!ip || typeof ip !== 'string' || ip.length < 3) {
+      return res.status(400).json({ error: 'Invalid IP' });
+    }
+    
+    // Basic sanity check: must have either colons (IPv6) or dots (IPv4)
+    if (!ip.includes(':') && !ip.includes('.')) {
       return res.status(400).json({ error: 'Invalid IP format' });
     }
 
-    // Get city data
+    // Get city data (maxmind supports both IPv4 and IPv6)
     const cityData = cityReader.get(ip);
     const asnData = asnReader.get(ip);
 

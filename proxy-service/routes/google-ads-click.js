@@ -85,14 +85,37 @@ async function handleClick(req, res) {
 
     // Get client info - extract REAL user IP from headers (prioritize in order):
     // 1. CF-Connecting-IP (Cloudflare - most reliable for real user IP)
-    // 2. X-Forwarded-For (first IP = original client IP, but NLB adds itself here)
+    // 2. X-Forwarded-For (first PUBLIC IP = original client IP, skip private IPs)
     // 3. X-Real-IP (nginx/proxy)
     // 4. req.ip (fallback to express detected IP)
-    let clientIp = req.headers['cf-connecting-ip'] ||
-                   req.headers['x-forwarded-for']?.split(',')[0].trim() ||
-                   req.headers['x-real-ip'] ||
-                   req.ip || 
-                   req.connection.remoteAddress;
+    
+    // Helper to check if IP is private
+    const isPrivateIP = (ip) => {
+      if (!ip) return true;
+      const parts = ip.split('.');
+      if (parts.length !== 4) return false; // Not IPv4, keep it
+      const first = parseInt(parts[0]);
+      const second = parseInt(parts[1]);
+      return (
+        first === 10 ||
+        first === 127 ||
+        (first === 172 && second >= 16 && second <= 31) ||
+        (first === 192 && second === 168)
+      );
+    };
+    
+    let clientIp = req.headers['cf-connecting-ip'] || null;
+    
+    // If no CF header, extract first PUBLIC IP from X-Forwarded-For chain
+    if (!clientIp && req.headers['x-forwarded-for']) {
+      const ipChain = req.headers['x-forwarded-for'].split(',').map(ip => ip.trim());
+      clientIp = ipChain.find(ip => !isPrivateIP(ip)) || ipChain[0]; // First public IP or fallback to first
+    }
+    
+    // Final fallbacks
+    if (!clientIp) {
+      clientIp = req.headers['x-real-ip'] || req.ip || req.connection.remoteAddress;
+    }
     
     console.log(`[google-ads-click] Client IP extracted: ${clientIp} (cf-connecting-ip: ${req.headers['cf-connecting-ip']}, x-forwarded-for: ${req.headers['x-forwarded-for']}, req.ip: ${req.ip})`);
     
