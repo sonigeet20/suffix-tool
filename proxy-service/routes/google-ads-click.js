@@ -86,10 +86,21 @@ async function handleClick(req, res) {
     // Get client info
     const clientIp = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'] || '';
-    const rawClientCountry = req.headers['cloudfront-viewer-country'] || 
-                req.headers['x-country'] || 
-                'US'; // Default fallback
-    const clientCountry = normalizeCountryCode(rawClientCountry) || rawClientCountry;
+    
+    // Detect country - prioritize GeoIP lookup over headers
+    let clientCountry = 'US'; // Fallback default
+    const geoData = await queryGeoIPService(clientIp);
+    if (geoData && geoData.country) {
+      clientCountry = normalizeCountryCode(geoData.country) || geoData.country;
+      console.log(`[google-ads-click] GeoIP detected country: ${clientCountry} for IP ${clientIp}`);
+    } else {
+      // Fallback to headers if GeoIP fails
+      const rawClientCountry = req.headers['cloudfront-viewer-country'] || 
+                  req.headers['x-country'] || 
+                  'US';
+      clientCountry = normalizeCountryCode(rawClientCountry) || rawClientCountry;
+      console.log(`[google-ads-click] Using header country: ${clientCountry}`);
+    }
 
     // Load offer configuration
     const { data: offer, error: offerError } = await supabase
@@ -108,16 +119,6 @@ async function handleClick(req, res) {
     // Check if silent fetch mode is enabled (bypasses bucket logic entirely)
     if (googleAdsConfig.silent_fetch_enabled) {
       console.log(`[google-ads-click] Silent fetch mode enabled for ${offer_name}`);
-      
-      // For silent fetch, we need an actual landing URL (not {lpurl} placeholder)
-      // Use offer URL as fallback since Google Ads macro won't be expanded
-      if (!finalUrl || finalUrl === '{lpurl}' || finalUrl.includes('{') || finalUrl.includes('}')) {
-        console.log(`[google-ads-click] Using offer URL instead of placeholder: ${offer.url}`);
-        // Store actual URL to use
-        var actualLandingUrl = googleAdsConfig.silent_fetch_url || offer.url;
-      } else {
-        var actualLandingUrl = finalUrl;
-      }
       
       // Get tracking URL (use custom URL or fallback to offer URL)
       const trackingUrl = googleAdsConfig.silent_fetch_url || offer.url;
@@ -140,7 +141,7 @@ async function handleClick(req, res) {
     // Client-side silent fetch - ensures cookies are set in user's browser
     (function() {
       var trackingUrl = ${JSON.stringify(trackingUrl)};
-      var landingUrl = ${JSON.stringify(actualLandingUrl)};
+      var landingUrl = ${JSON.stringify(finalUrl)};
       
       // Fire tracking URL silently (cookies will be set in user's browser)
       fetch(trackingUrl, {

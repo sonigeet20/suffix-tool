@@ -81,6 +81,10 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
   // State for recent click events
   const [recentClicks, setRecentClicks] = useState<any[]>([]);
   const [loadingClicks, setLoadingClicks] = useState(false);
+  
+  // State for click analytics
+  const [clickAnalytics, setClickAnalytics] = useState<any>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   // Load initial data
   useEffect(() => {
@@ -143,6 +147,9 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
       // Load today's click stats
       await loadClickStats();
       
+      // Load click analytics (real vs bot breakdown)
+      await loadClickAnalytics();
+      
       // Load recent click events
       await loadRecentClicks();
 
@@ -168,6 +175,25 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
       console.error('Error loading recent clicks:', err);
     } finally {
       setLoadingClicks(false);
+    }
+  };
+
+  const loadClickAnalytics = async () => {
+    try {
+      setLoadingAnalytics(true);
+      const { data, error } = await supabase.rpc('get_click_stats_by_category', {
+        p_offer_name: offerName,
+        p_days: 7
+      });
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setClickAnalytics(data[0]);
+      }
+    } catch (err: any) {
+      console.error('Error loading click analytics:', err);
+    } finally {
+      setLoadingAnalytics(false);
     }
   };
 
@@ -702,6 +728,72 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                   </div>
                 </div>
               )}
+
+              {/* Click Analytics - Real Users vs Bots */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    Click Analytics (7 Days)
+                  </h3>
+                  <button
+                    onClick={loadClickAnalytics}
+                    disabled={loadingAnalytics}
+                    className="px-3 py-1.5 bg-neutral-600 hover:bg-neutral-700 disabled:bg-neutral-400 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loadingAnalytics ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+
+                {loadingAnalytics ? (
+                  <div className="p-8 text-center bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-neutral-400" />
+                    <p className="text-neutral-600 dark:text-neutral-400">Loading...</p>
+                  </div>
+                ) : clickAnalytics ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                        {clickAnalytics.real_users}
+                      </div>
+                      <div className="text-sm text-neutral-600 dark:text-neutral-400 mb-1">Real Users</div>
+                      <div className="text-xs text-neutral-500 dark:text-neutral-500">
+                        {clickAnalytics.real_user_percentage}% of total
+                      </div>
+                    </div>
+                    <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                      <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                        {clickAnalytics.google_bots}
+                      </div>
+                      <div className="text-sm text-neutral-600 dark:text-neutral-400 mb-1">Google Bots</div>
+                      <div className="text-xs text-neutral-500 dark:text-neutral-500">
+                        {clickAnalytics.google_bot_percentage}% of total
+                      </div>
+                    </div>
+                    <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                      <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                        {clickAnalytics.total_clicks}
+                      </div>
+                      <div className="text-sm text-neutral-600 dark:text-neutral-400 mb-1">Total Clicks</div>
+                      <div className="text-xs text-neutral-500 dark:text-neutral-500">
+                        Last 7 days
+                      </div>
+                    </div>
+                    <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                      <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                        {clickAnalytics.invalid_clicks}
+                      </div>
+                      <div className="text-sm text-neutral-600 dark:text-neutral-400 mb-1">Invalid/Lost Clicks</div>
+                      <div className="text-xs text-neutral-500 dark:text-neutral-500">
+                        {((clickAnalytics.invalid_clicks / clickAnalytics.total_clicks) * 100).toFixed(1)}% of total
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
+                    <p className="text-neutral-600 dark:text-neutral-400">No analytics data available</p>
+                  </div>
+                )}
+              </div>
 
               {/* Recent Click Events */}
               <div className="mb-6">
