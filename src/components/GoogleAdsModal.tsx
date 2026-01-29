@@ -796,9 +796,10 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                     <p className="text-neutral-600 dark:text-neutral-400">No buckets yet. Click "Fill Buckets" to start.</p>
                   </div>
                 ) : (
-                  <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-neutral-50 dark:bg-neutral-800/50 sticky top-0">
+                  <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden">
+                    <div className="max-h-80 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-neutral-50 dark:bg-neutral-800/50 sticky top-0 z-10">
                         <tr>
                           <th className="px-4 py-2 text-left text-neutral-700 dark:text-neutral-300">Country</th>
                           <th className="px-4 py-2 text-right text-neutral-700 dark:text-neutral-300">Total</th>
@@ -843,6 +844,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                         ))}
                       </tbody>
                     </table>
+                  </div>
                   </div>
                 )}
               </div>
