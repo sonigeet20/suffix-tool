@@ -1,7 +1,9 @@
 -- Click Categorization Functions
 -- Helps distinguish real users from Google bots and track redirect quality
 
--- Function to categorize a click as real user, google bot, or invalid
+-- Function to categorize a click as real user, bot, or invalid
+-- Bot detection based on user agent only (GoogleHypersonic)
+-- Note: google.com/asnc redirects are Google Ads verification, NOT bots - those are real users
 CREATE OR REPLACE FUNCTION categorize_click(
     p_user_agent TEXT,
     p_redirect_url TEXT
@@ -11,15 +13,9 @@ RETURNS TABLE (
     reason TEXT
 ) AS $$
 BEGIN
-  -- Check if Google bot
+  -- Check if Google bot by user agent only
   IF p_user_agent ILIKE '%GoogleHypersonic%' OR p_user_agent ILIKE '%gzip(gfe)%' THEN
-    RETURN QUERY SELECT 'google_bot'::TEXT, 'GoogleHypersonic user agent'::TEXT;
-    RETURN;
-  END IF;
-
-  -- Check if redirect to Google verification endpoint
-  IF p_redirect_url ILIKE '%google.com/asnc%' THEN
-    RETURN QUERY SELECT 'google_bot'::TEXT, 'Redirected to google.com/asnc verification'::TEXT;
+    RETURN QUERY SELECT 'google_bot'::TEXT, 'GoogleHypersonic user agent detected'::TEXT;
     RETURN;
   END IF;
 
@@ -35,7 +31,7 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Check if valid landing page
+  -- Check if valid landing page (including google.com/asnc - real users going through Google verification)
   IF p_redirect_url LIKE 'https://%' OR p_redirect_url LIKE 'http://%' THEN
     RETURN QUERY SELECT 'real_user'::TEXT, 'Valid landing page redirect'::TEXT;
     RETURN;
