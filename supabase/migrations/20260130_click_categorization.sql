@@ -116,6 +116,9 @@ FROM google_ads_click_events gace
 GROUP BY gace.offer_name, (categorize_click(gace.user_agent, gace.redirect_url)).category, gace.clicked_at::DATE
 ORDER BY gace.clicked_at::DATE DESC, gace.offer_name;
 
+-- Drop existing function if it exists (needed because we're changing the return type)
+DROP FUNCTION IF EXISTS get_recent_click_events(TEXT, INTEGER);
+
 -- Function to get recent click events with categorization
 CREATE OR REPLACE FUNCTION get_recent_click_events(
     p_offer_name TEXT DEFAULT NULL,
