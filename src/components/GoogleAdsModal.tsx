@@ -464,6 +464,44 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                   </div>
                 )}
 
+                {/* Silent Fetch Mode */}
+                <div className="p-4 border border-neutral-200 dark:border-neutral-800 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.silent_fetch_enabled || false}
+                      onChange={(e) => setConfig({ ...config, silent_fetch_enabled: e.target.checked })}
+                      className="w-4 h-4 text-brand-600 bg-neutral-100 border-neutral-300 rounded focus:ring-brand-500"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-neutral-900 dark:text-white">
+                        Enable Silent Fetch Mode
+                      </span>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
+                        Silently hit tracking URL in background, bypass bucket system entirely
+                      </p>
+                    </div>
+                  </label>
+                  
+                  {config.silent_fetch_enabled && (
+                    <div className="mt-3 ml-6">
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                        Tracking URL (optional)
+                      </label>
+                      <input
+                        type="url"
+                        value={config.silent_fetch_url || ''}
+                        onChange={(e) => setConfig({ ...config, silent_fetch_url: e.target.value })}
+                        placeholder="Leave empty to use offer URL"
+                        className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-white focus:ring-2 focus:ring-brand-500"
+                      />
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                        If empty, will use offer URL from settings. The URL will be hit with user's IP and country headers.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 {/* Advanced Filter Controls */}
                 {config.apply_filters && (
                   <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg space-y-4">
@@ -705,7 +743,8 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                 )}
               </div>
 
-              {/* Bucket Stats */}
+              {/* Bucket Stats - hide when silent fetch mode is enabled */}
+              {!config.silent_fetch_enabled && (
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
@@ -848,6 +887,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                   </div>
                 )}
               </div>
+              )}
             </>
           )}
         </div>

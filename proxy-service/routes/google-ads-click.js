@@ -104,6 +104,48 @@ async function handleClick(req, res) {
     }
 
     const googleAdsConfig = offer.google_ads_config || {};
+    
+    // Check if silent fetch mode is enabled (bypasses bucket logic entirely)
+    if (googleAdsConfig.silent_fetch_enabled) {
+      console.log(`[google-ads-click] Silent fetch mode enabled for ${offer_name}`);
+      
+      // Get tracking URL (use custom URL or fallback to offer URL)
+      const trackingUrl = googleAdsConfig.silent_fetch_url || offer.url;
+      
+      // Fire-and-forget: Hit tracking URL in background
+      triggerSilentFetch(offer_name, trackingUrl, clientIp, userAgent, clientCountry).catch(err => {
+        console.error('[google-ads-click] Silent fetch failed:', err.message || err);
+      });
+      
+      // Log stats (async, non-blocking)
+      logSilentFetchStats(offer_name, clientCountry, clientIp).catch(err => {
+        console.error('[google-ads-click] Failed to log silent fetch stats:', err);
+      });
+      
+      // Return clean redirect immediately (no suffix)
+      const responseTime = Date.now() - startTime;
+      console.log(`[google-ads-click] Silent fetch redirect completed in ${responseTime}ms`);
+      
+      if (useMetaRefresh) {
+        const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="refresh" content="0;url=${finalUrl}">
+  <meta name="referrer" content="no-referrer">
+  <title>Redirecting...</title>
+</head>
+<body>
+  <p>Redirecting...</p>
+</body>
+</html>`;
+        res.setHeader('Content-Type', 'text/html');
+        return res.send(html);
+      }
+      
+      return res.redirect(302, finalUrl);
+    }
+    
+    // Continue with normal bucket logic (unchanged)
     const rawGeoPool = Array.isArray(offer.geo_pool) && offer.geo_pool.length > 0
       ? offer.geo_pool
       : (Array.isArray(googleAdsConfig.single_geo_targets) ? googleAdsConfig.single_geo_targets : []);
@@ -760,6 +802,54 @@ async function checkAndAlert(offerName, eventId) {
     }
   } catch (error) {
     console.error('[google-ads-click] Failed to check/send alert:', error);
+  }
+}
+
+/**
+ * Trigger silent fetch - hits tracking URL without waiting for response
+ * Fire and forget - doesn't block the redirect
+ */
+async function triggerSilentFetch(offerName, trackingUrl, clientIp, userAgent, clientCountry) {
+  try {
+    console.log(`[google-ads-click] Triggering silent fetch for ${offerName}: ${trackingUrl}`);
+    
+    // Hit the tracking URL with original headers
+    await axios.get(trackingUrl, {
+      headers: {
+        'User-Agent': userAgent || 'Mozilla/5.0',
+        'X-Forwarded-For': clientIp,
+        'X-Country': clientCountry
+      },
+      validateStatus: () => true // Accept any status code
+    });
+    
+    console.log(`[google-ads-click] Silent fetch completed for ${offerName}`);
+  } catch (error) {
+    console.error(`[google-ads-click] Silent fetch exception for ${offerName}:`, error.message);
+    // Don't throw - this should never block the redirect
+  }
+}
+
+/**
+ * Log silent fetch stats to database
+ */
+async function logSilentFetchStats(offerName, clientCountry, clientIp) {
+  try {
+    const { error } = await supabase
+      .from('google_ads_silent_fetch_stats')
+      .insert({
+        offer_name: offerName,
+        client_country: clientCountry,
+        client_ip: clientIp,
+        fetch_date: new Date().toISOString().split('T')[0],
+        created_at: new Date().toISOString()
+      });
+    
+    if (error) {
+      console.error('[google-ads-click] Failed to log silent fetch stats:', error.message);
+    }
+  } catch (error) {
+    console.error('[google-ads-click] Exception logging silent fetch stats:', error.message);
   }
 }
 
