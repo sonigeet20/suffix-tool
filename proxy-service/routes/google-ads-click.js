@@ -254,7 +254,7 @@ async function handleClick(req, res) {
         offer_name,
         suffix.suffix,
         clientCountry,
-        req.ip,
+        clientIp,
         req.headers['user-agent'],
         req.headers['referer'],
         finalUrl,
