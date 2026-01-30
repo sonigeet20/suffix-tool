@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silent Fetch Cookie Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section h2::before {
+            content: '▸';
+            font-size: 20px;
+            color: #667eea;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            flex: 1;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .log-box {
+            background: #1e1e1e;
+            color: #4ec9b0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            line-height: 1.5;
+            margin-top: 10px;
+        }
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #333;
+        }
+        .log-entry.success { color: #4ec9b0; }
+        .log-entry.error { color: #f48771; }
+        .log-entry.warning { color: #dcdcaa; }
+        .log-entry.info { color: #9cdcfe; }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        .status-badge.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .cookies-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+        .cookies-table th {
+            background: #f5f5f5;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
+        }
+        .cookies-table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .cookies-table tr:hover {
+            background: #f9f9f9;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #1565c0;
+            margin-bottom: 20px;
+        }
+        .empty-message {
+            color: #999;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍪 Silent Fetch Cookie Test</h1>
+            <p>Test if silent fetch is setting cookies in your browser</p>
+        </div>
+
+        <div class="content">
+            <!-- Test Configuration -->
+            <div class="section">
+                <h2>Test Configuration</h2>
+                <div class="info-box">
+                    💡 Enter the tracking URL that should set cookies via silent fetch. Use a fresh browser/incognito window for clean testing.
+                </div>
+                
+                <div class="form-group">
+                    <label for="trackingUrl">Tracking URL</label>
+                    <input 
+                        type="url" 
+                        id="trackingUrl" 
+                        placeholder="https://ads.day24.online/click?offer_name=..."
+                        value="https://ads.day24.online/click?offer_name=SURFSHARK_US_WW_SHEET_SMB&force_transparent=true&meta_refresh=true"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="landingUrl">Landing URL (for redirect after fetch)</label>
+                    <input 
+                        type="url" 
+                        id="landingUrl" 
+                        placeholder="https://example.com"
+                        value="https://example.com"
+                    />
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="testSilentFetch()">🚀 Test Silent Fetch</button>
+                    <button class="btn-secondary" onclick="clearLogs()">Clear Log</button>
+                </div>
+            </div>
+
+            <!-- Console Output -->
+            <div class="section">
+                <h2>Execution Log</h2>
+                <div id="logs" class="log-box">
+                    <div class="log-entry info">Ready to test. Click "Test Silent Fetch" button above.</div>
+                </div>
+            </div>
+
+            <!-- Cookies Section -->
+            <div class="section">
+                <h2>Cookies After Fetch</h2>
+                <div class="button-group">
+                    <button class="btn-secondary" onclick="refreshCookies()" style="flex: 1;">🔄 Refresh Cookies</button>
+                </div>
+                <div id="cookies" style="margin-top: 15px;"></div>
+            </div>
+
+            <!-- Network Info -->
+            <div class="section">
+                <h2>How to Verify</h2>
+                <div class="info-box">
+                    <strong>Steps:</strong>
+                    <ol style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                        <li><strong>Open DevTools:</strong> Press F12 (Windows/Linux) or Cmd+Option+I (Mac)</li>
+                        <li><strong>Go to Network Tab:</strong> Watch for the fetch request to your tracking URL</li>
+                        <li><strong>Check Request Headers:</strong> Should include "Cookie: ..." if credentials are being sent</li>
+                        <li><strong>Check Response Headers:</strong> Should have "Set-Cookie: ..." if server sets new cookies</li>
+                        <li><strong>Check this page's cookies:</strong> Click "Refresh Cookies" button below to see all stored cookies</li>
+                        <li><strong>CORS Issues:</strong> If you see CORS errors, the server may need to set proper headers</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- CORS Requirements -->
+            <div class="section">
+                <h2>Server Requirements for Cookies</h2>
+                <div class="info-box">
+                    For cross-domain cookies to work, the tracking server MUST respond with:
+                    <div style="margin-top: 10px; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">
+                        Access-Control-Allow-Origin: [your-domain]<br/>
+                        Access-Control-Allow-Credentials: true<br/>
+                        Set-Cookie: [name]=[value]; SameSite=None; Secure
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const logsDiv = document.getElementById('logs');
+        const cookiesDiv = document.getElementById('cookies');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function clearLogs() {
+            logsDiv.innerHTML = '';
+            log('Logs cleared', 'info');
+        }
+
+        function getAllCookies() {
+            if (!document.cookie) {
+                return {};
+            }
+            return document.cookie.split('; ').reduce((acc, cookie) => {
+                const [name, value] = cookie.split('=');
+                acc[decodeURIComponent(name)] = decodeURIComponent(value);
+                return acc;
+            }, {});
+        }
+
+        function refreshCookies() {
+            const cookies = getAllCookies();
+            const cookieCount = Object.keys(cookies).length;
+
+            if (cookieCount === 0) {
+                cookiesDiv.innerHTML = '<div class="empty-message">No cookies found</div>';
+                log('No cookies found in browser', 'warning');
+                return;
+            }
+
+            let html = `
+                <div class="status-badge success">
+                    ✓ Found ${cookieCount} cookie(s)
+                </div>
+                <table class="cookies-table">
+                    <thead>
+                        <tr>
+                            <th>Cookie Name</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (const [name, value] of Object.entries(cookies)) {
+                html += `
+                    <tr>
+                        <td><strong>${escapeHtml(name)}</strong></td>
+                        <td><code>${escapeHtml(value.substring(0, 50))}${value.length > 50 ? '...' : ''}</code></td>
+                    </tr>
+                `;
+            }
+
+            html += '</tbody></table>';
+            cookiesDiv.innerHTML = html;
+            log(`Found ${cookieCount} cookie(s)`, 'success');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function testSilentFetch() {
+            const trackingUrl = document.getElementById('trackingUrl').value;
+            const landingUrl = document.getElementById('landingUrl').value;
+
+            if (!trackingUrl) {
+                log('Error: Tracking URL is required', 'error');
+                return;
+            }
+
+            log('Starting silent fetch test...', 'info');
+            log(`Tracking URL: ${trackingUrl}`, 'info');
+            log(`Landing URL: ${landingUrl}`, 'info');
+
+            try {
+                log('Initiating fetch with credentials: include...', 'info');
+                const startTime = performance.now();
+
+                const response = await fetch(trackingUrl, {
+                    method: 'GET',
+                    mode: 'no-cors',           // Don't enforce CORS checks
+                    credentials: 'include',     // Include cookies
+                    headers: {
+                        'User-Agent': navigator.userAgent
+                    }
+                });
+
+                const duration = (performance.now() - startTime).toFixed(2);
+                log(`✓ Fetch completed in ${duration}ms`, 'success');
+                log(`Response status: ${response.status}`, 'info');
+                log(`Response type: ${response.type}`, 'info');
+
+                // Try to get response body (will fail with no-cors for opaque responses)
+                if (response.type !== 'opaque') {
+                    const text = await response.text();
+                    log(`Response body length: ${text.length} bytes`, 'info');
+                }
+
+            } catch (err) {
+                log(`✗ Fetch failed: ${err.message}`, 'error');
+                log(`Check browser console (F12) for CORS errors`, 'warning');
+            }
+
+            // Wait 500ms, then refresh cookies to see if any were set
+            log('Waiting 500ms before checking for cookies...', 'info');
+            setTimeout(() => {
+                log('Checking for cookies...', 'info');
+                refreshCookies();
+            }, 500);
+
+            // Also log network details
+            log('Check DevTools Network tab (F12) to see:', 'warning');
+            log('  1. Request to tracking URL was sent', 'warning');
+            log('  2. Request headers include "Cookie" (existing cookies)', 'warning');
+            log('  3. Response headers include "Set-Cookie" (new cookies)', 'warning');
+            log('  4. No CORS errors appear in console', 'warning');
+        }
+
+        // Initial cookie check
+        window.addEventListener('load', () => {
+            log('Page loaded - checking for existing cookies', 'info');
+            refreshCookies();
+        });
+    </script>
+</body>
+</html>
