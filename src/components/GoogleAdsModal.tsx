@@ -98,7 +98,11 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
   useEffect(() => {
     if (config.silent_fetch_enabled) {
       loadSilentFetchStats();
-      const interval = setInterval(loadSilentFetchStats, 30000); // Refresh every 30s
+      loadRecentClicks();
+      const interval = setInterval(() => {
+        loadSilentFetchStats();
+        loadRecentClicks();
+      }, 15000); // Refresh every 15s
       return () => clearInterval(interval);
     }
   }, [config.silent_fetch_enabled, offerName]);
@@ -266,6 +270,75 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
       setSilentFetchStats(data || []);
     } catch (err: any) {
       console.error('Error loading silent fetch stats:', err);
+    }
+  };
+
+  const loadRecentClicks = async () => {
+    try {
+      setLoadingClicks(true);
+      const { data, error } = await supabase
+        .from('google_ads_silent_fetch_stats')
+        .select('*')
+        .eq('offer_name', offerName)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      // Classify clicks
+      const classified = (data || []).map((row: any) => {
+        let ipType = 'Real User';
+        let reason = '';
+
+        if (row.user_agent) {
+          if (row.user_agent.includes('Googlebot') || row.user_agent.includes('AdsBot-Google')) {
+            ipType = 'Google Bot';
+            reason = 'User agent contains Googlebot/AdsBot';
+          } else if (row.user_agent.includes('bingbot') || row.user_agent.includes('BingPreview')) {
+            ipType = 'Bing Bot';
+            reason = 'User agent contains bingbot';
+          }
+        }
+
+        if (row.client_ip && (row.client_ip.startsWith('66.249.') || row.client_ip.startsWith('66.102.'))) {
+          ipType = 'Google Bot';
+          reason = 'IP is from Google bot range';
+        }
+
+        if (row.client_ip && (row.client_ip.startsWith('172.') || row.client_ip.startsWith('10.') || row.client_ip.startsWith('192.168.'))) {
+          ipType = 'Internal/Test';
+          reason = 'Private IP address';
+        }
+
+        return { ...row, ipType, reason };
+      });
+
+      setRecentClicks(classified);
+
+      // Calculate analytics
+      const summary = classified.reduce((acc: any, row: any) => {
+        acc[row.ipType] = (acc[row.ipType] || 0) + 1;
+        return acc;
+      }, {});
+
+      const ipCounts = classified.reduce((acc: any, row: any) => {
+        acc[row.client_ip] = (acc[row.client_ip] || 0) + 1;
+        return acc;
+      }, {});
+
+      const repeatedIps = Object.entries(ipCounts).filter(([, count]) => (count as number) > 5);
+
+      setClickAnalytics({
+        total: classified.length,
+        summary,
+        repeatedIps: repeatedIps.length,
+        cookiesWorking: repeatedIps.length === 0
+      });
+
+    } catch (err: any) {
+      console.error('Error loading recent clicks:', err);
+    } finally {
+      setLoadingClicks(false);
     }
   };
 
@@ -1308,6 +1381,121 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                   </div>
                 )}
               </div>
+
+              {/* Recent Click Logs - show only when silent fetch is enabled */}
+              {config.silent_fetch_enabled && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      📊 Recent Click Logs
+                    </h3>
+                    <button
+                      onClick={loadRecentClicks}
+                      disabled={loadingClicks}
+                      className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-neutral-400 text-white rounded transition-colors flex items-center gap-1"
+                    >
+                      {loadingClicks ? (
+                        <>
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3 h-3" />
+                          Refresh
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Summary Cards */}
+                  {clickAnalytics && (
+                    <div className="grid grid-cols-4 gap-3 mb-4">
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                          {clickAnalytics.total}
+                        </div>
+                        <div className="text-xs text-neutral-600 dark:text-neutral-400">Total Clicks</div>
+                      </div>
+                      <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <div className="text-xl font-bold text-green-600 dark:text-green-400">
+                          {clickAnalytics.summary?.['Real User'] || 0}
+                        </div>
+                        <div className="text-xs text-neutral-600 dark:text-neutral-400">Real Users</div>
+                      </div>
+                      <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                        <div className="text-xl font-bold text-yellow-600 dark:text-yellow-400">
+                          {clickAnalytics.summary?.['Google Bot'] || 0}
+                        </div>
+                        <div className="text-xs text-neutral-600 dark:text-neutral-400">Google Bots</div>
+                      </div>
+                      <div className={`p-3 rounded-lg ${clickAnalytics.cookiesWorking ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
+                        <div className={`text-xl font-bold ${clickAnalytics.cookiesWorking ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {clickAnalytics.cookiesWorking ? '✓' : '✗'}
+                        </div>
+                        <div className="text-xs text-neutral-600 dark:text-neutral-400">Cookies</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clicks Table */}
+                  {recentClicks.length === 0 ? (
+                    <div className="p-8 text-center bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
+                      <p className="text-neutral-600 dark:text-neutral-400">No clicks yet</p>
+                    </div>
+                  ) : (
+                    <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden">
+                      <div className="max-h-96 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="bg-neutral-50 dark:bg-neutral-800/50 sticky top-0 z-10">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-neutral-700 dark:text-neutral-300">Time</th>
+                              <th className="px-3 py-2 text-left text-neutral-700 dark:text-neutral-300">Type</th>
+                              <th className="px-3 py-2 text-left text-neutral-700 dark:text-neutral-300">IP</th>
+                              <th className="px-3 py-2 text-left text-neutral-700 dark:text-neutral-300">Country</th>
+                              <th className="px-3 py-2 text-left text-neutral-700 dark:text-neutral-300">User Agent</th>
+                              <th className="px-3 py-2 text-left text-neutral-700 dark:text-neutral-300">Referrer</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {recentClicks.map((click: any, index: number) => (
+                              <tr key={index} className="border-t border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800/30">
+                                <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                                  {new Date(click.created_at).toLocaleString()}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    click.ipType === 'Real User' 
+                                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                      : click.ipType === 'Google Bot'
+                                      ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
+                                  }`}>
+                                    {click.ipType}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 font-mono text-neutral-600 dark:text-neutral-400">
+                                  {click.client_ip?.substring(0, 20)}
+                                  {click.client_ip?.length > 20 && '...'}
+                                </td>
+                                <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400">
+                                  {click.client_country || '-'}
+                                </td>
+                                <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400 max-w-xs truncate" title={click.user_agent}>
+                                  {click.user_agent || '(not logged)'}
+                                </td>
+                                <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400">
+                                  {click.referrer || '(none)'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Bucket Stats - hide when silent fetch mode is enabled */}
               {!config.silent_fetch_enabled && (
