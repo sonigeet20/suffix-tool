@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracking URL Redirect Path Tracer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section h2::before {
+            content: '▸';
+            font-size: 20px;
+            color: #667eea;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .log-box {
+            background: #1e1e1e;
+            color: #4ec9b0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.5;
+            margin-top: 10px;
+        }
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #333;
+        }
+        .log-entry.success { color: #4ec9b0; }
+        .log-entry.error { color: #f48771; }
+        .log-entry.warning { color: #dcdcaa; }
+        .log-entry.info { color: #9cdcfe; }
+        .log-entry.redirect { color: #ce9178; }
+        .log-entry.header { color: #569cd6; }
+        .log-entry.cookie { color: #c586c0; }
+
+        .redirect-chain {
+            margin-top: 20px;
+        }
+        .redirect-item {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        .redirect-item.start {
+            border-left: 4px solid #667eea;
+        }
+        .redirect-item.redirect {
+            border-left: 4px solid #ff9800;
+        }
+        .redirect-item.end {
+            border-left: 4px solid #4caf50;
+        }
+        .redirect-item.error {
+            border-left: 4px solid #f44336;
+            background: #ffebee;
+        }
+        .redirect-item h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+        .redirect-item .details {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .redirect-item .detail-row {
+            display: flex;
+            margin-bottom: 5px;
+        }
+        .redirect-item .detail-row strong {
+            width: 120px;
+            color: #333;
+        }
+        .redirect-item .detail-row code {
+            flex: 1;
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            word-break: break-all;
+        }
+        .headers-section {
+            margin-top: 10px;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+        .headers-section h4 {
+            font-size: 11px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .header-item {
+            font-size: 11px;
+            color: #666;
+            padding: 3px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .header-item strong {
+            color: #333;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status-badge.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge.redirect {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-badge.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #1565c0;
+            margin-bottom: 20px;
+        }
+        .cookie-summary {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .cookie-summary strong {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Tracking URL Redirect Path Tracer</h1>
+            <p>Follow the complete redirect chain and cookie flow</p>
+        </div>
+
+        <div class="content">
+            <!-- Test Configuration -->
+            <div class="section">
+                <h2>Configuration</h2>
+                <div class="info-box">
+                    💡 Enter your tracking URL to trace the complete redirect path. This shows all intermediate redirects, headers, and cookies at each step.
+                </div>
+                
+                <div class="form-group">
+                    <label for="trackingUrl">Tracking URL to Trace</label>
+                    <input 
+                        type="url" 
+                        id="trackingUrl" 
+                        placeholder="https://ads.day24.online/click?offer_name=..."
+                        value="https://ads.day24.online/click?offer_name=SURFSHARK_US_WW_SHEET_SMB&force_transparent=true&meta_refresh=true"
+                    />
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="traceRedirectPath()" id="traceBtn">🔗 Trace Redirect Path</button>
+                    <button class="btn-secondary" onclick="clearAll()">Clear</button>
+                </div>
+            </div>
+
+            <!-- Execution Log -->
+            <div class="section">
+                <h2>Trace Log</h2>
+                <div id="logs" class="log-box">
+                    <div class="log-entry info">Ready. Click "Trace Redirect Path" button to start.</div>
+                </div>
+            </div>
+
+            <!-- Redirect Chain Visualization -->
+            <div class="section">
+                <h2>Redirect Chain</h2>
+                <div id="redirectChain" class="redirect-chain">
+                    <div style="text-align: center; color: #999; padding: 20px;">
+                        No trace data yet
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cookie Summary -->
+            <div class="section">
+                <h2>Cookie Analysis</h2>
+                <div id="cookieSummary" style="display: none;">
+                    <div id="cookieDetails" class="cookie-summary"></div>
+                </div>
+                <div id="noCookies" style="text-align: center; color: #999; padding: 20px;">
+                    No trace data yet
+                </div>
+            </div>
+
+            <!-- Help Section -->
+            <div class="section">
+                <h2>How to Use</h2>
+                <div class="info-box">
+                    <strong>This tool traces:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                        <li>✓ Initial URL and request method</li>
+                        <li>✓ All redirect responses (301, 302, 307, etc.)</li>
+                        <li>✓ Response headers at each step</li>
+                        <li>✓ Set-Cookie headers (where cookies are set)</li>
+                        <li>✓ Final destination URL</li>
+                        <li>✓ Total redirect count</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const logsDiv = document.getElementById('logs');
+        const redirectChainDiv = document.getElementById('redirectChain');
+        const traceBtn = document.getElementById('traceBtn');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function clearAll() {
+            logsDiv.innerHTML = '<div class="log-entry info">Cleared</div>';
+            redirectChainDiv.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">No trace data yet</div>';
+            document.getElementById('cookieSummary').style.display = 'none';
+            document.getElementById('noCookies').style.display = 'block';
+        }
+
+        async function traceRedirectPath() {
+            const trackingUrl = document.getElementById('trackingUrl').value;
+            
+            if (!trackingUrl) {
+                log('Error: Tracking URL is required', 'error');
+                return;
+            }
+
+            clearAll();
+            traceBtn.disabled = true;
+            log(`Starting trace of: ${trackingUrl}`, 'info');
+            
+            const redirectChain = [];
+            let currentUrl = trackingUrl;
+            let stepCount = 0;
+            const maxSteps = 20;
+            const startTime = performance.now();
+
+            while (stepCount < maxSteps) {
+                stepCount++;
+                log(`[Step ${stepCount}] Fetching: ${currentUrl}`, 'info');
+
+                try {
+                    const response = await fetch(currentUrl, {
+                        method: 'GET',
+                        redirect: 'manual',  // Don't follow redirects automatically
+                        credentials: 'include',
+                        headers: {
+                            'User-Agent': navigator.userAgent
+                        }
+                    });
+
+                    const headers = {};
+                    response.headers.forEach((value, name) => {
+                        headers[name.toLowerCase()] = value;
+                    });
+
+                    const step = {
+                        url: currentUrl,
+                        status: response.status,
+                        statusText: response.statusText,
+                        headers: headers,
+                        setCookies: response.headers.getSetCookie ? response.headers.getSetCookie() : [],
+                        redirectUrl: headers['location']
+                    };
+
+                    redirectChain.push(step);
+                    
+                    log(`[Step ${stepCount}] Status: ${response.status} ${response.statusText}`, 
+                        response.status >= 300 && response.status < 400 ? 'redirect' : 'success');
+
+                    // Check for Set-Cookie headers
+                    const setCookie = headers['set-cookie'];
+                    if (setCookie) {
+                        log(`[Step ${stepCount}] Set-Cookie: ${setCookie.substring(0, 50)}...`, 'cookie');
+                    }
+
+                    // Check for Location header (redirect)
+                    if (response.status >= 300 && response.status < 400 && headers['location']) {
+                        log(`[Step ${stepCount}] Redirecting to: ${headers['location']}`, 'redirect');
+                        currentUrl = headers['location'];
+                        
+                        // Handle relative URLs
+                        try {
+                            currentUrl = new URL(headers['location'], currentUrl).toString();
+                        } catch (e) {
+                            log(`[Step ${stepCount}] Error parsing redirect URL: ${e.message}`, 'error');
+                            break;
+                        }
+                    } else {
+                        // Final destination reached
+                        log(`[Step ${stepCount}] Final destination reached`, 'success');
+                        break;
+                    }
+
+                } catch (err) {
+                    log(`[Step ${stepCount}] Error: ${err.message}`, 'error');
+                    redirectChain.push({
+                        url: currentUrl,
+                        error: err.message
+                    });
+                    break;
+                }
+            }
+
+            if (stepCount >= maxSteps) {
+                log(`Warning: Reached maximum steps (${maxSteps}). May be infinite loop.`, 'warning');
+            }
+
+            const duration = ((performance.now() - startTime) / 1000).toFixed(2);
+            log(`Trace completed in ${duration}s with ${stepCount} steps`, 'success');
+            
+            // Display the redirect chain
+            displayRedirectChain(redirectChain);
+            traceBtn.disabled = false;
+        }
+
+        function displayRedirectChain(chain) {
+            let html = '';
+            const allSetCookies = [];
+
+            chain.forEach((step, index) => {
+                let className = 'redirect-item';
+                let statusBadge = '';
+
+                if (index === 0) {
+                    className += ' start';
+                    statusBadge = '<span class="status-badge">Initial</span>';
+                } else if (step.error) {
+                    className += ' error';
+                    statusBadge = '<span class="status-badge error">Error</span>';
+                } else if (step.status >= 300 && step.status < 400) {
+                    className += ' redirect';
+                    statusBadge = `<span class="status-badge redirect">${step.status}</span>`;
+                } else if (index === chain.length - 1) {
+                    className += ' end';
+                    statusBadge = '<span class="status-badge success">Final</span>';
+                } else {
+                    statusBadge = `<span class="status-badge">${step.status}</span>`;
+                }
+
+                html += `
+                    <div class="${className}">
+                        <h3>
+                            Step ${index + 1}: ${step.url}
+                            ${statusBadge}
+                        </h3>
+                `;
+
+                if (step.error) {
+                    html += `<div class="details" style="color: #d32f2f;">
+                        <strong>Error:</strong> ${step.error}
+                    </div>`;
+                } else {
+                    html += `
+                        <div class="details">
+                            <div class="detail-row">
+                                <strong>Status:</strong>
+                                <code>${step.status} ${step.statusText}</code>
+                            </div>
+                    `;
+
+                    if (step.redirectUrl) {
+                        html += `
+                            <div class="detail-row">
+                                <strong>Location:</strong>
+                                <code>${step.redirectUrl}</code>
+                            </div>
+                        `;
+                    }
+
+                    html += `</div>`;
+
+                    // Response Headers
+                    html += `
+                        <div class="headers-section">
+                            <h4>📤 Response Headers</h4>
+                    `;
+
+                    const relevantHeaders = [
+                        'content-type',
+                        'set-cookie',
+                        'location',
+                        'cache-control',
+                        'access-control-allow-credentials',
+                        'access-control-allow-origin'
+                    ];
+
+                    relevantHeaders.forEach(headerName => {
+                        if (step.headers[headerName]) {
+                            const value = step.headers[headerName];
+                            html += `
+                                <div class="header-item">
+                                    <strong>${headerName}:</strong> ${escapeHtml(value.substring(0, 80))}${value.length > 80 ? '...' : ''}
+                                </div>
+                            `;
+                            
+                            if (headerName === 'set-cookie') {
+                                allSetCookies.push({
+                                    step: index + 1,
+                                    url: step.url,
+                                    cookie: value
+                                });
+                            }
+                        }
+                    });
+
+                    html += `</div>`;
+                }
+
+                html += `</div>`;
+            });
+
+            redirectChainDiv.innerHTML = html;
+
+            // Display cookie summary
+            if (allSetCookies.length > 0) {
+                let cookieHtml = '<strong>Cookies Set During Trace:</strong><br><br>';
+                allSetCookies.forEach(c => {
+                    cookieHtml += `
+                        <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
+                            <strong>Step ${c.step}:</strong> ${c.url}<br>
+                            <code style="font-size: 11px;">${escapeHtml(c.cookie)}</code>
+                        </div>
+                    `;
+                });
+                document.getElementById('cookieDetails').innerHTML = cookieHtml;
+                document.getElementById('cookieSummary').style.display = 'block';
+                document.getElementById('noCookies').style.display = 'none';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
