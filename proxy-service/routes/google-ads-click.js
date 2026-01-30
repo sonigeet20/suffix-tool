@@ -152,10 +152,17 @@ async function handleClick(req, res) {
     
     // Check if silent fetch mode is enabled (bypasses bucket logic entirely)
     if (googleAdsConfig.silent_fetch_enabled) {
-      console.log(`[google-ads-click] Silent fetch mode enabled for ${offer_name}`);
+      console.log(`[google-ads-click] 🔵 Silent fetch mode enabled for ${offer_name}`);
+      console.log(`[google-ads-click] 📊 Request details:`);
+      console.log(`  - IP: ${clientIp}`);
+      console.log(`  - Country: ${clientCountry}`);
+      console.log(`  - User Agent: ${userAgent}`);
+      console.log(`  - Referrer: ${req.headers['referer'] || req.headers['referrer'] || '(none)'}`);
       
       // Get tracking URL (use custom URL or fallback to offer URL)
       const trackingUrl = googleAdsConfig.silent_fetch_url || offer.url;
+      console.log(`  - Tracking URL: ${trackingUrl}`);
+      console.log(`  - Landing URL: ${finalUrl}`);
       
       // Log stats with full context for parallel tracking detection (async, non-blocking)
       const referrer = req.headers['referer'] || req.headers['referrer'] || '';
@@ -898,13 +905,25 @@ async function logSilentFetchStats(offerName, clientCountry, clientIp, userAgent
       console.log(`[google-ads-click] ✓ Logged click: parallel_tracking=${isParallelTracking.detected}, click_id=${clickId}`);
     }
 
-    // Also log to the summary stats table (keep existing behavior)
+    // Also log to the summary stats table with user agent and referrer for cookie verification
     await supabase
       .from('google_ads_silent_fetch_stats')
       .insert({
         offer_name: offerName,
         client_country: clientCountry,
         client_ip: clientIp,
+        user_agent: userAgent,
+        referrer: referrer || null,
+        request_headers: {
+          'user-agent': userAgent,
+          'referer': referrer || null,
+          'cf-connecting-ip': allHeaders['cf-connecting-ip'],
+          'x-forwarded-for': allHeaders['x-forwarded-for'],
+          'accept-language': allHeaders['accept-language'],
+          'sec-ch-ua': allHeaders['sec-ch-ua'],
+          'sec-ch-ua-mobile': allHeaders['sec-ch-ua-mobile'],
+          'sec-ch-ua-platform': allHeaders['sec-ch-ua-platform']
+        },
         fetch_date: new Date().toISOString().split('T')[0],
         created_at: new Date().toISOString()
       });
