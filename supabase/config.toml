@@ -35,3 +35,12 @@ verify_jwt = false
 
 [functions.track-hit-instant]
 verify_jwt = false
+
+[functions.fill-geo-buckets]
+verify_jwt = false
+
+[functions.get-suffix-geo]
+verify_jwt = false
+
+[functions.cleanup-geo-buckets]
+verify_jwt = false

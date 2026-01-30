@@ -63,6 +63,8 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
   const [trackingDomains, setTrackingDomains] = useState<string[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<string>('');
   const [finalUrl, setFinalUrl] = useState<string>('');
+  const [targetCountry, setTargetCountry] = useState<string | null>(null);
+  const [geoPool, setGeoPool] = useState<string[]>([]);
   const [bucketStats, setBucketStats] = useState<BucketStat[]>([]);
   const [clickStats, setClickStats] = useState<ClickStats | null>(null);
   const [silentFetchStats, setSilentFetchStats] = useState<SilentFetchStats[] | null>(null);
@@ -138,7 +140,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
       // Load offer config
       const { data: offer, error: offerError } = await supabase
         .from('offers')
-        .select('google_ads_config, final_url')
+        .select('google_ads_config, final_url, target_country, geo_pool')
         .eq('offer_name', offerName)
         .single();
 
@@ -150,6 +152,15 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
       
       if (offer?.final_url) {
         setFinalUrl(offer.final_url);
+      }
+      
+      // Load geo targeting settings
+      if (offer?.target_country) {
+        setTargetCountry(offer.target_country);
+      }
+      
+      if (offer?.geo_pool && Array.isArray(offer.geo_pool)) {
+        setGeoPool(offer.geo_pool);
       }
 
       // Load bucket stats
@@ -297,6 +308,25 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
       }, 2000); // Poll every 2 seconds
       setStatsPolling(pollInterval);
 
+      // Determine which geos to use based on offer settings
+      let singleGeoTargets: string[];
+      let multiGeoTargets: string[];
+      
+      if (targetCountry) {
+        // Single geo targeting - use target_country
+        singleGeoTargets = [targetCountry];
+        multiGeoTargets = []; // Skip multi-geo for single country offers
+      } else if (geoPool && geoPool.length > 0) {
+        // Multi-geo targeting - use geo_pool
+        singleGeoTargets = geoPool;
+        // Generate multi-geo combinations from geo_pool (optional)
+        multiGeoTargets = config.multi_geo_targets || [];
+      } else {
+        // Fallback to config defaults
+        singleGeoTargets = config.single_geo_targets || [];
+        multiGeoTargets = config.multi_geo_targets || [];
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fill-geo-buckets`,
         {
@@ -307,8 +337,8 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
           },
           body: JSON.stringify({
             offer_name: offerName,
-            single_geo_targets: config.single_geo_targets,
-            multi_geo_targets: config.multi_geo_targets,
+            single_geo_targets: singleGeoTargets,
+            multi_geo_targets: multiGeoTargets,
             single_geo_count: singleGeoCount,
             multi_geo_count: multiGeoCount,
             force: false
