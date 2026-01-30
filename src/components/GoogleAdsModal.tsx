@@ -387,6 +387,64 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
     window.open(testUrl, '_blank');
   };
 
+  const testSilentFetch = () => {
+    if (!config.silent_fetch_enabled) {
+      alert('Silent fetch mode is not enabled!');
+      return;
+    }
+
+    const trackingUrl = config.silent_fetch_url || 'https://example.com'; 
+    const landingUrl = 'https://example.com';
+
+    // Generate the same HTML that the server would generate
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="referrer" content="no-referrer">
+  <title>Silent Fetch Test</title>
+  <script>
+    // Client-side silent fetch - ensures cookies are set in user's browser
+    (function() {
+      var trackingUrl = "${trackingUrl}";
+      var landingUrl = "${landingUrl}";
+      
+      console.log('Starting silent fetch test...');
+      console.log('Tracking URL:', trackingUrl);
+      console.log('Landing URL:', landingUrl);
+      
+      // Fire tracking URL silently (cookies will be set in user's browser)
+      fetch(trackingUrl, {
+        method: 'GET',
+        mode: 'no-cors', // Bypass CORS, don't need response
+        credentials: 'include' // Include cookies
+      }).then(function() {
+        console.log('Silent fetch completed successfully');
+      }).catch(function(err) {
+        console.log('Silent fetch error (expected):', err);
+      });
+      
+      // Redirect to landing page after 100ms (gives time for fetch to start)
+      setTimeout(function() {
+        console.log('Redirecting to landing page...');
+        // window.location.href = landingUrl; // Uncomment to actually redirect
+        alert('Silent fetch test completed! Check browser console (F12) for logs. Redirect would go to: ' + landingUrl);
+      }, 100);
+    })();
+  </script>
+</head>
+<body>
+  <p>Silent Fetch Test in Progress... (Check browser console)</p>
+</body>
+</html>`;
+
+    // Open in new window to see console logs
+    const win = window.open('', '_blank', 'width=600,height=400');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  };
+
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -628,6 +686,15 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                           If empty, will use offer URL from settings. The URL will be hit with user's IP and country headers.
                         </p>
                       </div>
+
+                      {/* Test Silent Fetch Button */}
+                      <button
+                        onClick={testSilentFetch}
+                        className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Test Silent Fetch
+                      </button>
 
                       {/* Silent Fetch Stats */}
                       {silentFetchStats && silentFetchStats.length > 0 && (
