@@ -62,7 +62,17 @@ const logger = winston.createLogger({
   ],
 });
 
-app.use(helmet());
+// Use helmet with CSP disabled for /click route (custom CSP set in route handler)
+app.use((req, res, next) => {
+  if (req.path === '/click') {
+    // Skip helmet's CSP for /click route - custom CSP set in google-ads-click.js
+    helmet({
+      contentSecurityPolicy: false
+    })(req, res, next);
+  } else {
+    helmet()(req, res, next);
+  }
+});
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
