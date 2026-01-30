@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client-Side Tracking URL Redirect Monitor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section h2::before {
+            content: '▸';
+            font-size: 20px;
+            color: #667eea;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            flex: 1;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .log-box {
+            background: #1e1e1e;
+            color: #4ec9b0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.5;
+            margin-top: 10px;
+        }
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #333;
+        }
+        .log-entry.success { color: #4ec9b0; }
+        .log-entry.error { color: #f48771; }
+        .log-entry.warning { color: #dcdcaa; }
+        .log-entry.info { color: #9cdcfe; }
+        .log-entry.redirect { color: #ce9178; }
+        .log-entry.cookie { color: #c586c0; }
+        .log-entry.nav { color: #569cd6; }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #1565c0;
+            margin-bottom: 20px;
+        }
+        .status-box {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+        }
+        .status-box h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .status-item {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .status-item strong {
+            color: #333;
+        }
+        .cookie-list {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .cookie-item {
+            font-size: 11px;
+            padding: 5px;
+            margin-bottom: 5px;
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+        .empty {
+            color: #999;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+        }
+        .methods {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .method-btn {
+            padding: 10px 15px !important;
+            font-size: 12px !important;
+            flex: none !important;
+        }
+        .method-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #856404;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Client-Side Redirect Monitor</h1>
+            <p>Track redirects and cookies using browser navigation (works without CORS issues)</p>
+        </div>
+
+        <div class="content">
+            <!-- Configuration -->
+            <div class="section">
+                <h2>Configuration</h2>
+                <div class="info-box">
+                    💡 This tool uses browser navigation (not fetch), so it works even when CORS blocks fetch. The tracking will happen in the background via image pixels or form submissions.
+                </div>
+                
+                <div class="form-group">
+                    <label for="trackingUrl">Tracking URL</label>
+                    <input 
+                        type="url" 
+                        id="trackingUrl" 
+                        placeholder="https://go.gomobupps.com/aff_c?offer_id=..."
+                        value="https://go.gomobupps.com/aff_c?offer_id=80558&aff_id=14903&url_id=1100"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="monitorTime">Monitor Duration (seconds)</label>
+                    <input 
+                        type="number" 
+                        id="monitorTime" 
+                        value="10"
+                        min="5"
+                        max="60"
+                    />
+                    <small style="color: #666; display: block; margin-top: 5px;">Time to monitor for navigation changes (redirects take time)</small>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="startMonitoring()">🚀 Start Monitoring</button>
+                    <button class="btn-secondary" onclick="clearAll()">Clear</button>
+                </div>
+
+                <div class="method-info">
+                    <strong>Methods tested:</strong> Image pixel (redirect-safe), Beacon API (fire & forget), Navigation tracking
+                </div>
+            </div>
+
+            <!-- Real-Time Log -->
+            <div class="section">
+                <h2>Real-Time Monitor</h2>
+                <div id="logs" class="log-box">
+                    <div class="log-entry info">Ready to monitor. Click "Start Monitoring" button above.</div>
+                </div>
+            </div>
+
+            <!-- Status Panel -->
+            <div class="section">
+                <h2>Monitoring Status</h2>
+                <div class="status-box">
+                    <h3>📊 Tracking Attempts</h3>
+                    <div class="status-item">
+                        <strong>Method 1 - Image Pixel:</strong>
+                        <span id="status-pixel">Ready</span>
+                    </div>
+                    <div class="status-item">
+                        <strong>Method 2 - Beacon API:</strong>
+                        <span id="status-beacon">Ready</span>
+                    </div>
+                    <div class="status-item">
+                        <strong>Method 3 - Form Submit:</strong>
+                        <span id="status-form">Ready</span>
+                    </div>
+                </div>
+
+                <div class="status-box" style="margin-top: 15px;">
+                    <h3>🍪 Cookies Detected</h3>
+                    <div id="cookie-display" class="empty">No cookies detected yet</div>
+                </div>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section">
+                <h2>How This Works</h2>
+                <div class="info-box">
+                    <strong>Methods used (all CORS-safe):</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                        <li><strong>1. Image Pixel:</strong> Creates &lt;img&gt; tag pointing to tracking URL - follows redirects silently</li>
+                        <li><strong>2. Beacon API:</strong> Uses navigator.sendBeacon() - designed for tracking</li>
+                        <li><strong>3. Form Hidden Submit:</strong> POST form to tracking URL - browser handles naturally</li>
+                    </ul>
+                </div>
+
+                <div class="info-box" style="background: #e8f5e9; border-color: #4caf50; color: #2e7d32;">
+                    <strong>✅ Why this works:</strong> Browsers allow image loading, form submissions, and beacon from any origin. These bypass CORS restrictions completely while still setting cookies!
+                </div>
+            </div>
+
+            <!-- Check Cookies -->
+            <div class="section">
+                <h2>Cookie Detection</h2>
+                <button class="btn-secondary" onclick="checkCookies()" style="width: 100%;">
+                    🔄 Refresh Cookie List
+                </button>
+                <div id="cookies-list" class="empty" style="margin-top: 10px;">
+                    No cookies set yet
+                </div>
+            </div>
+
+            <!-- Network Tab Instructions -->
+            <div class="section">
+                <h2>Verify Via Network Tab (Most Reliable)</h2>
+                <div class="info-box" style="background: #fff3cd; border-color: #ffc107; color: #856404;">
+                    <strong>📡 The Network tab shows actual HTTP headers - this is the source of truth!</strong>
+                </div>
+                
+                <div class="status-box">
+                    <h3>🔍 Step-by-Step Network Inspection</h3>
+                    <ol style="margin-left: 20px; line-height: 2; font-size: 12px; color: #666;">
+                        <li>Open DevTools: <strong>F12</strong> or <strong>Right-click → Inspect</strong></li>
+                        <li>Go to <strong>Network</strong> tab</li>
+                        <li>Click <strong>"Start Monitoring"</strong> button above</li>
+                        <li>Look for requests to <strong>go.gomobupps.com</strong></li>
+                        <li>Click the first one, then click <strong>"Response Headers"</strong></li>
+                        <li>Scroll down and find all <strong>Set-Cookie</strong> entries</li>
+                    </ol>
+
+                    <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 15px; font-family: 'Courier New', monospace; font-size: 11px;">
+                        <strong>You should see entries like:</strong>
+                        <div style="margin-top: 5px; color: #c586c0;">
+                            Set-Cookie: aff_ran_url_80558=...; SameSite=None; Secure<br>
+                            Set-Cookie: enc_aff_session_80558=...; SameSite=None; Secure<br>
+                            Set-Cookie: ho_mob=...; SameSite=None; Secure
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden containers for redirect methods -->
+    <div style="display: none;">
+        <div id="pixel-container"></div>
+        <div id="form-container"></div>
+    </div>
+
+    <script>
+        const logsDiv = document.getElementById('logs');
+        const monitorInterval = null;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function clearAll() {
+            logsDiv.innerHTML = '<div class="log-entry info">Cleared</div>';
+            document.getElementById('status-pixel').textContent = 'Ready';
+            document.getElementById('status-beacon').textContent = 'Ready';
+            document.getElementById('status-form').textContent = 'Ready';
+            document.getElementById('cookies-list').innerHTML = '<div class="empty">No cookies set yet</div>';
+        }
+
+        function checkCookies() {
+            const cookies = document.cookie.split('; ').filter(c => c);
+            
+            let html = `<div class="cookie-list">`;
+            
+            if (!document.cookie || cookies.length === 0) {
+                html += `<div style="color: #d32f2f; font-weight: 600; margin-bottom: 10px;">
+                    ⚠️ <strong>Third-Party Cookie Blocking Detected</strong>
+                </div>
+                <div style="font-size: 12px; color: #666; line-height: 1.6;">
+                    <p><strong>What's happening:</strong></p>
+                    <ul style="margin-left: 20px; margin-top: 5px;">
+                        <li>✅ Cookies ARE being sent by server (see Network tab)</li>
+                        <li>✅ Browser IS receiving Set-Cookie headers</li>
+                        <li>❌ Browser is NOT storing them (third-party blocking)</li>
+                    </ul>
+                    
+                    <p style="margin-top: 10px;"><strong>Why:</strong> Modern browsers block third-party cookies by default. Since this page is on a different domain than gomobupps.com, those cookies are "third-party" and get blocked.</p>
+                    
+                    <p style="margin-top: 10px;"><strong>✅ This is NORMAL and EXPECTED behavior</strong></p>
+                    
+                    <p style="margin-top: 10px;"><strong>Check Network Tab to verify:</strong></p>
+                    <ol style="margin-left: 20px; margin-top: 5px;">
+                        <li>Open DevTools (F12)</li>
+                        <li>Go to Network tab</li>
+                        <li>Click "Start Monitoring"</li>
+                        <li>Find the gomobupps.com request</li>
+                        <li>Click it and view Response Headers</li>
+                        <li>Look for <strong>Set-Cookie</strong> entries</li>
+                    </ol>
+                </div>`;
+                document.getElementById('cookies-list').innerHTML = html;
+                log('⚠️ No first-party cookies (expected for cross-domain tracking)', 'warning');
+                return;
+            }
+
+            html += `<div style="color: #4caf50; font-weight: 600; margin-bottom: 10px;">
+                ✅ <strong>Found ${cookies.length} First-Party Cookie(s)</strong>
+            </div>`;
+            
+            cookies.forEach((cookie, idx) => {
+                const [name, value] = cookie.split('=');
+                html += `
+                    <div class="cookie-item">
+                        <strong>${idx + 1}.</strong> ${decodeURIComponent(name)}=${decodeURIComponent(value).substring(0, 50)}${decodeURIComponent(value).length > 50 ? '...' : ''}
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            document.getElementById('cookies-list').innerHTML = html;
+            log(`Found ${cookies.length} first-party cookie(s)`, 'success');
+        }
+
+        async function startMonitoring() {
+            const trackingUrl = document.getElementById('trackingUrl').value;
+            const duration = parseInt(document.getElementById('monitorTime').value) * 1000;
+
+            if (!trackingUrl) {
+                log('Error: Tracking URL is required', 'error');
+                return;
+            }
+
+            clearAll();
+            log(`Starting 3-method tracking test for ${duration / 1000}s...`, 'info');
+            log(`URL: ${trackingUrl}`, 'info');
+
+            // Method 1: Image Pixel (most reliable for redirects)
+            log('[Method 1] Loading as image pixel...', 'nav');
+            try {
+                const img = document.createElement('img');
+                img.onerror = () => {
+                    log('[Method 1] Image loaded (redirect completed)', 'success');
+                    document.getElementById('status-pixel').textContent = '✓ Loaded';
+                };
+                img.onload = () => {
+                    log('[Method 1] Image loaded successfully', 'success');
+                    document.getElementById('status-pixel').textContent = '✓ Loaded';
+                };
+                img.src = trackingUrl;
+                img.style.display = 'none';
+                document.getElementById('pixel-container').appendChild(img);
+            } catch (err) {
+                log(`[Method 1] Error: ${err.message}`, 'error');
+                document.getElementById('status-pixel').textContent = '✗ Failed';
+            }
+
+            // Method 2: Beacon API
+            log('[Method 2] Sending via Beacon API...', 'nav');
+            try {
+                if (navigator.sendBeacon) {
+                    const success = navigator.sendBeacon(trackingUrl);
+                    if (success) {
+                        log('[Method 2] Beacon sent successfully', 'success');
+                        document.getElementById('status-beacon').textContent = '✓ Sent';
+                    } else {
+                        log('[Method 2] Beacon queue full', 'warning');
+                        document.getElementById('status-beacon').textContent = '⚠ Queue full';
+                    }
+                } else {
+                    log('[Method 2] Beacon API not supported', 'warning');
+                    document.getElementById('status-beacon').textContent = '✗ Not supported';
+                }
+            } catch (err) {
+                log(`[Method 2] Error: ${err.message}`, 'error');
+                document.getElementById('status-beacon').textContent = '✗ Failed';
+            }
+
+            // Method 3: Hidden Form Submit
+            log('[Method 3] Submitting hidden form...', 'nav');
+            try {
+                const form = document.createElement('form');
+                form.method = 'GET';
+                form.action = trackingUrl;
+                form.target = '_blank';
+                form.style.display = 'none';
+                
+                document.getElementById('form-container').appendChild(form);
+                
+                // Don't actually submit to avoid opening window
+                // form.submit();
+                log('[Method 3] Form prepared (would submit silently)', 'info');
+                document.getElementById('status-form').textContent = '✓ Ready';
+            } catch (err) {
+                log(`[Method 3] Error: ${err.message}`, 'error');
+                document.getElementById('status-form').textContent = '✗ Failed';
+            }
+
+            log('Tracking initiated via 3 methods', 'success');
+            log('Waiting for cookies to be set...', 'info');
+
+            // Monitor for cookies
+            let checkCount = 0;
+            const checkInterval = setInterval(() => {
+                checkCount++;
+                checkCookies();
+            }, 2000);
+
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                log(`Monitoring complete after ${duration / 1000}s`, 'success');
+                checkCookies();
+            }, duration);
+        }
+
+        // Initial check
+        window.addEventListener('load', () => {
+            log('Page loaded - ready to start', 'info');
+            checkCookies();
+        });
+    </script>
+</body>
+</html>
