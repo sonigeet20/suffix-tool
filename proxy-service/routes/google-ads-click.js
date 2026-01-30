@@ -157,8 +157,9 @@ async function handleClick(req, res) {
       // Get tracking URL (use custom URL or fallback to offer URL)
       const trackingUrl = googleAdsConfig.silent_fetch_url || offer.url;
       
-      // Log stats (async, non-blocking)
-      logSilentFetchStats(offer_name, clientCountry, clientIp).catch(err => {
+      // Log stats with full context for parallel tracking detection (async, non-blocking)
+      const referrer = req.headers['referer'] || req.headers['referrer'] || '';
+      logSilentFetchStats(offer_name, clientCountry, clientIp, userAgent, referrer, req.headers, finalUrl).catch(err => {
         console.error('[google-ads-click] Failed to log silent fetch stats:', err);
       });
       
@@ -862,11 +863,43 @@ async function checkAndAlert(offerName, eventId) {
 }
 
 /**
- * Log silent fetch stats to database
+ * Log silent fetch stats to database with parallel tracking detection
  */
-async function logSilentFetchStats(offerName, clientCountry, clientIp) {
+async function logSilentFetchStats(offerName, clientCountry, clientIp, userAgent, referrer, allHeaders, redirectUrl) {
   try {
+    // Detect if this is a parallel tracking hit
+    const isParallelTracking = detectParallelTracking(userAgent, referrer, allHeaders);
+    
+    // Generate unique click ID for conversion tracking (use gclid if available)
+    const gclid = allHeaders['x-google-gclid'] || extractGclidFromUrl(redirectUrl);
+    const clickId = gclid || `click_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Log detailed click event for parallel tracking analysis
     const { error } = await supabase
+      .from('google_ads_click_events')
+      .insert({
+        offer_name: offerName,
+        suffix: '', // Silent fetch doesn't use suffixes
+        target_country: clientCountry,
+        user_ip: clientIp,
+        user_agent: userAgent,
+        referrer: referrer || null,
+        redirect_url: redirectUrl,
+        response_time_ms: 0,
+        is_parallel_tracking: isParallelTracking.detected,
+        parallel_tracking_indicators: isParallelTracking.indicators,
+        click_id: clickId,
+        clicked_at: new Date().toISOString()
+      });
+    
+    if (error) {
+      console.error('[google-ads-click] Failed to log click event:', error.message);
+    } else {
+      console.log(`[google-ads-click] ✓ Logged click: parallel_tracking=${isParallelTracking.detected}, click_id=${clickId}`);
+    }
+
+    // Also log to the summary stats table (keep existing behavior)
+    await supabase
       .from('google_ads_silent_fetch_stats')
       .insert({
         offer_name: offerName,
@@ -875,12 +908,62 @@ async function logSilentFetchStats(offerName, clientCountry, clientIp) {
         fetch_date: new Date().toISOString().split('T')[0],
         created_at: new Date().toISOString()
       });
-    
-    if (error) {
-      console.error('[google-ads-click] Failed to log silent fetch stats:', error.message);
-    }
+      
   } catch (error) {
     console.error('[google-ads-click] Exception logging silent fetch stats:', error.message);
+  }
+}
+
+/**
+ * Detect if request is from Google parallel tracking
+ */
+function detectParallelTracking(userAgent, referrer, headers) {
+  const indicators = {};
+  let detected = false;
+
+  // Check user agent for Google bot patterns
+  if (userAgent && (
+    userAgent.includes('Googlebot') ||
+    userAgent.includes('AdsBot-Google') ||
+    userAgent.includes('Google-Ads') ||
+    userAgent.includes('Google-adwords')
+  )) {
+    indicators.user_agent_match = true;
+    detected = true;
+  }
+
+  // Check for missing referrer (common in parallel tracking)
+  if (!referrer || referrer.trim() === '') {
+    indicators.no_referrer = true;
+  }
+
+  // Check for Google-specific headers
+  if (headers['x-google-ads-id'] || 
+      headers['x-google-gclid'] ||
+      headers['google-cloud-trace-context']) {
+    indicators.google_headers = true;
+    detected = true;
+  }
+
+  // Check for Cloudflare bot detection
+  if (headers['cf-bot-score'] && parseInt(headers['cf-bot-score']) < 30) {
+    indicators.cloudflare_bot_score = headers['cf-bot-score'];
+    detected = true;
+  }
+
+  return { detected, indicators };
+}
+
+/**
+ * Extract gclid from URL parameters
+ */
+function extractGclidFromUrl(url) {
+  if (!url) return null;
+  try {
+    const urlObj = new URL(url);
+    return urlObj.searchParams.get('gclid');
+  } catch (e) {
+    return null;
   }
 }
 
