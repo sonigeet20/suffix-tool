@@ -73,7 +73,7 @@ serve(async (req) => {
     // Verify offer exists and Google Ads is enabled
     const { data: offer, error: offerError } = await supabase
       .from('offers')
-      .select('id, offer_name, google_ads_config')
+      .select('id, offer_name, google_ads_config, target_country, geo_pool')
       .eq('offer_name', offer_name)
       .single()
 
@@ -90,6 +90,83 @@ serve(async (req) => {
         JSON.stringify({ error: `Google Ads not enabled for offer: ${offer_name}` }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // Validate that requested geos match the offer's target_country or geo_pool
+    let offerTargetGeo = offer.target_country
+    let offerGeoPool: string[] = []
+    
+    // If target_country is blank, use geo_pool
+    if (!offerTargetGeo && offer.geo_pool && Array.isArray(offer.geo_pool) && offer.geo_pool.length > 0) {
+      offerGeoPool = offer.geo_pool as string[]
+      console.log(`[fill-geo-buckets] Using geo_pool for offer: ${offerGeoPool.join(', ')}`)
+    } else if (offerTargetGeo) {
+      console.log(`[fill-geo-buckets] Using target_country for offer: ${offerTargetGeo}`)
+    } else {
+      console.log(`[fill-geo-buckets] No target_country or geo_pool configured - allowing all requested geos`)
+    }
+    
+    let filteredMultiGeoTargets = multi_geo_targets
+    let actualMultiGeoCount = multi_geo_count
+    
+    if (offerTargetGeo || offerGeoPool.length > 0) {
+      // Determine allowed geos
+      const allowedGeos = offerTargetGeo ? [offerTargetGeo] : offerGeoPool
+      
+      // For target_country (single geo), validate single_geo_targets includes it
+      if (offerTargetGeo) {
+        if (!single_geo_targets.includes(offerTargetGeo)) {
+          return new Response(
+            JSON.stringify({ 
+              error: `Single geo targets must include offer target country: ${offerTargetGeo}`,
+              offer_target: offerTargetGeo,
+              requested_singles: single_geo_targets
+            }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      }
+      
+      // For geo_pool (multiple geos), validate single_geo_targets are subset of geo_pool
+      if (offerGeoPool.length > 0) {
+        const invalidGeos = single_geo_targets.filter(g => !offerGeoPool.includes(g))
+        if (invalidGeos.length > 0) {
+          return new Response(
+            JSON.stringify({ 
+              error: `Single geo targets must be subset of offer geo_pool`,
+              offer_geo_pool: offerGeoPool,
+              requested_singles: single_geo_targets,
+              invalid_geos: invalidGeos
+            }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      }
+      
+      // For multi_geo_targets, filter to only groups containing allowed geos
+      filteredMultiGeoTargets = multi_geo_targets.filter(group => {
+        const geoList = group.split(',').map(g => g.trim())
+        // All geos in the group must be in allowedGeos
+        return geoList.every(g => allowedGeos.includes(g))
+      })
+      
+      if (filteredMultiGeoTargets.length < multi_geo_targets.length) {
+        console.warn(
+          `[fill-geo-buckets] Filtering multi-geo groups to match allowed geos`,
+          { 
+            allowed: allowedGeos,
+            provided: multi_geo_targets,
+            filtered: filteredMultiGeoTargets,
+            excluded: multi_geo_targets.filter(g => !filteredMultiGeoTargets.includes(g))
+          }
+        )
+      }
+      
+      // For single-geo-only offers, skip multi-geo buckets
+      if (allowedGeos.length === 1 && single_geo_targets.length === 1 && single_geo_targets[0] === allowedGeos[0]) {
+        actualMultiGeoCount = 0
+        console.log(`[fill-geo-buckets] Single-geo offer (${allowedGeos[0]}) - skipping multi-geo buckets`)
+      }
     }
 
     // Get current bucket status
@@ -242,14 +319,14 @@ serve(async (req) => {
     }
 
     // Fill multi-geo buckets (parallel per group) - skip if count is 0
-    const multiGeoResults = multi_geo_count > 0 ? await Promise.all(
-      multi_geo_targets.map(async (geoGroup) => {
+    const multiGeoResults = actualMultiGeoCount > 0 ? await Promise.all(
+      filteredMultiGeoTargets.map(async (geoGroup) => {
         try {
           // Check if bucket needs filling
           const currentStat = currentStats?.find((s: any) => s.target_country === geoGroup)
           const availableSuffixes = currentStat?.available_suffixes || 0
 
-          if (availableSuffixes >= multi_geo_count && !force) {
+          if (availableSuffixes >= actualMultiGeoCount && !force) {
             console.log(`[fill-geo-buckets] Skipping ${geoGroup} - already has ${availableSuffixes} suffixes`)
             return {
               entry: {
@@ -264,7 +341,7 @@ serve(async (req) => {
             }
           }
 
-          const needed = multi_geo_count - availableSuffixes
+          const needed = actualMultiGeoCount - availableSuffixes
           console.log(`[fill-geo-buckets] Filling ${geoGroup} with ${needed} suffixes`)
 
           // Generate suffixes for this geo group using the existing get-suffix function
