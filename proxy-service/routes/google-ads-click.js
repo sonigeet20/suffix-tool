@@ -25,6 +25,18 @@ const GEOIP_SERVICE_URL = process.env.GEOIP_SERVICE_URL || 'http://localhost:300
 const GEO_PREFILL_COOLDOWN_MS = 10 * 60 * 1000;
 const lastPrefillByOffer = new Map();
 
+/**
+ * Check if user agent is a Google bot (should get immediate redirect)
+ */
+function isGoogleBot(userAgent) {
+  if (!userAgent) return false;
+  const ua = userAgent.toLowerCase();
+  return ua.includes('googlebot') || 
+         ua.includes('adsbot-google') || 
+         ua.includes('google-adwords-instant') ||
+         ua.includes('google page speed insights');
+}
+
 function normalizeCountryCode(code) {
   if (!code || typeof code !== 'string') return null;
   const trimmed = code.trim().toUpperCase();
@@ -149,74 +161,22 @@ async function handleClick(req, res) {
     }
 
     const googleAdsConfig = offer.google_ads_config || {};
+    const silentFetchEnabled = !!googleAdsConfig.silent_fetch_enabled;
     
-    // Check if silent fetch mode is enabled (bypasses bucket logic entirely)
-    if (googleAdsConfig.silent_fetch_enabled) {
-      console.log(`[google-ads-click] 🔵 Silent fetch mode enabled for ${offer_name}`);
-      console.log(`[google-ads-click] 📊 Request details:`);
-      console.log(`  - IP: ${clientIp}`);
-      console.log(`  - Country: ${clientCountry}`);
-      console.log(`  - User Agent: ${userAgent}`);
-      console.log(`  - Referrer: ${req.headers['referer'] || req.headers['referrer'] || '(none)'}`);
-      
-      // Get tracking URL (use custom URL or fallback to offer URL)
-      const trackingUrl = googleAdsConfig.silent_fetch_url || offer.url;
-      console.log(`  - Tracking URL: ${trackingUrl}`);
-      console.log(`  - Landing URL: ${finalUrl}`);
-      
-      // Log stats with full context for parallel tracking detection (async, non-blocking)
-      const referrer = req.headers['referer'] || req.headers['referrer'] || '';
-      logSilentFetchStats(offer_name, clientCountry, clientIp, userAgent, referrer, req.headers, finalUrl).catch(err => {
-        console.error('[google-ads-click] Failed to log silent fetch stats:', err);
-      });
-      
-      // Return HTML with client-side fetch (for cookies) + redirect
-      const responseTime = Date.now() - startTime;
-      console.log(`[google-ads-click] Silent fetch redirect completed in ${responseTime}ms`);
-
-      const debugDelayMsRaw = parseInt(req.query.debug_delay_ms, 10);
-      const redirectDelayMs = Number.isFinite(debugDelayMsRaw)
-        ? Math.min(Math.max(debugDelayMsRaw, 0), 10000)
-        : 100;
-      
-      const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta name="referrer" content="no-referrer">
-  <title>Redirecting...</title>
-  <script>
-    // Client-side silent fetch - ensures cookies are set in user's browser
-    (function() {
-      var trackingUrl = ${JSON.stringify(trackingUrl)};
-      var landingUrl = ${JSON.stringify(finalUrl)};
-      
-      // Fire tracking URL silently (cookies will be set in user's browser)
-      fetch(trackingUrl, {
-        method: 'GET',
-        mode: 'no-cors', // Bypass CORS, don't need response
-        credentials: 'include' // Include cookies
-      }).catch(function(err) {
-        console.log('Silent fetch error (expected):', err);
-      });
-      
-      // Redirect to landing page after delay (gives time for fetch to start)
-      setTimeout(function() {
-        window.location.href = landingUrl;
-      }, ${redirectDelayMs});
-    })();
-  </script>
-</head>
-<body>
-  <p>Redirecting...</p>
-</body>
-</html>`;
-      
-      res.setHeader('Content-Type', 'text/html');
-      res.setHeader(
-        'Content-Security-Policy',
-        "default-src 'none'; script-src 'unsafe-inline'; connect-src *; img-src * data:; style-src 'unsafe-inline'; base-uri 'none'; form-action *; frame-ancestors 'none'"
-      );
-      return res.send(html);
+    // Build dynamic tracking URL by replacing the url parameter with actual landing page
+    let silentFetchTrackingUrl = googleAdsConfig.silent_fetch_url || offer.url;
+    if (silentFetchEnabled && silentFetchTrackingUrl && finalUrl) {
+      // Replace the url parameter in tracking URL with the actual landing page
+      // e.g., https://go.skimresources.com/?id=XXX&url=OLDURL → replace OLDURL with finalUrl
+      const urlMatch = silentFetchTrackingUrl.match(/([?&])url=([^&]*)/);
+      if (urlMatch) {
+        const encodedFinalUrl = encodeURIComponent(finalUrl);
+        silentFetchTrackingUrl = silentFetchTrackingUrl.replace(
+          /([?&])url=([^&]*)/,
+          `$1url=${encodedFinalUrl}`
+        );
+        console.log(`[google-ads-click] Dynamic tracking URL: ${silentFetchTrackingUrl.substring(0, 100)}...`);
+      }
     }
     
     // Continue with normal bucket logic (unchanged)
@@ -266,56 +226,64 @@ async function handleClick(req, res) {
     }
 
     // Try to get suffix from bucket (with FOR UPDATE SKIP LOCKED for concurrency)
-    const shouldUseRandomPoolCountry = geoPool.length > 0 && !geoPool.includes(normalizeCountryCode(clientCountry));
-    const bucketTargetCountry = shouldUseRandomPoolCountry
-      ? geoPool[Math.floor(Math.random() * geoPool.length)]
-      : clientCountry;
-
-    const { data: suffixData, error: suffixError } = await supabase
-      .rpc('get_geo_suffix', {
-        p_offer_name: offer_name,
-        p_target_country: bucketTargetCountry
-      });
-
     let redirectUrl = finalUrl;
     let hasSuffix = false;
+    let suffixValue = '';
     let eventId = null;
+    let bucketTargetCountry = clientCountry;
 
-    if (suffixData && suffixData.length > 0) {
-      // Got a suffix from bucket
-      const suffix = suffixData[0];
-      redirectUrl = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}${suffix.suffix}`;
-      hasSuffix = true;
-      
-      console.log(`[google-ads-click] Served suffix from bucket (${bucketTargetCountry}): ${suffix.suffix.substring(0, 50)}...`);
-      
-      // Log click event (fire and forget)
-      logClickEvent(
-        offer_name,
-        suffix.suffix,
-        clientCountry,
-        clientIp,
-        req.headers['user-agent'],
-        req.headers['referer'],
-        finalUrl,
-        Date.now() - startTime
-      ).then(id => {
-        eventId = id;
-        // Trigger async trace verification
-        return verifyTraceAsync(eventId, finalUrl, offer_name);
-      }).catch(err => {
-        console.error(`[google-ads-click] Failed to log click event:`, err);
-      });
-      
-      // Trigger async trace to refill bucket (fire and forget)
-      triggerAsyncTrace(offer_name, bucketTargetCountry).catch(err => {
-        console.error(`[google-ads-click] Failed to trigger async trace:`, err);
-      });
-      
+    // Skip bucket suffix logic entirely for silent fetch mode
+    if (!silentFetchEnabled) {
+      const shouldUseRandomPoolCountry = geoPool.length > 0 && !geoPool.includes(normalizeCountryCode(clientCountry));
+      bucketTargetCountry = shouldUseRandomPoolCountry
+        ? geoPool[Math.floor(Math.random() * geoPool.length)]
+        : clientCountry;
+
+      const { data: suffixData, error: suffixError } = await supabase
+        .rpc('get_geo_suffix', {
+          p_offer_name: offer_name,
+          p_target_country: bucketTargetCountry
+        });
+
+      if (suffixData && suffixData.length > 0) {
+        // Got a suffix from bucket
+        const suffix = suffixData[0];
+        redirectUrl = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}${suffix.suffix}`;
+        hasSuffix = true;
+        suffixValue = suffix.suffix;
+        
+        console.log(`[google-ads-click] Served suffix from bucket (${bucketTargetCountry}): ${suffix.suffix.substring(0, 50)}...`);
+        
+        // Log click event (fire and forget)
+        logClickEvent(
+          offer_name,
+          suffix.suffix,
+          clientCountry,
+          clientIp,
+          req.headers['user-agent'],
+          req.headers['referer'],
+          finalUrl,
+          Date.now() - startTime
+        ).then(id => {
+          eventId = id;
+          // Trigger async trace verification
+          return verifyTraceAsync(eventId, finalUrl, offer_name);
+        }).catch(err => {
+          console.error(`[google-ads-click] Failed to log click event:`, err);
+        });
+        
+        // Trigger async trace to refill bucket (fire and forget)
+        triggerAsyncTrace(offer_name, bucketTargetCountry).catch(err => {
+          console.error(`[google-ads-click] Failed to trigger async trace:`, err);
+        });
+        
+      } else {
+        // No suffix available in bucket
+        console.warn(`[google-ads-click] No suffix available for ${offer_name} in ${bucketTargetCountry}`);
+        console.log('[google-ads-click] Clean redirect (no suffix)');
+      }
     } else {
-      // No suffix available in bucket
-      console.warn(`[google-ads-click] No suffix available for ${offer_name} in ${bucketTargetCountry}`);
-      console.log('[google-ads-click] Clean redirect (no suffix)');
+      console.log(`[google-ads-click] 🔵 Silent fetch mode - skipping bucket suffix logic`);
     }
 
     // Increment click stats (async, non-blocking)
@@ -336,6 +304,192 @@ async function handleClick(req, res) {
     const responseTime = Date.now() - startTime;
     console.log(`[google-ads-click] Redirect completed in ${responseTime}ms`);
 
+    if (silentFetchEnabled) {
+      console.log(`[google-ads-click] 🔵 Silent fetch mode enabled for ${offer_name}`);
+      
+      // Immediate redirect for Google bots (no delay, no tracking)
+      if (isGoogleBot(userAgent)) {
+        console.log(`[google-ads-click] 🤖 Google bot detected - immediate 302 redirect`);
+        return res.redirect(302, finalUrl);
+      }
+      
+      console.log(`[google-ads-click] 📊 Request details:`);
+      console.log(`  - IP: ${clientIp}`);
+      console.log(`  - Country: ${clientCountry}`);
+      console.log(`  - User Agent: ${userAgent}`);
+      console.log(`  - Referrer: ${req.headers['referer'] || req.headers['referrer'] || '(none)'}`);
+      console.log(`  - Tracking URL: ${silentFetchTrackingUrl}`);
+      console.log(`  - Landing URL: ${redirectUrl}`);
+
+      const referrer = req.headers['referer'] || req.headers['referrer'] || '';
+      logSilentFetchStats(offer_name, clientCountry, clientIp, userAgent, referrer, req.headers, suffixValue, redirectUrl).catch(err => {
+        console.error('[google-ads-click] Failed to log silent fetch stats:', err);
+      });
+
+      const debugDelayMsRaw = parseInt(req.query.debug_delay_ms, 10);
+      const redirectDelayMs = Number.isFinite(debugDelayMsRaw)
+        ? Math.min(Math.max(debugDelayMsRaw, 0), 10000)
+        : 3000;
+
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="referrer" content="no-referrer">
+  <meta charset="UTF-8">
+  <title>Redirecting...</title>
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: #f5f5f5;
+    }
+    .loading {
+      text-align: center;
+      color: #666;
+    }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  <script>
+    // Triple-redundant tracking using ALL 3 methods from client-redirect-monitor.html
+    // All methods fired asynchronously to ensure tracking NEVER fails
+    (function() {
+      var trackingUrl = ${JSON.stringify(silentFetchTrackingUrl)};
+      var landingUrl = ${JSON.stringify(finalUrl)};
+      var delayMs = ${redirectDelayMs};
+      
+      console.log('[Silent Fetch] Starting TRIPLE-METHOD tracking...');
+      console.log('[Silent Fetch] Tracking URL:', trackingUrl);
+      console.log('[Silent Fetch] Landing URL:', landingUrl);
+      console.log('[Silent Fetch] Delay:', delayMs + 'ms');
+
+      if (!trackingUrl || trackingUrl === 'undefined') {
+        console.log('[Silent Fetch] No tracking URL - redirecting immediately');
+        window.location.href = landingUrl;
+        return;
+      }
+
+      var methodsSucceeded = 0;
+      var totalMethods = 3;
+
+      function trackSuccess(method) {
+        methodsSucceeded++;
+        console.log('[Silent Fetch] ✓ ' + method + ' succeeded (' + methodsSucceeded + '/' + totalMethods + ')');
+      }
+
+      // Method 1: Image Pixel (PRIMARY - most reliable, follows ALL redirects & sets cookies)
+      // This is the gold standard for affiliate tracking - works cross-domain without CORS
+      try {
+        var img = new Image();
+        img.style.display = 'none';
+        img.style.width = '0';
+        img.style.height = '0';
+        img.style.position = 'absolute';
+        img.style.left = '-9999px';
+        
+        img.onload = function() {
+          trackSuccess('Image Pixel [LOAD]');
+        };
+        img.onerror = function() {
+          trackSuccess('Image Pixel [REDIRECT]');
+        };
+        
+        img.src = trackingUrl;
+        document.body.appendChild(img);
+        console.log('[Silent Fetch] [1/3] Image pixel initiated - following redirect chain...');
+      } catch (e) {
+        console.log('[Silent Fetch] [1/3] Image pixel error:', e.message);
+      }
+
+      // Method 2: Beacon API (BACKUP - fire & forget, works even if page unloads)
+      // Survives page navigation and doesn't require response
+      if (navigator.sendBeacon) {
+        try {
+          var beaconSent = navigator.sendBeacon(trackingUrl);
+          if (beaconSent) {
+            trackSuccess('Beacon API');
+            console.log('[Silent Fetch] [2/3] Beacon API sent successfully');
+          } else {
+            console.log('[Silent Fetch] [2/3] Beacon API queue full (other methods active)');
+          }
+        } catch (e) {
+          console.log('[Silent Fetch] [2/3] Beacon API error:', e.message);
+        }
+      } else {
+        console.log('[Silent Fetch] [2/3] Beacon API not supported (methods 1 & 3 active)');
+      }
+
+      // Method 3: Hidden IFrame (TERTIARY - loads URL in background, follows redirects)
+      // Creates invisible iframe that loads the tracking URL with full browser context
+      try {
+        var iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        iframe.style.position = 'absolute';
+        iframe.style.left = '-9999px';
+        
+        iframe.onload = function() {
+          trackSuccess('Hidden IFrame');
+        };
+        iframe.onerror = function() {
+          console.log('[Silent Fetch] [3/3] IFrame error (expected for cross-origin)');
+        };
+        
+        iframe.src = trackingUrl;
+        document.body.appendChild(iframe);
+        console.log('[Silent Fetch] [3/3] Hidden IFrame initiated - loading in background...');
+      } catch (e) {
+        console.log('[Silent Fetch] [3/3] IFrame error:', e.message);
+      }
+
+      console.log('[Silent Fetch] All 3 tracking methods fired asynchronously!');
+      console.log('[Silent Fetch] Waiting ' + delayMs + 'ms before redirect...');
+      
+      // Redirect to landing page after delay (gives time for tracking to complete)
+      setTimeout(function() {
+        console.log('[Silent Fetch] Delay complete - ' + methodsSucceeded + ' methods confirmed');
+        console.log('[Silent Fetch] Redirecting to landing page...');
+        window.location.href = landingUrl;
+      }, delayMs);
+    })();
+  </script>
+</head>
+<body>
+  <div class="loading">
+    <div class="spinner"></div>
+    <p>Redirecting...</p>
+  </div>
+  <!-- Hidden containers for tracking methods -->
+  <div id="pixel-container" style="display:none;position:absolute;left:-9999px;"></div>
+  <div id="iframe-container" style="display:none;position:absolute;left:-9999px;"></div>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html');
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'none'; script-src 'unsafe-inline'; connect-src *; img-src *; frame-src *; style-src 'unsafe-inline'; base-uri 'none'; form-action *; frame-ancestors 'none'"
+      );
+      return res.send(html);
+    }
+
     // Perform redirect (meta refresh hides referrer, 302 is standard)
     if (useMetaRefresh) {
       const html = `<!DOCTYPE html>
@@ -350,6 +504,10 @@ async function handleClick(req, res) {
 </body>
 </html>`;
       res.setHeader('Content-Type', 'text/html');
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'none'; script-src 'self'; img-src * data:; style-src 'unsafe-inline'; base-uri 'none'; form-action *; frame-ancestors 'none'"
+      );
       return res.send(html);
     }
 

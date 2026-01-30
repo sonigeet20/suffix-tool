@@ -24,12 +24,6 @@ interface ClickStats {
   target_country: string | null;
 }
 
-interface SilentFetchStats {
-  fetch_date: string;
-  total_fetches: number;
-  unique_countries: number;
-}
-
 interface GoogleAdsConfig {
   enabled: boolean;
   max_traces_per_day?: number;
@@ -67,7 +61,6 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
   const [geoPool, setGeoPool] = useState<string[]>([]);
   const [bucketStats, setBucketStats] = useState<BucketStat[]>([]);
   const [clickStats, setClickStats] = useState<ClickStats | null>(null);
-  const [silentFetchStats, setSilentFetchStats] = useState<SilentFetchStats[] | null>(null);
   const [template, setTemplate] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -81,9 +74,13 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
   const [fillingStats, setFillingStats] = useState<any>(null);
   const [statsPolling, setStatsPolling] = useState<NodeJS.Timeout | null>(null);
   
-  // State for recent click events
+  // State for recent click events (regular redirects from google_ads_click_events)
   const [recentClicks, setRecentClicks] = useState<any[]>([]);
   const [loadingClicks, setLoadingClicks] = useState(false);
+  
+  // State for silent fetch events (client-side cookie drops from google_ads_silent_fetch_stats)
+  const [silentFetchClicks, setSilentFetchClicks] = useState<any[]>([]);
+  const [loadingSilentClicks, setLoadingSilentClicks] = useState(false);
   
   // State for click analytics
   const [clickAnalytics, setClickAnalytics] = useState<any>(null);
@@ -94,17 +91,23 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
     loadData();
   }, [offerName]);
 
-  // Reload stats periodically when silent fetch is enabled
+  // Reload stats periodically (always for click events, silent fetch stats only when enabled)
   useEffect(() => {
+    loadRecentClicks(); // Always load regular click events
     if (config.silent_fetch_enabled) {
       loadSilentFetchStats();
-      loadRecentClicks();
-      const interval = setInterval(() => {
-        loadSilentFetchStats();
-        loadRecentClicks();
-      }, 15000); // Refresh every 15s
-      return () => clearInterval(interval);
+      loadSilentFetchClicks(); // Load silent fetch clicks when enabled
     }
+    
+    const interval = setInterval(() => {
+      loadRecentClicks(); // Always refresh regular clicks
+      if (config.silent_fetch_enabled) {
+        loadSilentFetchStats();
+        loadSilentFetchClicks(); // Refresh silent fetch clicks
+      }
+    }, 15000); // Refresh every 15s
+    
+    return () => clearInterval(interval);
   }, [config.silent_fetch_enabled, offerName]);
 
   // Update template when domain or finalUrl changes
@@ -112,12 +115,12 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
     if (selectedDomain && finalUrl) {
       const encodedUrl = encodeURIComponent(finalUrl);
       setTemplate(
-        `https://${selectedDomain}/click?offer_name=${offerName}&force_transparent=true&meta_refresh=true&redirect_url=${encodedUrl}`
+        `https://${selectedDomain}/click?offer_name=${offerName}&force_transparent=true&meta_refresh=true&debug_delay_ms=3000&redirect_url=${encodedUrl}`
       );
     } else if (selectedDomain && !finalUrl) {
       // Fallback with {lpurl} if no final URL provided
       setTemplate(
-        `https://${selectedDomain}/click?offer_name=${offerName}&force_transparent=true&meta_refresh=true&redirect_url={lpurl}`
+        `https://${selectedDomain}/click?offer_name=${offerName}&force_transparent=true&meta_refresh=true&debug_delay_ms=3000&redirect_url={lpurl}`
       );
     }
   }, [selectedDomain, offerName, finalUrl]);
@@ -187,23 +190,6 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
     }
   };
 
-  const loadRecentClicks = async () => {
-    try {
-      setLoadingClicks(true);
-      const { data, error } = await supabase.rpc('get_recent_click_events', {
-        p_offer_name: offerName,
-        p_limit: 10
-      });
-
-      if (error) throw error;
-      setRecentClicks(data || []);
-    } catch (err: any) {
-      console.error('Error loading recent clicks:', err);
-    } finally {
-      setLoadingClicks(false);
-    }
-  };
-
   const loadClickAnalytics = async () => {
     try {
       setLoadingAnalytics(true);
@@ -257,8 +243,10 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
   };
 
   const loadSilentFetchStats = async () => {
+    // This function loads silent fetch stats but is currently not displaying them
+    // It's kept for potential future use or can be removed
     try {
-      const { data, error } = await supabase.rpc('get_silent_fetch_stats', {
+      const { error } = await supabase.rpc('get_silent_fetch_stats', {
         p_offer_name: offerName,
         p_days: 7
       });
@@ -267,9 +255,58 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
         throw error;
       }
 
-      setSilentFetchStats(data || []);
+      // Stats loaded successfully but not stored (recentClicks used instead)
     } catch (err: any) {
       console.error('Error loading silent fetch stats:', err);
+    }
+  };
+
+  const loadSilentFetchClicks = async () => {
+    try {
+      setLoadingSilentClicks(true);
+      const { data, error } = await supabase
+        .from('google_ads_silent_fetch_stats')
+        .select('*')
+        .eq('offer_name', offerName)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      // Classify silent fetch clicks
+      const classified = (data || []).map((row: any) => {
+        let ipType = 'Real User';
+        let reason = '';
+
+        if (row.user_agent) {
+          if (row.user_agent.includes('Googlebot') || row.user_agent.includes('AdsBot-Google') || row.user_agent.includes('Google-Adwords-Instant')) {
+            ipType = 'Google Bot';
+            reason = 'User agent contains Googlebot/AdsBot';
+          } else if (row.user_agent.includes('bingbot') || row.user_agent.includes('BingPreview')) {
+            ipType = 'Bing Bot';
+            reason = 'User agent contains bingbot';
+          }
+        }
+
+        if (row.client_ip && (row.client_ip.startsWith('66.249.') || row.client_ip.startsWith('66.102.') || row.client_ip.startsWith('64.233.'))) {
+          ipType = 'Google Bot';
+          reason = 'IP is from Google bot range';
+        }
+
+        if (row.client_ip && (row.client_ip.startsWith('172.') || row.client_ip.startsWith('10.') || row.client_ip.startsWith('192.168.'))) {
+          ipType = 'Internal/Test';
+          reason = 'Private IP address';
+        }
+
+        return { ...row, ipType, reason };
+      });
+
+      setSilentFetchClicks(classified);
+
+    } catch (err: any) {
+      console.error('Error loading silent fetch clicks:', err);
+    } finally {
+      setLoadingSilentClicks(false);
     }
   };
 
@@ -277,7 +314,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
     try {
       setLoadingClicks(true);
       const { data, error } = await supabase
-        .from('google_ads_silent_fetch_stats')
+        .from('google_ads_click_events')
         .select('*')
         .eq('offer_name', offerName)
         .order('created_at', { ascending: false })
@@ -291,21 +328,24 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
         let reason = '';
 
         if (row.user_agent) {
-          if (row.user_agent.includes('Googlebot') || row.user_agent.includes('AdsBot-Google')) {
+          if (row.user_agent.includes('Googlebot') || row.user_agent.includes('AdsBot-Google') || row.user_agent.includes('Google-Adwords-Instant')) {
             ipType = 'Google Bot';
             reason = 'User agent contains Googlebot/AdsBot';
           } else if (row.user_agent.includes('bingbot') || row.user_agent.includes('BingPreview')) {
             ipType = 'Bing Bot';
             reason = 'User agent contains bingbot';
+          } else if (row.user_agent.includes('Wheregoes.com')) {
+            ipType = 'Redirect Checker';
+            reason = 'Wheregoes redirect checker';
           }
         }
 
-        if (row.client_ip && (row.client_ip.startsWith('66.249.') || row.client_ip.startsWith('66.102.'))) {
+        if (row.user_ip && (row.user_ip.startsWith('66.249.') || row.user_ip.startsWith('66.102.') || row.user_ip.startsWith('64.233.'))) {
           ipType = 'Google Bot';
           reason = 'IP is from Google bot range';
         }
 
-        if (row.client_ip && (row.client_ip.startsWith('172.') || row.client_ip.startsWith('10.') || row.client_ip.startsWith('192.168.'))) {
+        if (row.user_ip && (row.user_ip.startsWith('172.') || row.user_ip.startsWith('10.') || row.user_ip.startsWith('192.168.'))) {
           ipType = 'Internal/Test';
           reason = 'Private IP address';
         }
@@ -322,7 +362,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
       }, {});
 
       const ipCounts = classified.reduce((acc: any, row: any) => {
-        acc[row.client_ip] = (acc[row.client_ip] || 0) + 1;
+        acc[row.user_ip] = (acc[row.user_ip] || 0) + 1;
         return acc;
       }, {});
 
@@ -768,336 +808,20 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                         <ExternalLink className="w-4 h-4" />
                         Test Silent Fetch
                       </button>
+                    </div>
+                  )}
+                </div>
 
-                      const testSilentFetch = () => {
-                        if (!config.silent_fetch_enabled) {
-                          alert('Silent fetch mode is not enabled!');
-                          return;
-                        }
-
-                        const trackingUrl = config.silent_fetch_url || 'https://example.com'; 
-                        const landingUrl = finalUrl || 'https://example.com';
-
-                        // Generate comprehensive HTML with multi-method redirect tracking
-                        const html = `<!DOCTYPE html>
-                    <html lang="en">
-                    <head>
-                      <meta charset="UTF-8">
-                      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                      <meta name="referrer" content="no-referrer">
-                      <title>Silent Fetch + Redirect Tracking Test</title>
-                      <style>
-                        * { margin: 0; padding: 0; box-sizing: border-box; }
-                        body {
-                          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                          min-height: 100vh;
-                          padding: 20px;
-                        }
-                        .container {
-                          max-width: 900px;
-                          margin: 0 auto;
-                          background: white;
-                          border-radius: 12px;
-                          box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-                          overflow: hidden;
-                        }
-                        .header {
-                          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                          color: white;
-                          padding: 20px;
-                          text-align: center;
-                        }
-                        .content {
-                          padding: 20px;
-                        }
-                        .section {
-                          margin-bottom: 20px;
-                        }
-                        .section h2 {
-                          font-size: 14px;
-                          font-weight: 600;
-                          color: #333;
-                          margin-bottom: 10px;
-                          display: flex;
-                          align-items: center;
-                          gap: 8px;
-                        }
-                        .log-box {
-                          background: #1e1e1e;
-                          color: #4ec9b0;
-                          padding: 12px;
-                          border-radius: 6px;
-                          font-family: 'Courier New', monospace;
-                          font-size: 11px;
-                          max-height: 300px;
-                          overflow-y: auto;
-                          line-height: 1.4;
-                          margin-bottom: 10px;
-                        }
-                        .log-entry {
-                          padding: 2px 0;
-                          border-bottom: 1px solid #333;
-                        }
-                        .log-entry.success { color: #4ec9b0; }
-                        .log-entry.error { color: #f48771; }
-                        .log-entry.warning { color: #dcdcaa; }
-                        .log-entry.info { color: #9cdcfe; }
-                        .log-entry.redirect { color: #ce9178; }
-                        .log-entry.cookie { color: #c586c0; }
-                        .status-box {
-                          background: #f5f5f5;
-                          padding: 12px;
-                          border-radius: 6px;
-                          font-size: 12px;
-                          margin-bottom: 10px;
-                        }
-                        .status-item {
-                          display: flex;
-                          justify-content: space-between;
-                          margin-bottom: 6px;
-                        }
-                        .status-value {
-                          font-weight: 600;
-                          color: #667eea;
-                        }
-                        .button-group {
-                          display: flex;
-                          gap: 10px;
-                          margin-top: 10px;
-                        }
-                        button {
-                          padding: 10px 15px;
-                          border: none;
-                          border-radius: 6px;
-                          font-size: 12px;
-                          font-weight: 600;
-                          cursor: pointer;
-                          transition: all 0.3s ease;
-                        }
-                        .btn-primary {
-                          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                          color: white;
-                          flex: 1;
-                        }
-                        .btn-primary:hover {
-                          transform: translateY(-2px);
-                          box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-                        }
-                        .btn-secondary {
-                          background: #f0f0f0;
-                          color: #333;
-                          flex: 1;
-                        }
-                        .btn-secondary:hover {
-                          background: #e0e0e0;
-                        }
-                        .cookie-list {
-                          background: #f9f9f9;
-                          padding: 10px;
-                          border-radius: 4px;
-                          max-height: 150px;
-                          overflow-y: auto;
-                        }
-                        .cookie-item {
-                          font-size: 10px;
-                          padding: 4px;
-                          margin-bottom: 3px;
-                          background: white;
-                          border: 1px solid #eee;
-                          border-radius: 2px;
-                          font-family: 'Courier New', monospace;
-                          word-break: break-all;
-                        }
-                      </style>
-                    </head>
-                    <body>
-                      <div class="container">
-                        <div class="header">
-                          <h1>🔍 Silent Fetch + Redirect Tracking</h1>
-                          <p>Monitor cookies and redirect chain in real-time</p>
-                        </div>
-
-                        <div class="content">
-                          <!-- Configuration -->
-                          <div class="section">
-                            <h2>📋 Configuration</h2>
-                            <div class="status-box">
-                              <div class="status-item">
-                                <span>Tracking URL:</span>
-                                <span class="status-value" style="font-size: 10px; word-break: break-all;">\${trackingUrl}</span>
-                              </div>
-                              <div class="status-item">
-                                <span>Landing URL:</span>
-                                <span class="status-value" style="font-size: 10px; word-break: break-all;">\${landingUrl}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <!-- Real-Time Log -->
-                          <div class="section">
-                            <h2>📊 Execution Log</h2>
-                            <div id="logs" class="log-box">
-                              <div class="log-entry info">Initializing...</div>
-                            </div>
-                          </div>
-
-                          <!-- Tracking Methods -->
-                          <div class="section">
-                            <h2>🚀 Tracking Methods</h2>
-                            <div class="status-box">
-                              <div class="status-item">
-                                <span>Method 1 - Image Pixel:</span>
-                                <span id="status-pixel" class="status-value">⏳ Ready</span>
-                              </div>
-                              <div class="status-item">
-                                <span>Method 2 - Beacon API:</span>
-                                <span id="status-beacon" class="status-value">⏳ Ready</span>
-                              </div>
-                              <div class="status-item">
-                                <span>Method 3 - Form Submit:</span>
-                                <span id="status-form" class="status-value">⏳ Ready</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <!-- Cookie Detection -->
-                          <div class="section">
-                            <h2>🍪 Cookie Detection</h2>
-                            <button class="btn-secondary" onclick="checkCookies()" style="width: 100%; margin-bottom: 8px;">Refresh Cookies</button>
-                            <div id="cookies" class="cookie-list">
-                              <div style="color: #999; padding: 8px; text-align: center;">Click "Refresh Cookies" to check</div>
-                            </div>
-                          </div>
-
-                          <!-- Actions -->
-                          <div class="button-group">
-                            <button class="btn-primary" onclick="startTracking()">🎯 Start Tracking</button>
-                            <button class="btn-secondary" onclick="window.close()">Close</button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style="display: none;">
-                        <div id="pixel-container"></div>
-                        <div id="form-container"></div>
-                      </div>
-
-                      <script>
-                        const logs = document.getElementById('logs');
-                        const trackingUrl = "\${trackingUrl}";
-                        const landingUrl = "\${landingUrl}";
-
-                        function log(message, type = 'info') {
-                          const timestamp = new Date().toLocaleTimeString();
-                          const entry = document.createElement('div');
-                          entry.className = \`log-entry \${type}\`;
-                          entry.textContent = \`[\${timestamp}] \${message}\`;
-                          logs.appendChild(entry);
-                          logs.scrollTop = logs.scrollHeight;
-                        }
-
-                        function checkCookies() {
-                          const cookies = document.cookie.split('; ').filter(c => c);
-                          const container = document.getElementById('cookies');
-      
-                          if (!document.cookie || cookies.length === 0) {
-                            container.innerHTML = '<div style="color: #999; padding: 8px; text-align: center;">⚠️ No cookies found (expected for third-party domain)</div>';
-                            log('No cookies detected (normal for cross-domain tracking)', 'warning');
-                            return;
-                          }
-
-                          let html = '<div style="color: #4caf50; font-weight: 600; margin-bottom: 8px;">✅ Found ' + cookies.length + ' cookies</div>';
-                          cookies.forEach((cookie, idx) => {
-                            const [name, value] = cookie.split('=');
-                            html += '<div class="cookie-item"><strong>' + (idx + 1) + '.</strong> ' + decodeURIComponent(name) + '=' + decodeURIComponent(value).substring(0, 40) + '</div>';
-                          });
-                          container.innerHTML = html;
-                          log('Found ' + cookies.length + ' cookies', 'success');
-                        }
-
-                        async function startTracking() {
-                          log('Starting 3-method silent fetch test...', 'info');
-                          log('Tracking URL: ' + trackingUrl, 'info');
-
-                          // Method 1: Image Pixel
-                          log('[1] Loading as image pixel...', 'nav');
-                          document.getElementById('status-pixel').textContent = '⏳ Loading...';
-                          try {
-                            const img = document.createElement('img');
-                            img.onerror = () => {
-                              log('[1] Image pixel loaded (redirect completed)', 'success');
-                              document.getElementById('status-pixel').textContent = '✓ Loaded';
-                            };
-                            img.onload = () => {
-                              log('[1] Image pixel loaded successfully', 'success');
-                              document.getElementById('status-pixel').textContent = '✓ Loaded';
-                            };
-                            img.src = trackingUrl;
-                            img.style.display = 'none';
-                            document.getElementById('pixel-container').appendChild(img);
-                          } catch (err) {
-                            log('[1] Error: ' + err.message, 'error');
-                            document.getElementById('status-pixel').textContent = '✗ Failed';
-                          }
-
-                          // Method 2: Beacon API
-                          log('[2] Sending via Beacon API...', 'nav');
-                          document.getElementById('status-beacon').textContent = '⏳ Sending...';
-                          try {
-                            if (navigator.sendBeacon) {
-                              const success = navigator.sendBeacon(trackingUrl);
-                              if (success) {
-                                log('[2] Beacon sent successfully', 'success');
-                                document.getElementById('status-beacon').textContent = '✓ Sent';
-                              } else {
-                                log('[2] Beacon queue full', 'warning');
-                                document.getElementById('status-beacon').textContent = '⚠ Queue full';
-                              }
-                            } else {
-                              log('[2] Beacon API not supported', 'warning');
-                              document.getElementById('status-beacon').textContent = '✗ Not supported';
-                            }
-                          } catch (err) {
-                            log('[2] Error: ' + err.message, 'error');
-                            document.getElementById('status-beacon').textContent = '✗ Failed';
-                          }
-
-                          // Method 3: Form Submit
-                          log('[3] Preparing form submission...', 'nav');
-                          document.getElementById('status-form').textContent = '✓ Ready';
-                          log('[3] Form submission prepared (can be triggered manually)', 'info');
-
-                          log('Tracking initiated via 3 methods', 'success');
-                          log('Checking for cookies...', 'info');
-
-                          // Check cookies after 2 seconds
-                          setTimeout(() => {
-                            checkCookies();
-                            log('Test completed - check Network tab in DevTools for full redirect chain', 'success');
-                          }, 2000);
-                        }
-
-                        window.addEventListener('load', () => {
-                          log('Page loaded - ready to test', 'info');
-                          checkCookies();
-                        });
-                      </script>
-                    </body>
-                    </html>`;
-
-                        // Open in new window
-                        const win = window.open('', '_blank', 'width=900,height=700');
-                        if (win) {
-                          win.document.write(html);
-                          win.document.close();
-                        }
-                      };
-                        }}
-                        className="w-4 h-4 rounded border-neutral-300"
-                      />
-                      <span className="text-sm text-neutral-700 dark:text-neutral-300">🖥️ Block Datacenters</span>
-                    </label>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={(config as any).block_datacenters ?? true}
+                      onChange={(e) => setConfig({ ...config, block_datacenters: e.target.checked } as any)}
+                      className="w-4 h-4 rounded border-neutral-300"
+                    />
+                    <span className="text-sm text-neutral-700 dark:text-neutral-300">🖥️ Block Datacenters</span>
+                  </label>
 
                     {/* VPN/Proxy Detection Toggle */}
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -1167,7 +891,6 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                       />
                     </div>
                   </div>
-                )}
               </div>
 
               {/* Today's Stats */}
@@ -1260,138 +983,15 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                 )}
               </div>
 
-              {/* Recent Click Events */}
+              {/* Recent Click Logs - Regular Bucket Clicks (always visible) */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Recent Click Events (Last 10)
+                    📊 Recent Click Events (Regular Redirects)
                   </h3>
                   <button
                     onClick={loadRecentClicks}
                     disabled={loadingClicks}
-                    className="px-3 py-1.5 bg-neutral-600 hover:bg-neutral-700 disabled:bg-neutral-400 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${loadingClicks ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </button>
-                </div>
-
-                {loadingClicks ? (
-                  <div className="p-8 text-center bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-neutral-400" />
-                    <p className="text-neutral-600 dark:text-neutral-400">Loading...</p>
-                  </div>
-                ) : recentClicks.length === 0 ? (
-                  <div className="p-8 text-center bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
-                    <p className="text-neutral-600 dark:text-neutral-400">No clicks recorded yet</p>
-                  </div>
-                ) : (
-                  <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-neutral-50 dark:bg-neutral-800/50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-neutral-700 dark:text-neutral-300">Time</th>
-                          <th className="px-4 py-2 text-left text-neutral-700 dark:text-neutral-300">User IP</th>
-                          <th className="px-4 py-2 text-left text-neutral-700 dark:text-neutral-300">Suffix</th>
-                          <th className="px-4 py-2 text-left text-neutral-700 dark:text-neutral-300">Country</th>
-                          <th className="px-4 py-2 text-center text-neutral-700 dark:text-neutral-300">Trace Status</th>
-                          <th className="px-4 py-2 text-left text-neutral-700 dark:text-neutral-300">Final URL</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recentClicks.map((click) => (
-                          <tr key={click.id} className="border-t border-neutral-200 dark:border-neutral-800">
-                            <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">
-                              {new Date(click.click_timestamp).toLocaleString()}
-                            </td>
-                            <td className="px-4 py-2 font-mono text-xs">
-                              <span 
-                                className={`${
-                                  click.user_ip?.startsWith('172.') || 
-                                  click.user_ip?.startsWith('10.') || 
-                                  click.user_ip?.startsWith('192.168.')
-                                    ? 'text-orange-600 dark:text-orange-400'
-                                    : 'text-green-600 dark:text-green-400'
-                                }`}
-                                title={
-                                  click.user_ip?.startsWith('172.') || 
-                                  click.user_ip?.startsWith('10.') || 
-                                  click.user_ip?.startsWith('192.168.')
-                                    ? 'Private/Internal IP'
-                                    : 'Public IP'
-                                }
-                              >
-                                {click.user_ip || 'N/A'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 font-mono text-xs text-neutral-900 dark:text-white group relative">
-                              <div className="flex items-center gap-2">
-                                <span 
-                                  className="cursor-help"
-                                  title={click.suffix}
-                                >
-                                  {click.suffix.substring(0, 35)}...
-                                </span>
-                                <button
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(click.suffix);
-                                    alert('Suffix copied!');
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded transition-opacity"
-                                  title="Copy full suffix"
-                                >
-                                  <Copy className="w-3 h-3" />
-                                </button>
-                              </div>
-                              <div className="hidden group-hover:block absolute left-0 top-full mt-1 p-2 bg-neutral-900 dark:bg-neutral-800 text-white text-xs rounded shadow-lg z-10 max-w-md break-all">
-                                {click.suffix}
-                              </div>
-                            </td>
-                            <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">
-                              {click.target_country}
-                            </td>
-                            <td className="px-4 py-2 text-center">
-                              {click.trace_success === null ? (
-                                <span className="px-2 py-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded text-xs">
-                                  Pending
-                                </span>
-                              ) : click.trace_success ? (
-                                <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs">
-                                  ✓ Success
-                                </span>
-                              ) : (
-                                <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-xs">
-                                  ✗ Failed
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2 text-xs text-neutral-600 dark:text-neutral-400">
-                              {click.block_reason ? (
-                                <span className="text-red-600 dark:text-red-400">{click.block_reason}</span>
-                              ) : click.trace_final_url ? (
-                                <span className="truncate block max-w-xs">{click.trace_final_url}</span>
-                              ) : (
-                                '-'
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              {/* Recent Click Logs - show only when silent fetch is enabled */}
-              {config.silent_fetch_enabled && (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                      📊 Recent Click Logs
-                    </h3>
-                    <button
-                      onClick={loadRecentClicks}
-                      disabled={loadingClicks}
                       className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-neutral-400 text-white rounded transition-colors flex items-center gap-1"
                     >
                       {loadingClicks ? (
@@ -1460,6 +1060,86 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                           <tbody>
                             {recentClicks.map((click: any, index: number) => (
                               <tr key={index} className="border-t border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800/30">
+                                <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                                  {new Date(click.created_at).toLocaleString()}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    click.ipType === 'Real User' 
+                                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                      : click.ipType === 'Google Bot'
+                                      ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
+                                  }`}>
+                                    {click.ipType}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 font-mono text-neutral-600 dark:text-neutral-400">
+                                  {click.user_ip?.substring(0, 20)}
+                                  {click.user_ip?.length > 20 && '...'}
+                                </td>
+                                <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400">
+                                  {click.target_country || '-'}
+                                </td>
+                                <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400 max-w-xs truncate" title={click.user_agent}>
+                                  {click.user_agent || '(not logged)'}
+                                </td>
+                                <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400">
+                                  {click.referrer || '(none)'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              {/* Silent Fetch Click Events - only show when silent fetch is enabled */}
+              {config.silent_fetch_enabled && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      🔵 Silent Fetch Events (Client-Side Cookie Drops)
+                    </h3>
+                    <button
+                      onClick={loadSilentFetchClicks}
+                      disabled={loadingSilentClicks}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${loadingSilentClicks ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </button>
+                  </div>
+
+                  {loadingSilentClicks ? (
+                    <div className="p-8 text-center bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
+                      <p className="text-blue-600 dark:text-blue-400">Loading silent fetch events...</p>
+                    </div>
+                  ) : silentFetchClicks.length === 0 ? (
+                    <div className="p-8 text-center bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <p className="text-blue-600 dark:text-blue-400">No silent fetch events recorded yet</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-2">These are client-side fetches that drop cookies without redirect</p>
+                    </div>
+                  ) : (
+                    <div className="border border-blue-200 dark:border-blue-800 rounded-lg overflow-hidden">
+                      <div className="max-h-96 overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-blue-50 dark:bg-blue-900/30 sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-blue-700 dark:text-blue-300">Time</th>
+                              <th className="px-3 py-2 text-left text-blue-700 dark:text-blue-300">Type</th>
+                              <th className="px-3 py-2 text-left text-blue-700 dark:text-blue-300">IP</th>
+                              <th className="px-3 py-2 text-left text-blue-700 dark:text-blue-300">Country</th>
+                              <th className="px-3 py-2 text-left text-blue-700 dark:text-blue-300">User Agent</th>
+                              <th className="px-3 py-2 text-left text-blue-700 dark:text-blue-300">Referrer</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {silentFetchClicks.map((click: any, index: number) => (
+                              <tr key={index} className="border-t border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20">
                                 <td className="px-3 py-2 text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
                                   {new Date(click.created_at).toLocaleString()}
                                 </td>

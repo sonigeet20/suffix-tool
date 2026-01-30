@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test NAZWA Silent Fetch</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .success-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .warning-box {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 25px;
+            background: #f9f9f9;
+            border-radius: 12px;
+        }
+        .test-url {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 15px 0;
+            word-break: break-all;
+        }
+        .button {
+            display: inline-block;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 10px 10px 10px 0;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        .button-instant {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .instructions {
+            line-height: 1.8;
+            color: #555;
+        }
+        .instructions ol, .instructions ul {
+            margin: 10px 0 10px 20px;
+        }
+        .instructions li {
+            margin: 8px 0;
+        }
+        code {
+            background: #e9ecef;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        h2 {
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        h3 {
+            color: #555;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .highlight {
+            background: #fff59d;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 NAZWA Silent Fetch Test</h1>
+        <div class="subtitle">Testing Skimlinks tracking URL with improved silent fetch</div>
+        
+        <div class="success-box">
+            <strong>✅ Server Running:</strong> Local proxy service on <code>http://localhost:3000</code>
+            <br><strong>✅ Improved Code:</strong> New silent fetch with better logging & UI deployed locally
+        </div>
+
+        <div class="info-box">
+            <strong>📋 Test Configuration:</strong><br>
+            <strong>Offer:</strong> NAZWA_PL_SHEET_314_SKIM<br>
+            <strong>Tracking URL:</strong> <code>https://go.skimresources.com/...</code><br>
+            <strong>Landing URL:</strong> <code>https://www.nazwa.pl/</code><br>
+            <strong>Mode:</strong> Silent Fetch (client-side tracking pixel)
+        </div>
+
+        <div class="test-section">
+            <h2>🚀 Quick Test</h2>
+            
+            <h3>Test with 3-second delay (Default)</h3>
+            <p>This will fire tracking pixel, wait 3 seconds, then redirect to landing page.</p>
+            <div class="test-url">
+                http://localhost:3000/click?offer_name=NAZWA_PL_SHEET_314_SKIM&force_transparent=true&debug_delay_ms=3000&redirect_url=https%3A%2F%2Fwww.nazwa.pl%2F
+            </div>
+            <a href="http://localhost:3000/click?offer_name=NAZWA_PL_SHEET_314_SKIM&force_transparent=true&debug_delay_ms=3000&redirect_url=https%3A%2F%2Fwww.nazwa.pl%2F" 
+               target="_blank" class="button">
+                🚀 Test with 3s Delay
+            </a>
+
+            <h3>Test with instant redirect (0ms)</h3>
+            <p>This will fire tracking pixel and redirect immediately (no delay).</p>
+            <div class="test-url">
+                http://localhost:3000/click?offer_name=NAZWA_PL_SHEET_314_SKIM&force_transparent=true&debug_delay_ms=0&redirect_url=https%3A%2F%2Fwww.nazwa.pl%2F
+            </div>
+            <a href="http://localhost:3000/click?offer_name=NAZWA_PL_SHEET_314_SKIM&force_transparent=true&debug_delay_ms=0&redirect_url=https%3A%2F%2Fwww.nazwa.pl%2F" 
+               target="_blank" class="button button-instant">
+                ⚡ Test Instant (0ms)
+            </a>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 How to Test Properly</h2>
+            <div class="instructions">
+                <ol>
+                    <li><strong>Open Browser DevTools FIRST:</strong>
+                        <ul>
+                            <li>Press <code>F12</code> or <code>Right-click → Inspect</code></li>
+                            <li>Keep DevTools open for the entire test</li>
+                        </ul>
+                    </li>
+                    <li><strong>Go to Network Tab:</strong>
+                        <ul>
+                            <li>Check "Preserve log" checkbox</li>
+                            <li>Look for requests to <code>skimresources.com</code></li>
+                            <li>You'll see the tracking pixel fire</li>
+                        </ul>
+                    </li>
+                    <li><strong>Go to Console Tab:</strong>
+                        <ul>
+                            <li>Watch for <span class="highlight">[Silent Fetch]</span> log messages</li>
+                            <li>You should see tracking start, pixel fire, and redirect countdown</li>
+                        </ul>
+                    </li>
+                    <li><strong>Click a test button above</strong></li>
+                    <li><strong>Watch the tracking happen in real-time</strong></li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>✅ What You Should See</h2>
+            
+            <h3>In Console Tab:</h3>
+            <div class="test-url" style="background: #1e1e1e; color: #d4d4d4;">
+[Silent Fetch] Starting tracking...
+[Silent Fetch] Tracking URL: https://go.skimresources.com/...
+[Silent Fetch] Landing URL: https://www.nazwa.pl/
+[Silent Fetch] Delay: 3000ms
+[Silent Fetch] Image pixel initiated - following redirect chain...
+[Silent Fetch] ✓ Beacon API sent successfully
+[Silent Fetch] Tracking fired via 2 methods - waiting 3000ms before redirect...
+[Silent Fetch] ✓ Image pixel completed (redirect chain followed)
+[Silent Fetch] Delay complete - redirecting to landing page
+            </div>
+
+            <h3>In Network Tab:</h3>
+            <div class="instructions">
+                <ul>
+                    <li>✓ Request to <code>localhost:3000/click</code> - Status 200 (HTML page)</li>
+                    <li>✓ Request to <code>skimresources.com</code> - Status 302 (redirect)</li>
+                    <li>✓ Follow redirect chain through Amazon Associates</li>
+                    <li>✓ Final request to <code>nazwa.pl</code> - Status 200</li>
+                </ul>
+            </div>
+
+            <h3>Visual Experience:</h3>
+            <div class="instructions">
+                <ul>
+                    <li>✓ See loading spinner page for 3 seconds (or instant if 0ms)</li>
+                    <li>✓ Then redirect to nazwa.pl landing page</li>
+                    <li>✓ Smooth transition, no errors</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="warning-box">
+            <strong>⚠️ Important Notes:</strong>
+            <ul style="margin: 10px 0 0 20px;">
+                <li>Third-party cookies may be blocked by browser - this is NORMAL</li>
+                <li>The tracking pixel WILL fire and follow redirects regardless</li>
+                <li>Check Network tab to verify tracking request was made</li>
+                <li>Cookies are set on affiliate network's domain, not visible in this page's console</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🐛 Troubleshooting</h2>
+            <div class="instructions">
+                <p><strong>If you don't see console logs:</strong></p>
+                <ul>
+                    <li>Make sure DevTools Console tab is open BEFORE clicking test button</li>
+                    <li>Check if "Preserve log" is enabled in Console settings</li>
+                    <li>Try refreshing and testing again</li>
+                </ul>
+                
+                <p style="margin-top: 15px;"><strong>If tracking doesn't fire:</strong></p>
+                <ul>
+                    <li>Check Network tab for failed requests</li>
+                    <li>Verify server is running: <code>ps aux | grep "node server.js"</code></li>
+                    <li>Check server logs for errors</li>
+                </ul>
+
+                <p style="margin-top: 15px;"><strong>If redirect doesn't happen:</strong></p>
+                <ul>
+                    <li>Look for JavaScript errors in Console</li>
+                    <li>Verify the landing URL is correct</li>
+                    <li>Try with <code>debug_delay_ms=0</code> for instant redirect</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

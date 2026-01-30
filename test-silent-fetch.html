@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silent Fetch Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        .test-url {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 10px 5px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        .button:hover {
+            background: #2980b9;
+        }
+        .button-secondary {
+            background: #95a5a6;
+        }
+        .button-secondary:hover {
+            background: #7f8c8d;
+        }
+        .info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+        }
+        .instructions {
+            line-height: 1.8;
+            color: #555;
+        }
+        .instructions ol {
+            margin-left: 20px;
+        }
+        .instructions li {
+            margin: 10px 0;
+        }
+        code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Silent Fetch Mode Test</h1>
+        
+        <div class="info">
+            <strong>✅ Server Running:</strong> Proxy service is running on <code>http://localhost:3000</code>
+        </div>
+
+        <div class="test-section">
+            <h2>Test Configuration</h2>
+            <p><strong>Tracking URL:</strong></p>
+            <div class="test-url">
+                https://go.skimresources.com/?id=124588X1613321&xs=1&url=https%3A%2F%2Fwww.nazwa.pl
+            </div>
+            <p><strong>Landing URL:</strong></p>
+            <div class="test-url">
+                https://www.nazwa.pl
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Test URLs</h2>
+            
+            <h3>1. With 3-second delay (default)</h3>
+            <div class="test-url" id="url-default">
+                http://localhost:3000/click?offer_name=TEST_SILENT_FETCH&url=https://www.nazwa.pl
+            </div>
+            <a href="http://localhost:3000/click?offer_name=TEST_SILENT_FETCH&url=https://www.nazwa.pl" 
+               target="_blank" class="button">
+                🚀 Test Default (3s delay)
+            </a>
+
+            <h3>2. With instant redirect (0ms delay)</h3>
+            <div class="test-url" id="url-instant">
+                http://localhost:3000/click?offer_name=TEST_SILENT_FETCH&url=https://www.nazwa.pl&debug_delay_ms=0
+            </div>
+            <a href="http://localhost:3000/click?offer_name=TEST_SILENT_FETCH&url=https://www.nazwa.pl&debug_delay_ms=0" 
+               target="_blank" class="button">
+                ⚡ Test Instant (0ms)
+            </a>
+
+            <h3>3. With 5-second delay (for slow networks)</h3>
+            <div class="test-url" id="url-slow">
+                http://localhost:3000/click?offer_name=TEST_SILENT_FETCH&url=https://www.nazwa.pl&debug_delay_ms=5000
+            </div>
+            <a href="http://localhost:3000/click?offer_name=TEST_SILENT_FETCH&url=https://www.nazwa.pl&debug_delay_ms=5000" 
+               target="_blank" class="button button-secondary">
+                🐌 Test Slow (5s)
+            </a>
+        </div>
+
+        <div class="test-section">
+            <h2>How to Test</h2>
+            <div class="instructions">
+                <ol>
+                    <li><strong>Open Browser DevTools:</strong> Press <code>F12</code> or right-click → Inspect</li>
+                    <li><strong>Go to Network Tab:</strong> Look for requests to <code>skimresources.com</code></li>
+                    <li><strong>Go to Console Tab:</strong> Watch for <code>[Silent Fetch]</code> log messages</li>
+                    <li><strong>Click a test button above</strong> - watch the tracking happen in real-time</li>
+                    <li><strong>Verify:</strong>
+                        <ul>
+                            <li>✓ Image pixel request fires to tracking URL</li>
+                            <li>✓ Beacon API request fires (if supported)</li>
+                            <li>✓ Console shows progress logs</li>
+                            <li>✓ After delay, redirect to landing page</li>
+                            <li>✓ Landing page loads successfully</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>What to Look For</h2>
+            <div class="info success">
+                <strong>In Network Tab:</strong><br>
+                - Request to <code>skimresources.com</code> with status 302 (redirect)<br>
+                - Follow redirect chain to see final destination<br>
+                - Check if cookies are set in response headers
+            </div>
+            <div class="info">
+                <strong>In Console Tab:</strong><br>
+                <code>[Silent Fetch] Starting tracking...</code><br>
+                <code>[Silent Fetch] Image pixel initiated...</code><br>
+                <code>[Silent Fetch] Beacon API sent successfully</code><br>
+                <code>[Silent Fetch] Tracking fired via 2 methods...</code><br>
+                <code>[Silent Fetch] Delay complete - redirecting...</code>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Database Setup Required</h2>
+            <p>Before testing, ensure the offer exists in Supabase:</p>
+            <div class="test-url">
+INSERT INTO offers (offer_name, url, google_ads_config) VALUES (
+  'TEST_SILENT_FETCH',
+  'https://www.nazwa.pl',
+  '{
+    "silent_fetch_enabled": true,
+    "silent_fetch_url": "https://go.skimresources.com/?id=124588X1613321&xs=1&url=https%3A%2F%2Fwww.nazwa.pl"
+  }'::jsonb
+);
+            </div>
+        </div>
+    </div>
+</body>
+</html>
