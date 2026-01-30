@@ -163,10 +163,30 @@ async function handleClick(req, res) {
       console.log(`[google-ads-click] Using header country: ${clientCountry}`);
     }
 
-    // Load offer configuration
+    // Load offer configuration with ALL settings
     const { data: offer, error: offerError } = await supabase
       .from('offers')
-      .select('google_ads_config, geo_pool, trace_mode, preferred_mode')
+      .select(`
+        google_ads_config,
+        url,
+        referrer_pool,
+        referrer_hops,
+        geo_pool,
+        geo_strategy,
+        geo_weights,
+        trace_mode,
+        preferred_mode,
+        tracer_mode,
+        device_distribution,
+        bandwidth_limit_kb,
+        expected_final_url,
+        proxy_protocol,
+        extract_from_location_header,
+        location_extract_hop,
+        block_resources,
+        target_geo,
+        target_country
+      `)
       .eq('offer_name', offer_name)
       .single();
 
@@ -343,13 +363,22 @@ async function handleClick(req, res) {
 
         // Hit tracking URL server-side using full trace infrastructure (same as get-suffix)
         if (silentFetchTrackingUrl) {
-          // Append GCLID as network-specific parameter (e.g., xcust for Skimlinks)
+          // Insert GCLID as FIRST query parameter (e.g., xcust for Skimlinks)
           let trackingUrlWithGclid = silentFetchTrackingUrl;
           if (gclidValue && googleAdsConfig?.gclid_param_token) {
-            // Append the network's click ID parameter with GCLID value
-            const separator = silentFetchTrackingUrl.includes('?') ? '&' : '?';
-            trackingUrlWithGclid = `${silentFetchTrackingUrl}${separator}${googleAdsConfig.gclid_param_token}=${encodeURIComponent(gclidValue)}`;
-            console.log(`[google-ads-click] 🔑 Appended GCLID: ${googleAdsConfig.gclid_param_token}=${gclidValue}`);
+            // Insert GCLID as the first query parameter
+            const questionMarkIndex = silentFetchTrackingUrl.indexOf('?');
+            if (questionMarkIndex !== -1) {
+              // URL has query params - insert GCLID as first param
+              const baseUrl = silentFetchTrackingUrl.substring(0, questionMarkIndex);
+              const existingParams = silentFetchTrackingUrl.substring(questionMarkIndex + 1);
+              trackingUrlWithGclid = `${baseUrl}?${googleAdsConfig.gclid_param_token}=${encodeURIComponent(gclidValue)}&${existingParams}`;
+              console.log(`[google-ads-click] 🔑 Inserted GCLID as FIRST param: ${googleAdsConfig.gclid_param_token}=${gclidValue}`);
+            } else {
+              // No query params - add GCLID as only param
+              trackingUrlWithGclid = `${silentFetchTrackingUrl}?${googleAdsConfig.gclid_param_token}=${encodeURIComponent(gclidValue)}`;
+              console.log(`[google-ads-click] 🔑 Added GCLID as only param: ${googleAdsConfig.gclid_param_token}=${gclidValue}`);
+            }
             
             // Store GCLID mapping for conversion tracking
             supabase
@@ -375,16 +404,66 @@ async function handleClick(req, res) {
           
           console.log(`[google-ads-click] Server-side tracing: ${trackingUrlWithGclid.substring(0, 100)}...`);
           
-          // Use the full trace infrastructure (same as get-suffix) with residential proxies,
-          // user agent rotation, device fingerprinting, etc.
-          // Trace mode is pulled from offer settings (http_only, browser, anti_cloaking, etc.)
-          axios.post('http://localhost:3000/trace', {
+          // Use the full trace infrastructure with ALL offer settings (no compromise)
+          const tracePayload = {
             url: trackingUrlWithGclid,
-            mode: traceMode, // Use offer's preferred trace mode
+            mode: traceMode,
             target_country: clientCountry,
-            timeout_ms: traceMode === 'http_only' ? 15000 : 45000, // Longer timeout for browser mode
-            max_redirects: 10
-          }, {
+            timeout_ms: traceMode === 'http_only' ? 15000 : 45000,
+            max_redirects: 20
+          };
+
+          // Referrer rotation from offer
+          if (offer.referrer_pool && offer.referrer_pool.length > 0) {
+            const randomReferrer = offer.referrer_pool[Math.floor(Math.random() * offer.referrer_pool.length)];
+            tracePayload.referrer = randomReferrer;
+            tracePayload.referrer_hops = offer.referrer_hops || null;
+          }
+
+          // Geo targeting (prioritize google_ads_config, fallback to offer settings)
+          const geoPool = googleAdsConfig.multi_geo_targets || googleAdsConfig.single_geo_targets || offer.geo_pool;
+          if (geoPool && geoPool.length > 0) {
+            tracePayload.geo_pool = geoPool;
+            tracePayload.geo_strategy = googleAdsConfig.geo_strategy || offer.geo_strategy || 'round_robin';
+            if (offer.geo_weights) {
+              tracePayload.geo_weights = offer.geo_weights;
+            }
+          }
+
+          // Device distribution for user agent rotation
+          if (offer.device_distribution && Array.isArray(offer.device_distribution)) {
+            tracePayload.device_distribution = offer.device_distribution;
+          }
+
+          // Bandwidth limit
+          if (offer.bandwidth_limit_kb) {
+            tracePayload.bandwidth_limit_kb = offer.bandwidth_limit_kb;
+          }
+
+          // Expected final URL for early termination
+          if (offer.expected_final_url) {
+            tracePayload.expected_final_url = offer.expected_final_url;
+          }
+
+          // Proxy protocol
+          if (offer.proxy_protocol) {
+            tracePayload.proxy_protocol = offer.proxy_protocol;
+          }
+
+          // Location header extraction
+          if (offer.extract_from_location_header) {
+            tracePayload.extract_from_location_header = true;
+            if (offer.location_extract_hop) {
+              tracePayload.location_extract_hop = offer.location_extract_hop;
+            }
+          }
+
+          // Suffix step for multi-hop tracking
+          if (offer.redirect_chain_step) {
+            tracePayload.suffix_step = offer.redirect_chain_step;
+          }
+
+          axios.post('http://localhost:3000/trace', tracePayload, {
             timeout: traceMode === 'http_only' ? 20000 : 60000,
             validateStatus: () => true
           }).then(response => {
