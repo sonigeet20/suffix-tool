@@ -63,6 +63,13 @@ async function queryGeoIPService(clientIp) {
 
 /**
  * Main click handler - optimized for <50ms response time
+ * 
+ * IMPORTANT: Handles both GET and POST requests
+ * - GET: Standard URL clicks from Google Ads
+ * - POST: Google's parallel tracking using navigator.sendBeacon()
+ *   When Google Ads uses parallel tracking, it fires tracking URLs using sendBeacon,
+ *   which sends POST requests instead of GET. We must support both methods.
+ * 
  * Query params:
  * - offer_name (required): Offer identifier
  * - url (required): {lpurl} from Google Ads
@@ -80,8 +87,12 @@ async function handleClick(req, res) {
   const startTime = Date.now();
   
   try {
+    // Support both GET and POST for Google's parallel tracking (navigator.sendBeacon sends POST)
+    // Parameters can be in query string (GET) or body (POST)
+    const params = req.method === 'POST' ? { ...req.query, ...req.body } : req.query;
+    
     // Accept both 'url' and 'redirect_url' parameter names (Google Ads uses redirect_url)
-    const { offer_name, url: landingPageUrl, redirect_url: redirectUrlParam, force_transparent, meta_refresh } = req.query;
+    const { offer_name, url: landingPageUrl, redirect_url: redirectUrlParam, force_transparent, meta_refresh } = params;
     const finalUrl = landingPageUrl || redirectUrlParam;
     const useMetaRefresh = meta_refresh === 'true';
 
@@ -93,7 +104,7 @@ async function handleClick(req, res) {
       });
     }
 
-    console.log(`[google-ads-click] Click received for offer: ${offer_name}`);
+    console.log(`[google-ads-click] ${req.method} request received for offer: ${offer_name}`);
 
     // Get client info - extract REAL user IP from headers (prioritize in order):
     // 1. CF-Connecting-IP (Cloudflare - most reliable for real user IP)
@@ -488,6 +499,13 @@ async function handleClick(req, res) {
         "default-src 'none'; script-src 'unsafe-inline'; connect-src *; img-src *; frame-src *; style-src 'unsafe-inline'; base-uri 'none'; form-action *; frame-ancestors 'none'"
       );
       return res.send(html);
+    }
+
+    // For POST requests (Google's sendBeacon parallel tracking), return 204 No Content
+    // sendBeacon doesn't follow redirects, so we just acknowledge receipt
+    if (req.method === 'POST') {
+      console.log(`[google-ads-click] POST request - returning 204 No Content (sendBeacon tracking logged)`);
+      return res.status(204).send();
     }
 
     // Perform redirect (meta refresh hides referrer, 302 is standard)

@@ -75,6 +75,7 @@ app.use((req, res, next) => {
 });
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Support URL-encoded POST data for Google's sendBeacon
 
 // Trackier Dual-URL Webhook Integration (Isolated Module - Safe to disable)
 const trackierRoutes = require('./routes/trackier-webhook');
@@ -94,7 +95,9 @@ app.use('/api/webhook-suffix', webhookSuffixRoutes);
 
 // Google Ads Click Handler Routes (Fast redirect system)
 const googleAdsClickHandlers = require('./routes/google-ads-click');
+// Support both GET and POST for /click to handle Google's navigator.sendBeacon() parallel tracking
 app.get('/click', googleAdsClickHandlers.handleClick);
+app.post('/click', googleAdsClickHandlers.handleClick);
 app.get('/click/health', googleAdsClickHandlers.handleHealthCheck);
 app.get('/click/bucket-stats', googleAdsClickHandlers.handleBucketStats);
 
