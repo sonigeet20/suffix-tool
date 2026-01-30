@@ -199,6 +199,10 @@ async function handleClick(req, res) {
 </html>`;
       
       res.setHeader('Content-Type', 'text/html');
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'none'; script-src 'unsafe-inline'; connect-src *; img-src * data:; style-src 'unsafe-inline'; base-uri 'none'; form-action *; frame-ancestors 'none'"
+      );
       return res.send(html);
     }
     
