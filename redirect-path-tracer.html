@@ -378,8 +378,16 @@
                     });
 
                     const headers = {};
+                    const setCookieHeaders = [];
+                    
+                    // Properly handle multiple Set-Cookie headers
                     response.headers.forEach((value, name) => {
-                        headers[name.toLowerCase()] = value;
+                        const lowerName = name.toLowerCase();
+                        if (lowerName === 'set-cookie') {
+                            setCookieHeaders.push(value);
+                        } else {
+                            headers[lowerName] = value;
+                        }
                     });
 
                     const step = {
@@ -387,7 +395,7 @@
                         status: response.status,
                         statusText: response.statusText,
                         headers: headers,
-                        setCookies: response.headers.getSetCookie ? response.headers.getSetCookie() : [],
+                        setCookies: setCookieHeaders,
                         redirectUrl: headers['location']
                     };
 
@@ -396,10 +404,12 @@
                     log(`[Step ${stepCount}] Status: ${response.status} ${response.statusText}`, 
                         response.status >= 300 && response.status < 400 ? 'redirect' : 'success');
 
-                    // Check for Set-Cookie headers
-                    const setCookie = headers['set-cookie'];
-                    if (setCookie) {
-                        log(`[Step ${stepCount}] Set-Cookie: ${setCookie.substring(0, 50)}...`, 'cookie');
+                    // Check for Set-Cookie headers (can be multiple)
+                    if (setCookieHeaders.length > 0) {
+                        log(`[Step ${stepCount}] Found ${setCookieHeaders.length} Set-Cookie header(s)`, 'cookie');
+                        setCookieHeaders.forEach((cookie, idx) => {
+                            log(`  [${idx + 1}] ${cookie.substring(0, 60)}${cookie.length > 60 ? '...' : ''}`, 'cookie');
+                        });
                     }
 
                     // Check for Location header (redirect)
@@ -410,6 +420,7 @@
                         // Handle relative URLs
                         try {
                             currentUrl = new URL(headers['location'], currentUrl).toString();
+                            log(`[Step ${stepCount}] Resolved to: ${currentUrl}`, 'info');
                         } catch (e) {
                             log(`[Step ${stepCount}] Error parsing redirect URL: ${e.message}`, 'error');
                             break;
@@ -504,9 +515,26 @@
                             <h4>📤 Response Headers</h4>
                     `;
 
+                    // Show Set-Cookie headers separately if present
+                    if (step.setCookies && step.setCookies.length > 0) {
+                        html += `<div class="header-item" style="color: #c586c0;"><strong>⭐ Set-Cookie (${step.setCookies.length}):</strong></div>`;
+                        step.setCookies.forEach((cookie, idx) => {
+                            allSetCookies.push({
+                                step: index + 1,
+                                url: step.url,
+                                cookie: cookie
+                            });
+                            html += `
+                                <div class="header-item" style="margin-left: 15px; color: #c586c0;">
+                                    <strong>[${idx + 1}]</strong> ${escapeHtml(cookie.substring(0, 75))}${cookie.length > 75 ? '...' : ''}
+                                </div>
+                            `;
+                        });
+                    }
+
+                    // Show other relevant headers
                     const relevantHeaders = [
                         'content-type',
-                        'set-cookie',
                         'location',
                         'cache-control',
                         'access-control-allow-credentials',
@@ -521,14 +549,6 @@
                                     <strong>${headerName}:</strong> ${escapeHtml(value.substring(0, 80))}${value.length > 80 ? '...' : ''}
                                 </div>
                             `;
-                            
-                            if (headerName === 'set-cookie') {
-                                allSetCookies.push({
-                                    step: index + 1,
-                                    url: step.url,
-                                    cookie: value
-                                });
-                            }
                         }
                     });
 
