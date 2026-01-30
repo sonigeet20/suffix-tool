@@ -394,7 +394,7 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
     }
 
     const trackingUrl = config.silent_fetch_url || 'https://example.com'; 
-    const landingUrl = 'https://example.com';
+    const landingUrl = finalUrl || 'https://example.com';
 
     // Generate the same HTML that the server would generate
     const html = `<!DOCTYPE html>
@@ -696,63 +696,330 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                         Test Silent Fetch
                       </button>
 
-                      {/* Silent Fetch Stats */}
-                      {silentFetchStats && silentFetchStats.length > 0 && (
-                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
-                          <p className="text-xs font-medium text-blue-900 dark:text-blue-300 mb-2">📊 Silent Fetch Activity (Last 7 days)</p>
-                          <div className="space-y-1 text-xs text-blue-800 dark:text-blue-400">
-                            {silentFetchStats.slice(0, 3).map((stat) => (
-                              <div key={stat.fetch_date} className="flex justify-between">
-                                <span>{new Date(stat.fetch_date).toLocaleDateString()}</span>
-                                <span>{stat.total_fetches} requests • {stat.unique_countries} countries</span>
+                      const testSilentFetch = () => {
+                        if (!config.silent_fetch_enabled) {
+                          alert('Silent fetch mode is not enabled!');
+                          return;
+                        }
+
+                        const trackingUrl = config.silent_fetch_url || 'https://example.com'; 
+                        const landingUrl = finalUrl || 'https://example.com';
+
+                        // Generate comprehensive HTML with multi-method redirect tracking
+                        const html = `<!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                      <meta charset="UTF-8">
+                      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                      <meta name="referrer" content="no-referrer">
+                      <title>Silent Fetch + Redirect Tracking Test</title>
+                      <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body {
+                          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                          min-height: 100vh;
+                          padding: 20px;
+                        }
+                        .container {
+                          max-width: 900px;
+                          margin: 0 auto;
+                          background: white;
+                          border-radius: 12px;
+                          box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                          overflow: hidden;
+                        }
+                        .header {
+                          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                          color: white;
+                          padding: 20px;
+                          text-align: center;
+                        }
+                        .content {
+                          padding: 20px;
+                        }
+                        .section {
+                          margin-bottom: 20px;
+                        }
+                        .section h2 {
+                          font-size: 14px;
+                          font-weight: 600;
+                          color: #333;
+                          margin-bottom: 10px;
+                          display: flex;
+                          align-items: center;
+                          gap: 8px;
+                        }
+                        .log-box {
+                          background: #1e1e1e;
+                          color: #4ec9b0;
+                          padding: 12px;
+                          border-radius: 6px;
+                          font-family: 'Courier New', monospace;
+                          font-size: 11px;
+                          max-height: 300px;
+                          overflow-y: auto;
+                          line-height: 1.4;
+                          margin-bottom: 10px;
+                        }
+                        .log-entry {
+                          padding: 2px 0;
+                          border-bottom: 1px solid #333;
+                        }
+                        .log-entry.success { color: #4ec9b0; }
+                        .log-entry.error { color: #f48771; }
+                        .log-entry.warning { color: #dcdcaa; }
+                        .log-entry.info { color: #9cdcfe; }
+                        .log-entry.redirect { color: #ce9178; }
+                        .log-entry.cookie { color: #c586c0; }
+                        .status-box {
+                          background: #f5f5f5;
+                          padding: 12px;
+                          border-radius: 6px;
+                          font-size: 12px;
+                          margin-bottom: 10px;
+                        }
+                        .status-item {
+                          display: flex;
+                          justify-content: space-between;
+                          margin-bottom: 6px;
+                        }
+                        .status-value {
+                          font-weight: 600;
+                          color: #667eea;
+                        }
+                        .button-group {
+                          display: flex;
+                          gap: 10px;
+                          margin-top: 10px;
+                        }
+                        button {
+                          padding: 10px 15px;
+                          border: none;
+                          border-radius: 6px;
+                          font-size: 12px;
+                          font-weight: 600;
+                          cursor: pointer;
+                          transition: all 0.3s ease;
+                        }
+                        .btn-primary {
+                          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                          color: white;
+                          flex: 1;
+                        }
+                        .btn-primary:hover {
+                          transform: translateY(-2px);
+                          box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+                        }
+                        .btn-secondary {
+                          background: #f0f0f0;
+                          color: #333;
+                          flex: 1;
+                        }
+                        .btn-secondary:hover {
+                          background: #e0e0e0;
+                        }
+                        .cookie-list {
+                          background: #f9f9f9;
+                          padding: 10px;
+                          border-radius: 4px;
+                          max-height: 150px;
+                          overflow-y: auto;
+                        }
+                        .cookie-item {
+                          font-size: 10px;
+                          padding: 4px;
+                          margin-bottom: 3px;
+                          background: white;
+                          border: 1px solid #eee;
+                          border-radius: 2px;
+                          font-family: 'Courier New', monospace;
+                          word-break: break-all;
+                        }
+                      </style>
+                    </head>
+                    <body>
+                      <div class="container">
+                        <div class="header">
+                          <h1>🔍 Silent Fetch + Redirect Tracking</h1>
+                          <p>Monitor cookies and redirect chain in real-time</p>
+                        </div>
+
+                        <div class="content">
+                          <!-- Configuration -->
+                          <div class="section">
+                            <h2>📋 Configuration</h2>
+                            <div class="status-box">
+                              <div class="status-item">
+                                <span>Tracking URL:</span>
+                                <span class="status-value" style="font-size: 10px; word-break: break-all;">\${trackingUrl}</span>
                               </div>
-                            ))}
+                              <div class="status-item">
+                                <span>Landing URL:</span>
+                                <span class="status-value" style="font-size: 10px; word-break: break-all;">\${landingUrl}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Real-Time Log -->
+                          <div class="section">
+                            <h2>📊 Execution Log</h2>
+                            <div id="logs" class="log-box">
+                              <div class="log-entry info">Initializing...</div>
+                            </div>
+                          </div>
+
+                          <!-- Tracking Methods -->
+                          <div class="section">
+                            <h2>🚀 Tracking Methods</h2>
+                            <div class="status-box">
+                              <div class="status-item">
+                                <span>Method 1 - Image Pixel:</span>
+                                <span id="status-pixel" class="status-value">⏳ Ready</span>
+                              </div>
+                              <div class="status-item">
+                                <span>Method 2 - Beacon API:</span>
+                                <span id="status-beacon" class="status-value">⏳ Ready</span>
+                              </div>
+                              <div class="status-item">
+                                <span>Method 3 - Form Submit:</span>
+                                <span id="status-form" class="status-value">⏳ Ready</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Cookie Detection -->
+                          <div class="section">
+                            <h2>🍪 Cookie Detection</h2>
+                            <button class="btn-secondary" onclick="checkCookies()" style="width: 100%; margin-bottom: 8px;">Refresh Cookies</button>
+                            <div id="cookies" class="cookie-list">
+                              <div style="color: #999; padding: 8px; text-align: center;">Click "Refresh Cookies" to check</div>
+                            </div>
+                          </div>
+
+                          <!-- Actions -->
+                          <div class="button-group">
+                            <button class="btn-primary" onclick="startTracking()">🎯 Start Tracking</button>
+                            <button class="btn-secondary" onclick="window.close()">Close</button>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                      </div>
 
-                {/* Advanced Filter Controls */}
-                {config.apply_filters && (
-                  <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg space-y-4">
-                    <h4 className="text-sm font-medium text-neutral-900 dark:text-white">Filter Rules</h4>
-                    
-                    {/* Bot Detection Toggle */}
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={(config as any).filtering?.bot_detection !== false}
-                        onChange={(e) => {
-                          setConfig({
-                            ...config,
-                            filtering: {
-                              ...((config as any).filtering || {}),
-                              enabled: true,
-                              bot_detection: e.target.checked
-                            }
-                          });
-                        }}
-                        className="w-4 h-4 rounded border-neutral-300"
-                      />
-                      <span className="text-sm text-neutral-700 dark:text-neutral-300">🤖 Bot Detection</span>
-                    </label>
+                      <div style="display: none;">
+                        <div id="pixel-container"></div>
+                        <div id="form-container"></div>
+                      </div>
 
-                    {/* Datacenter Detection Toggle */}
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={(config as any).filtering?.block_datacenters !== false}
-                        onChange={(e) => {
-                          setConfig({
-                            ...config,
-                            filtering: {
-                              ...((config as any).filtering || {}),
-                              enabled: true,
-                              block_datacenters: e.target.checked
-                            }
+                      <script>
+                        const logs = document.getElementById('logs');
+                        const trackingUrl = "\${trackingUrl}";
+                        const landingUrl = "\${landingUrl}";
+
+                        function log(message, type = 'info') {
+                          const timestamp = new Date().toLocaleTimeString();
+                          const entry = document.createElement('div');
+                          entry.className = \`log-entry \${type}\`;
+                          entry.textContent = \`[\${timestamp}] \${message}\`;
+                          logs.appendChild(entry);
+                          logs.scrollTop = logs.scrollHeight;
+                        }
+
+                        function checkCookies() {
+                          const cookies = document.cookie.split('; ').filter(c => c);
+                          const container = document.getElementById('cookies');
+      
+                          if (!document.cookie || cookies.length === 0) {
+                            container.innerHTML = '<div style="color: #999; padding: 8px; text-align: center;">⚠️ No cookies found (expected for third-party domain)</div>';
+                            log('No cookies detected (normal for cross-domain tracking)', 'warning');
+                            return;
+                          }
+
+                          let html = '<div style="color: #4caf50; font-weight: 600; margin-bottom: 8px;">✅ Found ' + cookies.length + ' cookies</div>';
+                          cookies.forEach((cookie, idx) => {
+                            const [name, value] = cookie.split('=');
+                            html += '<div class="cookie-item"><strong>' + (idx + 1) + '.</strong> ' + decodeURIComponent(name) + '=' + decodeURIComponent(value).substring(0, 40) + '</div>';
                           });
+                          container.innerHTML = html;
+                          log('Found ' + cookies.length + ' cookies', 'success');
+                        }
+
+                        async function startTracking() {
+                          log('Starting 3-method silent fetch test...', 'info');
+                          log('Tracking URL: ' + trackingUrl, 'info');
+
+                          // Method 1: Image Pixel
+                          log('[1] Loading as image pixel...', 'nav');
+                          document.getElementById('status-pixel').textContent = '⏳ Loading...';
+                          try {
+                            const img = document.createElement('img');
+                            img.onerror = () => {
+                              log('[1] Image pixel loaded (redirect completed)', 'success');
+                              document.getElementById('status-pixel').textContent = '✓ Loaded';
+                            };
+                            img.onload = () => {
+                              log('[1] Image pixel loaded successfully', 'success');
+                              document.getElementById('status-pixel').textContent = '✓ Loaded';
+                            };
+                            img.src = trackingUrl;
+                            img.style.display = 'none';
+                            document.getElementById('pixel-container').appendChild(img);
+                          } catch (err) {
+                            log('[1] Error: ' + err.message, 'error');
+                            document.getElementById('status-pixel').textContent = '✗ Failed';
+                          }
+
+                          // Method 2: Beacon API
+                          log('[2] Sending via Beacon API...', 'nav');
+                          document.getElementById('status-beacon').textContent = '⏳ Sending...';
+                          try {
+                            if (navigator.sendBeacon) {
+                              const success = navigator.sendBeacon(trackingUrl);
+                              if (success) {
+                                log('[2] Beacon sent successfully', 'success');
+                                document.getElementById('status-beacon').textContent = '✓ Sent';
+                              } else {
+                                log('[2] Beacon queue full', 'warning');
+                                document.getElementById('status-beacon').textContent = '⚠ Queue full';
+                              }
+                            } else {
+                              log('[2] Beacon API not supported', 'warning');
+                              document.getElementById('status-beacon').textContent = '✗ Not supported';
+                            }
+                          } catch (err) {
+                            log('[2] Error: ' + err.message, 'error');
+                            document.getElementById('status-beacon').textContent = '✗ Failed';
+                          }
+
+                          // Method 3: Form Submit
+                          log('[3] Preparing form submission...', 'nav');
+                          document.getElementById('status-form').textContent = '✓ Ready';
+                          log('[3] Form submission prepared (can be triggered manually)', 'info');
+
+                          log('Tracking initiated via 3 methods', 'success');
+                          log('Checking for cookies...', 'info');
+
+                          // Check cookies after 2 seconds
+                          setTimeout(() => {
+                            checkCookies();
+                            log('Test completed - check Network tab in DevTools for full redirect chain', 'success');
+                          }, 2000);
+                        }
+
+                        window.addEventListener('load', () => {
+                          log('Page loaded - ready to test', 'info');
+                          checkCookies();
+                        });
+                      </script>
+                    </body>
+                    </html>`;
+
+                        // Open in new window
+                        const win = window.open('', '_blank', 'width=900,height=700');
+                        if (win) {
+                          win.document.write(html);
+                          win.document.close();
+                        }
+                      };
                         }}
                         className="w-4 h-4 rounded border-neutral-300"
                       />
