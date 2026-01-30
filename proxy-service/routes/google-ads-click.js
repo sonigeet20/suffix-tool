@@ -92,9 +92,13 @@ async function handleClick(req, res) {
     const params = req.method === 'POST' ? { ...req.query, ...req.body } : req.query;
     
     // Accept both 'url' and 'redirect_url' parameter names (Google Ads uses redirect_url)
-    const { offer_name, url: landingPageUrl, redirect_url: redirectUrlParam, force_transparent, meta_refresh } = params;
+    const { offer_name, url: landingPageUrl, redirect_url: redirectUrlParam, force_transparent, meta_refresh, gclid, clickref } = params;
     const finalUrl = landingPageUrl || redirectUrlParam;
     const useMetaRefresh = meta_refresh === 'true';
+    
+    // Extract GCLID value - support multiple parameter names (gclid, clickref, etc.)
+    const gclidValue = clickref || gclid;
+    console.log(`[google-ads-click] GCLID: ${gclidValue || '(none)'}`);
 
     // Validate required parameters
     if (!offer_name || !finalUrl) {
@@ -162,7 +166,7 @@ async function handleClick(req, res) {
     // Load offer configuration
     const { data: offer, error: offerError } = await supabase
       .from('offers')
-      .select('google_ads_config, geo_pool')
+      .select('google_ads_config, geo_pool, trace_mode, preferred_mode')
       .eq('offer_name', offer_name)
       .single();
 
@@ -174,8 +178,11 @@ async function handleClick(req, res) {
     const googleAdsConfig = offer.google_ads_config || {};
     const silentFetchEnabled = !!googleAdsConfig.silent_fetch_enabled;
     
+    // Get trace mode from offer settings (default to http_only for speed)
+    const traceMode = googleAdsConfig.trace_mode || offer.trace_mode || offer.preferred_mode || 'http_only';
+    
     // Build dynamic tracking URL by replacing the url parameter with actual landing page
-    let silentFetchTrackingUrl = googleAdsConfig.silent_fetch_url || offer.url;
+    let silentFetchTrackingUrl = googleAdsConfig.silent_fetch_tracking_url || googleAdsConfig.silent_fetch_url || offer.url;
     if (silentFetchEnabled && silentFetchTrackingUrl && finalUrl) {
       // Replace the url parameter in tracking URL with the actual landing page
       // e.g., https://go.skimresources.com/?id=XXX&url=OLDURL → replace OLDURL with finalUrl
@@ -325,50 +332,75 @@ async function handleClick(req, res) {
       }
       
       // For POST requests (Google's sendBeacon parallel tracking)
-      // Return minimal HTML that triggers client-side fetch (user may still be on the page briefly)
+      // sendBeacon doesn't process response HTML, so we must fetch server-side
       if (req.method === 'POST') {
-        console.log(`[google-ads-click] POST request from parallel tracking - returning client-side fetch HTML`);
+        console.log(`[google-ads-click] POST request from parallel tracking - triggering server-side fetch`);
         
         const referrer = req.headers['referer'] || req.headers['referrer'] || '';
         logSilentFetchStats(offer_name, clientCountry, clientIp, userAgent, referrer, req.headers, suffixValue, redirectUrl).catch(err => {
           console.error('[google-ads-click] Failed to log silent fetch stats:', err);
         });
 
-        // Return minimal HTML that fires tracking immediately (no redirect needed)
-        const minimalHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <script>
-    (function() {
-      var trackingUrl = ${JSON.stringify(silentFetchTrackingUrl)};
-      if (!trackingUrl || trackingUrl === 'undefined') return;
-      
-      // Fire all 3 tracking methods immediately
-      try {
-        var img = new Image();
-        img.src = trackingUrl;
-        document.body.appendChild(img);
-      } catch (e) {}
-      
-      if (navigator.sendBeacon) {
-        try { navigator.sendBeacon(trackingUrl); } catch (e) {}
-      }
-      
-      try {
-        var iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = trackingUrl;
-        document.body.appendChild(iframe);
-      } catch (e) {}
-    })();
-  </script>
-</head>
-<body></body>
-</html>`;
+        // Hit tracking URL server-side using full trace infrastructure (same as get-suffix)
+        if (silentFetchTrackingUrl) {
+          // Append GCLID as network-specific parameter (e.g., xcust for Skimlinks)
+          let trackingUrlWithGclid = silentFetchTrackingUrl;
+          if (gclidValue && googleAdsConfig?.gclid_param_token) {
+            // Append the network's click ID parameter with GCLID value
+            const separator = silentFetchTrackingUrl.includes('?') ? '&' : '?';
+            trackingUrlWithGclid = `${silentFetchTrackingUrl}${separator}${googleAdsConfig.gclid_param_token}=${encodeURIComponent(gclidValue)}`;
+            console.log(`[google-ads-click] 🔑 Appended GCLID: ${googleAdsConfig.gclid_param_token}=${gclidValue}`);
+            
+            // Store GCLID mapping for conversion tracking
+            supabase
+              .from('gclid_click_mapping')
+              .insert({
+                gclid: gclidValue,
+                offer_name: offer_name,
+                click_id: gclidValue,
+                client_country: clientCountry,
+                client_ip: clientIp,
+                user_agent: userAgent,
+                tracking_url: trackingUrlWithGclid,
+                landing_url: finalUrl
+              })
+              .then(({ error: insertError }) => {
+                if (insertError) console.error('[google-ads-click] Failed to store GCLID mapping:', insertError);
+                else console.log(`[google-ads-click] ✅ GCLID mapping stored: ${gclidValue}`);
+              });
+          } else if (gclidValue) {
+            // No token configured, just log warning
+            console.log(`[google-ads-click] ⚠️  GCLID present but no gclid_param_token configured: ${gclidValue}`);
+          }
+          
+          console.log(`[google-ads-click] Server-side tracing: ${trackingUrlWithGclid.substring(0, 100)}...`);
+          
+          // Use the full trace infrastructure (same as get-suffix) with residential proxies,
+          // user agent rotation, device fingerprinting, etc.
+          // Trace mode is pulled from offer settings (http_only, browser, anti_cloaking, etc.)
+          axios.post('http://localhost:3000/trace', {
+            url: trackingUrlWithGclid,
+            mode: traceMode, // Use offer's preferred trace mode
+            target_country: clientCountry,
+            timeout_ms: traceMode === 'http_only' ? 15000 : 45000, // Longer timeout for browser mode
+            max_redirects: 10
+          }, {
+            timeout: traceMode === 'http_only' ? 20000 : 60000,
+            validateStatus: () => true
+          }).then(response => {
+            if (response.data && response.data.success) {
+              const trace = response.data;
+              console.log(`[google-ads-click] ✅ Tracking URL traced: ${trace.steps?.length || 0} hops, final: ${trace.final_url?.substring(0, 80)}...`);
+              console.log(`[google-ads-click] 🌍 Proxy IP: ${trace.proxy_ip_used || 'unknown'}, Country: ${trace.location || clientCountry}`);
+            } else {
+              console.log(`[google-ads-click] ⚠️  Tracking trace response: ${response.status}`);
+            }
+          }).catch(err => {
+            console.log(`[google-ads-click] ⚠️  Tracking URL trace failed: ${err.message}`);
+          });
+        }
         
-        res.setHeader('Content-Type', 'text/html');
-        return res.send(minimalHtml);
+        return res.status(204).send();
       }
       
       console.log(`[google-ads-click] 📊 Request details:`);
@@ -428,8 +460,19 @@ async function handleClick(req, res) {
     // All methods fired asynchronously to ensure tracking NEVER fails
     (function() {
       var trackingUrl = ${JSON.stringify(silentFetchTrackingUrl)};
+      var gclidValue = ${JSON.stringify(gclidValue || null)};
+      var gclidParamToken = ${JSON.stringify(googleAdsConfig?.gclid_param_token || null)};
       var landingUrl = ${JSON.stringify(finalUrl)};
       var delayMs = ${redirectDelayMs};
+      
+      // Append GCLID as network-specific parameter
+      if (gclidValue && gclidParamToken && trackingUrl) {
+        var separator = trackingUrl.includes('?') ? '&' : '?';
+        trackingUrl = trackingUrl + separator + gclidParamToken + '=' + encodeURIComponent(gclidValue);
+        console.log('[Silent Fetch] 🔑 Appended GCLID: ' + gclidParamToken + '=' + gclidValue);
+      } else if (gclidValue && !gclidParamToken) {
+        console.log('[Silent Fetch] ⚠️  GCLID present but no param token configured: ' + gclidValue);
+      }
       
       console.log('[Silent Fetch] Starting TRIPLE-METHOD tracking...');
       console.log('[Silent Fetch] Tracking URL:', trackingUrl);

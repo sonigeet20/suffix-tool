@@ -77,26 +77,46 @@ gclid={gclid}
 ## Silent Fetch Mode Compatibility
 
 With silent fetch enabled:
-1. **GET Request** (user click): Returns full HTML with triple-method tracking and 3-second delay + redirect
-2. **POST Request** (parallel tracking): Returns minimal HTML with immediate triple-method tracking (no redirect)
+1. **GET Request** (user click): Returns HTML with client-side triple-method tracking + redirect
+2. **POST Request** (parallel tracking): **Server-side fetch** to tracking URL + returns 204
 
-### How Client-Side Tracking Works (Both GET and POST)
+### Why Server-Side for POST?
 
-Both request types fire tracking URLs using **client-side JavaScript** in the user's browser:
+**Critical:** `navigator.sendBeacon()` doesn't execute JavaScript in responses!
 
-**Triple-Method Tracking:**
-1. **Image Pixel** - Most reliable, follows redirects, sets cookies
-2. **Beacon API** - Fire & forget, survives page navigation  
-3. **Hidden IFrame** - Loads URL in background with full browser context
+When Google fires a POST request via sendBeacon:
+- The response body is **ignored** (not rendered or executed)
+- Client-side HTML/JavaScript won't run
+- **Server must fetch the tracking URL** to set cookies
+
+### How Server-Side Fetch Works
+
+```javascript
+// Our server acts as proxy for POST requests
+axios.get(trackingUrl, {
+  maxRedirects: 10,  // Follow all redirect chains
+  headers: {
+    'User-Agent': userRealUserAgent,
+    'X-Forwarded-For': userRealIP,
+    'X-Real-IP': userRealIP,
+    'X-Client-Country': userCountry,
+    'Referer': originalReferrer
+  }
+});
+```
 
 **Benefits:**
-- ✅ Tracking fires from user's real browser (real IP, real cookies)
-- ✅ Affiliate networks see actual user's location and device
-- ✅ Cookies are set in user's browser on tracker's domain
-- ✅ Works seamlessly with Google Ads parallel tracking
-- ✅ No server-side proxy needed
+- ✅ Tracking URL is hit and cookies are set
+- ✅ Follows full redirect chain (critical for affiliate tracking)
+- ✅ User's real IP/User-Agent forwarded to tracker
+- ✅ Works with Google Ads parallel tracking
+- ✅ 204 response tells Google tracking succeeded
 
-Both methods log to `google_ads_silent_fetch_stats` table for tracking.
+**GET vs POST:**
+- **GET**: Client-side (user's browser fires tracking)
+- **POST**: Server-side (our server fires tracking with user's headers)
+
+Both methods log to `google_ads_silent_fetch_stats` table.
 
 ## Testing
 
