@@ -165,6 +165,11 @@ async function handleClick(req, res) {
       // Return HTML with client-side fetch (for cookies) + redirect
       const responseTime = Date.now() - startTime;
       console.log(`[google-ads-click] Silent fetch redirect completed in ${responseTime}ms`);
+
+      const debugDelayMsRaw = parseInt(req.query.debug_delay_ms, 10);
+      const redirectDelayMs = Number.isFinite(debugDelayMsRaw)
+        ? Math.min(Math.max(debugDelayMsRaw, 0), 10000)
+        : 100;
       
       const html = `<!DOCTYPE html>
 <html>
@@ -186,10 +191,10 @@ async function handleClick(req, res) {
         console.log('Silent fetch error (expected):', err);
       });
       
-      // Redirect to landing page after 100ms (gives time for fetch to start)
+      // Redirect to landing page after delay (gives time for fetch to start)
       setTimeout(function() {
         window.location.href = landingUrl;
-      }, 100);
+      }, ${redirectDelayMs});
     })();
   </script>
 </head>
