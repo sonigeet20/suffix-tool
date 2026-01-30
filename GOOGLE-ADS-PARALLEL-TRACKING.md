@@ -77,8 +77,24 @@ gclid={gclid}
 ## Silent Fetch Mode Compatibility
 
 With silent fetch enabled:
-1. **GET Request** (user click): Returns HTML with triple-method tracking
-2. **POST Request** (parallel tracking): Logs the event, returns 204
+1. **GET Request** (user click): Returns full HTML with triple-method tracking and 3-second delay + redirect
+2. **POST Request** (parallel tracking): Returns minimal HTML with immediate triple-method tracking (no redirect)
+
+### How Client-Side Tracking Works (Both GET and POST)
+
+Both request types fire tracking URLs using **client-side JavaScript** in the user's browser:
+
+**Triple-Method Tracking:**
+1. **Image Pixel** - Most reliable, follows redirects, sets cookies
+2. **Beacon API** - Fire & forget, survives page navigation  
+3. **Hidden IFrame** - Loads URL in background with full browser context
+
+**Benefits:**
+- ✅ Tracking fires from user's real browser (real IP, real cookies)
+- ✅ Affiliate networks see actual user's location and device
+- ✅ Cookies are set in user's browser on tracker's domain
+- ✅ Works seamlessly with Google Ads parallel tracking
+- ✅ No server-side proxy needed
 
 Both methods log to `google_ads_silent_fetch_stats` table for tracking.
 

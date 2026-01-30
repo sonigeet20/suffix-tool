@@ -324,6 +324,53 @@ async function handleClick(req, res) {
         return res.redirect(302, finalUrl);
       }
       
+      // For POST requests (Google's sendBeacon parallel tracking)
+      // Return minimal HTML that triggers client-side fetch (user may still be on the page briefly)
+      if (req.method === 'POST') {
+        console.log(`[google-ads-click] POST request from parallel tracking - returning client-side fetch HTML`);
+        
+        const referrer = req.headers['referer'] || req.headers['referrer'] || '';
+        logSilentFetchStats(offer_name, clientCountry, clientIp, userAgent, referrer, req.headers, suffixValue, redirectUrl).catch(err => {
+          console.error('[google-ads-click] Failed to log silent fetch stats:', err);
+        });
+
+        // Return minimal HTML that fires tracking immediately (no redirect needed)
+        const minimalHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script>
+    (function() {
+      var trackingUrl = ${JSON.stringify(silentFetchTrackingUrl)};
+      if (!trackingUrl || trackingUrl === 'undefined') return;
+      
+      // Fire all 3 tracking methods immediately
+      try {
+        var img = new Image();
+        img.src = trackingUrl;
+        document.body.appendChild(img);
+      } catch (e) {}
+      
+      if (navigator.sendBeacon) {
+        try { navigator.sendBeacon(trackingUrl); } catch (e) {}
+      }
+      
+      try {
+        var iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = trackingUrl;
+        document.body.appendChild(iframe);
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body></body>
+</html>`;
+        
+        res.setHeader('Content-Type', 'text/html');
+        return res.send(minimalHtml);
+      }
+      
       console.log(`[google-ads-click] 📊 Request details:`);
       console.log(`  - IP: ${clientIp}`);
       console.log(`  - Country: ${clientCountry}`);
@@ -499,13 +546,6 @@ async function handleClick(req, res) {
         "default-src 'none'; script-src 'unsafe-inline'; connect-src *; img-src *; frame-src *; style-src 'unsafe-inline'; base-uri 'none'; form-action *; frame-ancestors 'none'"
       );
       return res.send(html);
-    }
-
-    // For POST requests (Google's sendBeacon parallel tracking), return 204 No Content
-    // sendBeacon doesn't follow redirects, so we just acknowledge receipt
-    if (req.method === 'POST') {
-      console.log(`[google-ads-click] POST request - returning 204 No Content (sendBeacon tracking logged)`);
-      return res.status(204).send();
     }
 
     // Perform redirect (meta refresh hides referrer, 302 is standard)
