@@ -8051,3 +8051,57 @@
 {"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
 {"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
 {"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","max_redirects":10,"message":"⚡ Trace request:","mode":"http_only","target_country":"US","timeout_ms":15000,"url":"https://go.skimresources.com/?id=124588X1613321&xs=1&url=https%3A%2F%2Fwww.nazwa.pl&xcust=Cj0KCQiA_LOCAL_INSERT_TEST"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"us"}
+{"level":"info","message":"🌍 Geo-targeting: US"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://go.skimresources.com/?id=124588X1613321&xs=1&url=https%3A%2F%2Fwww.nazwa... | maxRedirects: 10"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like ..."}
+{"level":"info","message":"🖥️ Unique fingerprint: desktop | viewport=1270x729, colorDepth=32, pixelRatio=1"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting US"}
+{"level":"info","message":"🔐 Proxy protocol: HTTP (http) | URL: http://na.lunaproxy.com:12233"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://go.skimresources.com/?id=124588X1613321&xs=1&url=htt..."}
+{"level":"info","message":"  ✅ Hop 1 (302) in 2420ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  🚀 Hop 2 (parallel, concurrent=2): https://clkuk.tradedoubler.com/click?p(306886)a(1983914)url(..."}
+{"level":"info","message":"  ✅ Hop 2 (302) in 2652ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  🚀 Hop 3 (parallel, concurrent=2): https://www.nazwa.pl/?tduid=b3d5dee58c8fb87b434a8cb14fc3667c..."}
+{"level":"info","message":"  ✅ Hop 3 (200) in 4633ms 🛑 FINAL [parallel, concurrent=1]"}
+{"level":"info","message":"  🎯 Final URL reached at hop 3 - connection killed to save bandwidth"}
+{"level":"info","message":"✅ HTTP-only trace complete: 3 steps (3 hops launched, max concurrent=2)"}
+{"level":"info","message":"✅ Trace completed (http_only): 3 steps in 9942ms"}
+{"level":"info","message":"🌐 Proxy IP used: 47.134.16.113 | Location: Suffolk, Virginia, United States | Selected Geo: US"}
+{"level":"info","max_redirects":10,"message":"⚡ Trace request:","mode":"http_only","target_country":"US","timeout_ms":15000,"url":"https://go.skimresources.com/?id=124588X1613321&xs=1&url=https%3A%2F%2Fwww.nazwa.pl&xcust=Cj0KCQiA_LOCAL_INSERT_TEST"}
+{"geo_pool_size":0,"geo_strategy":"round_robin","level":"info","message":"🌍 Geo selection","selected_geo":"us"}
+{"level":"info","message":"🌍 Geo-targeting: US"}
+{"level":"info","message":"⚡ Using HTTP-only mode (fast)"}
+{"level":"info","message":"⚡ HTTP-only INSTANT (GET + stream headers): https://go.skimresources.com/?id=124588X1613321&xs=1&url=https%3A%2F%2Fwww.nazwa... | maxRedirects: 10"}
+{"level":"info","message":"📱 User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (K..."}
+{"level":"info","message":"🖥️ Unique fingerprint: mobile | viewport=416x917, colorDepth=24, pixelRatio=3"}
+{"level":"info","message":"🌍 HTTP-only: Geo-targeting US"}
+{"level":"info","message":"🔐 Proxy protocol: HTTP (http) | URL: http://na.lunaproxy.com:12233"}
+{"level":"info","message":"  🚀 Hop 1 (parallel, concurrent=1): https://go.skimresources.com/?id=124588X1613321&xs=1&url=htt..."}
+{"level":"info","message":"  ✅ Hop 1 (302) in 4927ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  🚀 Hop 2 (parallel, concurrent=2): https://clkuk.tradedoubler.com/click?p(306886)a(1983914)url(..."}
+{"level":"info","message":"  ✅ Hop 2 (302) in 3756ms  [parallel, concurrent=1]"}
+{"level":"info","message":"  🚀 Hop 3 (parallel, concurrent=2): https://www.nazwa.pl/?tduid=6a76d74b32eaaadcb16142c488985b7a..."}
+{"level":"info","message":"  ✅ Hop 3 (200) in 2554ms 🛑 FINAL [parallel, concurrent=1]"}
+{"level":"info","message":"  🎯 Final URL reached at hop 3 - connection killed to save bandwidth"}
+{"level":"info","message":"✅ HTTP-only trace complete: 3 steps (3 hops launched, max concurrent=2)"}
+{"level":"info","message":"✅ Trace completed (http_only): 3 steps in 11455ms"}
+{"level":"info","message":"🌐 Proxy IP used: 67.147.134.6 | Location: Killeen, Texas, United States | Selected Geo: US"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3001"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Dynamic generation: Capable of 10,000+ unique user agents for high-volume tracing"}
+{"level":"info","message":"Default device distribution: Mobile 60%, Desktop 30%, Tablet 10%"}
+{"level":"info","message":"UserAgentRotator initialized in 'dynamic' mode with pool size: 10000"}
+{"level":"info","message":"Proxy service running on 0.0.0.0:3001"}
+{"level":"info","message":"Supported modes: http_only (fast), browser (full rendering), anti_cloaking (advanced stealth), interactive (anti-cloaking + session engagement)"}
+{"host":"na.lunaproxy.com","level":"info","message":"Proxy settings loaded from database:","port":12233}
+{"host":"na.lunaproxy.com","level":"info","message":"Luna Proxy configured from database:","port":12233}
