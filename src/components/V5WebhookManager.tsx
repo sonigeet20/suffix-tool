@@ -1057,9 +1057,9 @@ export function V5WebhookManager() {
                       
                       return (
                         <div key={accountId} className="border-b border-neutral-200 dark:border-neutral-800">
-                          {/* ACCOUNT LEVEL */}
+                          {/* ACCOUNT LEVEL - Minimal Collapsed View */}
                           <div 
-                            className="px-6 py-5 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer transition-all duration-200 border-l-4 border-l-blue-500 dark:border-l-blue-400"
+                            className="px-6 py-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-smooth border-l-4 border-l-blue-400 dark:border-l-blue-500"
                             onClick={() => {
                               if (isAccountExpanded) {
                                 expandedMappings.delete(expandedAccountKey);
@@ -1070,43 +1070,39 @@ export function V5WebhookManager() {
                             }}
                           >
                             <div className="flex items-center justify-between gap-4">
-                              <div className="flex items-center gap-4 flex-1 min-w-0">
-                                <div className="flex-shrink-0 pt-1">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <div className="flex-shrink-0">
                                   {isAccountExpanded ? (
-                                    <ChevronDown size={20} className="text-blue-600 dark:text-blue-400" />
+                                    <ChevronDown size={18} className="text-blue-600 dark:text-blue-400" />
                                   ) : (
-                                    <ChevronRight size={20} className="text-neutral-400" />
+                                    <ChevronRight size={18} className="text-neutral-400" />
                                   )}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  {/* Account ID */}
-                                  <div className="flex items-center gap-3 mb-3">
-                                    <span className="font-mono font-semibold text-neutral-900 dark:text-neutral-50 text-base truncate">
-                                      {accountId}
-                                    </span>
-                                    <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 whitespace-nowrap">
-                                      {mappingsForAccount.length} campaign{mappingsForAccount.length !== 1 ? 's' : ''}
-                                    </span>
-                                  </div>
-                                  
-                                  {/* Metrics Grid */}
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg px-3 py-2">
-                                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Suffix Bucket</p>
-                                      <p className="font-semibold text-neutral-900 dark:text-neutral-50">{bucketSize}</p>
-                                    </div>
-                                    <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg px-3 py-2">
-                                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Active</p>
-                                      <p className="font-semibold text-neutral-900 dark:text-neutral-50">{mappingsForAccount.filter(m => m.is_active).length}/{mappingsForAccount.length}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-xs text-neutral-400 dark:text-neutral-500 flex-shrink-0">
-                                {isAccountExpanded ? 'Collapse' : 'Expand'}
+                                <span className="font-mono text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate">
+                                  {accountId}
+                                </span>
+                                <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 flex-shrink-0">
+                                  {mappingsForAccount.length}
+                                </span>
                               </div>
                             </div>
                           </div>
+
+                          {/* ACCOUNT DETAILS - Expanded */}
+                          {isAccountExpanded && (
+                            <div className="bg-neutral-50 dark:bg-neutral-900/30 px-6 py-4 border-b border-neutral-200 dark:border-neutral-700 space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-white dark:bg-neutral-800 rounded-lg px-3 py-2">
+                                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Suffix Bucket</p>
+                                  <p className="font-semibold text-neutral-900 dark:text-neutral-50">{bucketSize}</p>
+                                </div>
+                                <div className="bg-white dark:bg-neutral-800 rounded-lg px-3 py-2">
+                                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Active</p>
+                                  <p className="font-semibold text-neutral-900 dark:text-neutral-50">{mappingsForAccount.filter(m => m.is_active).length}/{mappingsForAccount.length}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
                           {/* CAMPAIGNS LEVEL */}
                           {isAccountExpanded && (
