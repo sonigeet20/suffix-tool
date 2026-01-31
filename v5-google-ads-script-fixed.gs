@@ -193,7 +193,7 @@ function appendSuffix(url, suffix) {
 
   var hasQuery = url.indexOf('?') !== -1;
   var separator = hasQuery ? '&' : '?';
-  var cleanedSuffix = suffix.replace(/^\?/, '');
+  var cleanedSuffix = suffix.replace(/^\\?/, '');
   return url + separator + cleanedSuffix;
 }
 
