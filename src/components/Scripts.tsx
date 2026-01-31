@@ -985,10 +985,16 @@ var ALLOWED_CAMPAIGN_IDS = [];
 // Batch controls
 var BATCH_SIZE = 15; // how many webhooks per run
 
-// ⚙️ POLLING INTERVAL CONTROL (Configure the polling frequency here)
+// ⚙️ POLLING CONTROL (Interval + Max runtime only)
 var POLLING_INTERVAL_MS = 5000;  // 5 seconds between polls (adjust as needed)
-var MAX_RUNTIME_MS = 540000;     // 9 minutes max (Google Ads Script limit is 10min)
-var POLLING_CYCLES = 10;         // Max polling cycles per execution
+var MAX_RUNTIME_MS = 30 * 60 * 1000; // 30 minutes max runtime
+
+// ⚡ TRACE OVERRIDE (script-level control)
+// When enabled, this overrides tracing speed + behavior for new traces/bucket filling
+var TRACE_OVERRIDE_ENABLED = false;
+var TRACE_TRACES_PER_DAY = null;        // e.g. 144 (10 min avg) or null to use default
+var TRACE_SPEED_MULTIPLIER = null;      // e.g. 2.0 for 2x speed or null
+var TRACE_ON_WEBHOOK = true;            // true = trace on each webhook
 
 // Zero-click fetch controls
 var ZERO_CLICK_LOOKBACK_DAYS = 7; // fetch last 7 days
@@ -1002,6 +1008,48 @@ var CACHE_TTL_SECONDS = 6 * 60 * 60; // 6 hours cache
 // AUTO-SETUP CHECK (FIRST-TIME ACCOUNT DETECTION)
 // =============================================================
 function checkAutoSetup() {
+
+  // =============================================================
+  // TRACE OVERRIDE (SCRIPT-LEVEL CONTROL)
+  // =============================================================
+  function applyTraceOverride() {
+    if (!TRACE_OVERRIDE_ENABLED) {
+      Logger.log('[TRACE-OVERRIDE] Disabled at script level');
+      return;
+    }
+
+    try {
+      var url = SUPABASE_URL + '/functions/v1/v5-set-trace-override';
+      var payload = {
+        account_id: ACCOUNT_ID,
+        offer_name: OFFER_DEFAULT,
+        enabled: true,
+        traces_per_day: TRACE_TRACES_PER_DAY,
+        speed_multiplier: TRACE_SPEED_MULTIPLIER,
+        trace_also_on_webhook: TRACE_ON_WEBHOOK
+      };
+
+      var options = {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      };
+
+      var response = UrlFetchApp.fetch(url, options);
+      var responseCode = response.getResponseCode();
+      var responseText = response.getContentText();
+
+      if (responseCode !== 200) {
+        Logger.log('[TRACE-OVERRIDE] Error response: ' + responseText);
+        return;
+      }
+
+      Logger.log('[TRACE-OVERRIDE] Applied override for offer ' + OFFER_DEFAULT + ' (account ' + ACCOUNT_ID + ')');
+    } catch (e) {
+      Logger.log('[TRACE-OVERRIDE] Failed to apply override: ' + e);
+    }
+  }
   try {
     // First, get all enabled campaigns
     var campaigns = [];
@@ -1095,6 +1143,11 @@ function main() {
     checkAutoSetup();
   } catch (e) {
     Logger.log('[AUTO-SETUP] Error: ' + e);
+
+    // Step 0.5: Apply script-level trace override (optional)
+    applyTraceOverride();
+    Logger.log('[CONFIG] Polling Interval: ' + POLLING_INTERVAL_MS + 'ms, Max Runtime: ' + MAX_RUNTIME_MS + 'ms');
+    Logger.log('[CONFIG] Trace Override: ' + (TRACE_OVERRIDE_ENABLED ? 'ENABLED' : 'DISABLED'));
   }
 
   // Step 1: Check and fetch zero-click suffixes (once daily)
@@ -1120,10 +1173,8 @@ function main() {
   var startTime = new Date().getTime();
   var totalProcessed = 0;
   var totalUpdated = 0;
-  var consecutiveEmptyPolls = 0;
-  var MAX_EMPTY_POLLS = 3; // Exit after 3 consecutive empty polls
   
-  while (pollingCycle < POLLING_CYCLES) {
+  while (true) {
     var elapsedMs = new Date().getTime() - startTime;
     
     // Check runtime limit
@@ -1132,22 +1183,15 @@ function main() {
       break;
     }
     
-    Logger.log('[POLL] Cycle ' + (pollingCycle + 1) + '/' + POLLING_CYCLES + ' - Elapsed: ' + elapsedMs + 'ms');
+    Logger.log('[POLL] Elapsed: ' + elapsedMs + 'ms');
     
     // Fetch and process webhooks
     var webhooks = fetchWebhookQueue(BATCH_SIZE);
     
     if (webhooks.length === 0) {
-      consecutiveEmptyPolls++;
-      Logger.log('[POLL] No webhooks in queue (' + consecutiveEmptyPolls + '/' + MAX_EMPTY_POLLS + ' empty polls)');
-      
-      // Exit early if queue consistently empty
-      if (consecutiveEmptyPolls >= MAX_EMPTY_POLLS) {
-        Logger.log('[POLL] Queue empty after ' + MAX_EMPTY_POLLS + ' checks. Exiting early to save resources.');
-        break;
-      }
+    if (webhooks.length === 0) {
+      Logger.log('[POLL] No webhooks in queue');
     } else {
-      consecutiveEmptyPolls = 0; // Reset counter when work found
       Logger.log('[POLL] Processing ' + webhooks.length + ' webhooks');
       var summary = applySuffixes(webhooks);
       
@@ -1162,19 +1206,16 @@ function main() {
     }
     
     pollingCycle++;
-    
-    // Actual sleep between polls (Google Ads Scripts support Utilities.sleep)
-    if (pollingCycle < POLLING_CYCLES && consecutiveEmptyPolls < MAX_EMPTY_POLLS) {
-      var nextElapsedMs = new Date().getTime() - startTime + POLLING_INTERVAL_MS;
-      if (nextElapsedMs < MAX_RUNTIME_MS) {
-        Logger.log('[POLL] Sleeping ' + POLLING_INTERVAL_MS + 'ms before next cycle...');
-        Utilities.sleep(POLLING_INTERVAL_MS);
-      }
+    // Sleep between polls
+    var nextElapsedMs = new Date().getTime() - startTime + POLLING_INTERVAL_MS;
+    if (nextElapsedMs < MAX_RUNTIME_MS) {
+      Logger.log('[POLL] Sleeping ' + POLLING_INTERVAL_MS + 'ms before next cycle...');
+      Utilities.sleep(POLLING_INTERVAL_MS);
     }
   }
   
   Logger.log('[DONE] Total webhooks processed: ' + totalProcessed + ', ads updated: ' + totalUpdated);
-  Logger.log('[DONE] Completed ' + pollingCycle + ' polling cycles in ' + (new Date().getTime() - startTime) + 'ms');
+  Logger.log('[DONE] Completed polling in ' + (new Date().getTime() - startTime) + 'ms');
 }
 
 // =============================================================
