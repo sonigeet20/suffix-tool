@@ -531,6 +531,7 @@ export function V5WebhookManager() {
     }
 
     try {
+      setLoadingMappings(true);
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(`${supabaseUrl}/functions/v1/v5-create-mapping`, {
         method: 'POST',
@@ -549,10 +550,13 @@ export function V5WebhookManager() {
       }
 
       alert('✅ Trackier campaign created successfully!\n\nTracking Template and Webhook URL are ready to be configured.');
+      // Refresh all mappings to reflect the new Trackier campaign
       await loadAllMappings();
     } catch (error: any) {
       console.error('Create Trackier campaign error:', error);
       alert(`Error: ${error.message}`);
+    } finally {
+      setLoadingMappings(false);
     }
   };
 
@@ -601,6 +605,24 @@ export function V5WebhookManager() {
               <>
                 <Database size={16} />
                 Load Data
+              </>
+            )}
+          </button>
+          <button
+            onClick={loadAllMappings}
+            disabled={loadingMappings}
+            title="Refresh all mappings (useful after script auto-setup)"
+            className="flex items-center gap-2 px-4 py-2 bg-neutral-600 dark:bg-neutral-500 text-white rounded-lg hover:bg-neutral-700 dark:hover:bg-neutral-600 transition-smooth disabled:opacity-50"
+          >
+            {loadingMappings ? (
+              <>
+                <RefreshCw size={16} className="animate-spin" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <RefreshCw size={16} />
+                Sync Mappings
               </>
             )}
           </button>
