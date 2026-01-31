@@ -3,13 +3,13 @@
 // Single-webhook-per-offer, offer+account controls, bucket + queue
 // 
 // FLOW:
-// 1. Webhook arrives → Gets suffix from bucket → Triggers trace → Queues (suffix attached)
-// 2. Script polls queue → Gets pending webhooks (suffix already populated)
+// 1. Webhook arrives -> Gets suffix from bucket -> Triggers trace -> Queues (suffix attached)
+// 2. Script polls queue -> Gets pending webhooks (suffix already populated)
 // 3. For each webhook:
 //    - Apply suffix to Google Ads campaign
 //    - Mark queue item as completed
-// 4. Zero-click suffixes (once daily) → Stored in bucket
-// 5. Background traces (triggered by webhook) → Update bucket
+// 4. Zero-click suffixes (once daily) -> Stored in bucket
+// 5. Background traces (triggered by webhook) -> Update bucket
 //
 // BUCKET = Single source of truth for all suffixes
 // Trace happens in WEBHOOK HANDLER, not in this script
@@ -19,7 +19,7 @@
 // 2) Fill OFFER_BY_CAMPAIGN or OFFER_DEFAULT. Campaign mapping wins.
 // 3) Optional: set ALLOWED_CAMPAIGN_IDS to limit updates.
 // 4) Schedule hourly (or faster) in Google Ads scripts.
-// 5) Trackier calls v5-webhook-conversion → handles trace + bucket + queue
+// 5) Trackier calls v5-webhook-conversion -> handles trace + bucket + queue
 // =============================================================
 
 var SUPABASE_URL = 'https://rfhuqenntxiqurplenjn.supabase.co';
