@@ -10,8 +10,8 @@ async function checkSettings() {
   
   const { data, error } = await supabase
     .from('settings')
-    .select('id, user_id, aws_proxy_url')
-    .limit(5);
+    .select('id, user_id, aws_proxy_url, trackier_api_key')
+    .limit(10);
   
   if (error) {
     console.error('Error:', error);
@@ -27,6 +27,7 @@ async function checkSettings() {
   data.forEach(row => {
     console.log(`User ID: ${row.user_id}`);
     console.log(`AWS Proxy URL: ${row.aws_proxy_url || '(NULL)'}`);
+    console.log(`Trackier API Key: ${row.trackier_api_key ? '***SET***' : '(NULL)'}`);
     console.log('---');
   });
 }

@@ -37,17 +37,32 @@ Deno.serve(async (req: Request) => {
 
     // FIRST: Ensure Trackier campaign exists for this offer (before checking mappings)
     console.log(`[V5-AUTO-SETUP] Ensuring Trackier campaign exists for offer: ${offer_name}`);
-    
-    // Get Trackier API credentials from settings
-    const { data: settings } = await supabase
+
+    // Get offer details (including user_id to locate the correct settings row)
+    const { data: offer } = await supabase
+      .from('offers')
+      .select('final_url, user_id')
+      .eq('name', offer_name)
+      .maybeSingle();
+
+    // Get Trackier API credentials from settings (prefer the matching user_id row)
+    let settingsQuery = supabase
       .from('settings')
-      .select('trackier_api_key, trackier_api_url, trackier_advertiser_id')
+      .select('trackier_api_key')
+      .not('trackier_api_key', 'is', null);
+
+    if (offer?.user_id) {
+      settingsQuery = settingsQuery.eq('user_id', offer.user_id);
+    }
+
+    const { data: settings } = await settingsQuery
+      .order('id', { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (!settings?.trackier_api_key) {
       return new Response(JSON.stringify({ 
-        error: 'Trackier API key not configured. Please configure it in Settings first.',
+        error: `Trackier API key not configured. Please configure it in Settings first.${offer?.user_id ? ` (user_id: ${offer.user_id})` : ''}`,
         setup_needed: true
       }), {
         status: 400,
@@ -77,15 +92,8 @@ Deno.serve(async (req: Request) => {
     } else {
       console.log(`[V5-AUTO-SETUP] Creating new Trackier campaign for offer: ${offer_name}`);
       
-      // Get offer details
-      const { data: offer } = await supabase
-        .from('offers')
-        .select('final_url')
-        .eq('name', offer_name)
-        .maybeSingle();
-      
       const targetUrl = offer?.final_url || 'https://example.com';
-      const trackierApiUrl = settings.trackier_api_url || 'https://api.trackier.com';
+      const trackierApiUrl = (settings as any)?.trackier_api_url || 'https://api.trackier.com';
 
       // Create Trackier campaign
       const trackierResp = await fetch(`${trackierApiUrl}/v2/campaigns`, {
@@ -99,7 +107,7 @@ Deno.serve(async (req: Request) => {
           url: targetUrl,
           redirectType: '200_hrf',
           status: 'active',
-          advertiserId: parseInt(settings.trackier_advertiser_id) || 3,
+          advertiserId: parseInt((settings as any)?.trackier_advertiser_id) || 3,
           currency: 'USD',
           device: 'all',
           convTracking: 'iframe_https',
