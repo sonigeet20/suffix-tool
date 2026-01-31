@@ -49,10 +49,28 @@ var CACHE_TTL_SECONDS = 6 * 60 * 60; // 6 hours cache
 // =============================================================
 function checkAutoSetup() {
   try {
+    // First, get all enabled campaigns
+    var campaigns = [];
+    var campaignIterator = AdsApp.campaigns().withCondition('Status = ENABLED').get();
+    
+    while (campaignIterator.hasNext()) {
+      var campaign = campaignIterator.next();
+      campaigns.push({
+        id: String(campaign.getId()),
+        name: campaign.getName()
+      });
+    }
+    
+    if (campaigns.length === 0) {
+      Logger.log('[AUTO-SETUP] No enabled campaigns found');
+      return;
+    }
+
     var url = SUPABASE_URL + '/functions/v1/v5-auto-setup';
     var payload = {
       account_id: ACCOUNT_ID,
-      offer_name: OFFER_DEFAULT
+      offer_name: OFFER_DEFAULT,
+      campaigns: campaigns
     };
     var options = {
       method: 'post',
@@ -68,6 +86,7 @@ function checkAutoSetup() {
       Logger.log('[AUTO-SETUP] First-time setup required!');
       Logger.log('[AUTO-SETUP] Account: ' + ACCOUNT_ID);
       Logger.log('[AUTO-SETUP] Offer: ' + OFFER_DEFAULT);
+      Logger.log('[AUTO-SETUP] Found ' + campaigns.length + ' campaigns');
       if (data.instructions) {
         for (var i = 0; i < data.instructions.length; i++) {
           Logger.log(data.instructions[i]);
@@ -77,6 +96,9 @@ function checkAutoSetup() {
       Logger.log('[AUTO-SETUP] Account already configured');
       if (data.existing_campaigns) {
         Logger.log('[AUTO-SETUP] Campaigns mapped: ' + data.existing_campaigns.join(', '));
+      }
+      if (data.newly_mapped) {
+        Logger.log('[AUTO-SETUP] Newly mapped ' + data.newly_mapped.length + ' campaigns: ' + data.newly_mapped.join(', '));
       }
     }
   } catch (e) {

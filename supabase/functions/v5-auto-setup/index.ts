@@ -24,7 +24,7 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl!, supabaseKey!);
 
     const body = await req.json();
-    const { account_id, offer_name } = body;
+    const { account_id, offer_name, campaigns } = body;
 
     if (!account_id || !offer_name) {
       return new Response(JSON.stringify({ 
@@ -36,6 +36,9 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(`[V5-AUTO-SETUP] Checking account: ${account_id}, offer: ${offer_name}`);
+    if (campaigns) {
+      console.log(`[V5-AUTO-SETUP] Received ${campaigns.length} campaigns to map`);
+    }
 
     // Check if any mapping exists for this account_id + offer_name
     const { data: existingMappings } = await supabase
@@ -43,6 +46,42 @@ Deno.serve(async (req: Request) => {
       .select('*')
       .eq('account_id', account_id)
       .eq('offer_name', offer_name);
+
+    // If campaigns provided, create mappings for any that don't exist yet
+    let newlyMapped: string[] = [];
+    if (campaigns && campaigns.length > 0) {
+      console.log(`[V5-AUTO-SETUP] Auto-creating mappings for ${campaigns.length} campaigns...`);
+      
+      for (const campaign of campaigns) {
+        const { data: existing } = await supabase
+          .from('v5_campaign_offer_mapping')
+          .select('id')
+          .eq('account_id', account_id)
+          .eq('campaign_id', campaign.id)
+          .maybeSingle();
+
+        if (!existing) {
+          // Create mapping
+          const { error: insertError } = await supabase
+            .from('v5_campaign_offer_mapping')
+            .insert({
+              account_id,
+              campaign_id: campaign.id,
+              campaign_name: campaign.name,
+              offer_name,
+              is_active: true,
+              auto_created: true
+            });
+
+          if (!insertError) {
+            newlyMapped.push(campaign.id);
+            console.log(`[V5-AUTO-SETUP] Created mapping for campaign ${campaign.id}`);
+          } else {
+            console.error(`[V5-AUTO-SETUP] Failed to create mapping for campaign ${campaign.id}:`, insertError);
+          }
+        }
+      }
+    }
 
     if (existingMappings && existingMappings.length > 0) {
       console.log(`[V5-AUTO-SETUP] Found ${existingMappings.length} existing mappings`);
@@ -195,10 +234,12 @@ Deno.serve(async (req: Request) => {
     // Response with setup instructions
     return new Response(JSON.stringify({
       success: true,
-      setup_needed: true,
-      message: 'First-time setup for this account. Google Ads campaign IDs must be provided manually.',
+      setup_needed: existingMappings && existingMappings.length === 0,
+      message: newlyMapped.length > 0 ? `Auto-mapped ${newlyMapped.length} campaigns` : 'First-time setup for this account',
       account_id,
       offer_name,
+      newly_mapped: newlyMapped,
+      existing_campaigns: existingMappings?.map((m: any) => m.campaign_id) || [],
       trackier: {
         campaignId: trackierCampaignId,
         campaignName: trackierCampaignName,
