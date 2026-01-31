@@ -948,7 +948,7 @@ export function V5WebhookManager() {
                     <div key={offerName} className="border-b border-neutral-200 dark:border-neutral-800">
                     {/* OFFER LEVEL - Enhanced Card */}
                     <div 
-                      className="bg-gradient-to-r from-brand-50 to-brand-100 dark:from-brand-900/20 dark:to-brand-900/10 px-6 py-5 border-b-2 border-brand-200 dark:border-brand-800/50 cursor-pointer hover:from-brand-100 hover:to-brand-200 dark:hover:from-brand-900/30 dark:hover:to-brand-900/20 transition-all"
+                      className="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 border-l-4 border-l-brand-500 dark:border-l-brand-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 cursor-pointer transition-smooth"
                       onClick={() => {
                         const newExpanded = new Set(expandedMappings);
                         if (offerLevelExpanded) {
@@ -959,90 +959,69 @@ export function V5WebhookManager() {
                         setExpandedMappings(newExpanded);
                       }}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="flex-shrink-0">
-                              {offerLevelExpanded ? (
-                                <ChevronDown size={22} className="text-brand-700 dark:text-brand-400" />
-                              ) : (
-                                <ChevronRight size={22} className="text-brand-600 dark:text-brand-500" />
-                              )}
-                            </div>
-                            <h3 className="text-lg font-bold text-brand-900 dark:text-brand-100">{offerName}</h3>
-                            {trackierCampaign && (
-                              <span className="px-3 py-1 text-xs font-semibold rounded-full bg-success-100 text-success-800 dark:bg-success-900/40 dark:text-success-400">
-                                ✓ Trackier #{trackierCampaign.campaignId}
-                              </span>
-                            )}
-                            {!trackierCampaign && (
-                              <span className="px-3 py-1 text-xs font-semibold rounded-full bg-warning-100 text-warning-800 dark:bg-warning-900/40 dark:text-warning-400">
-                                ⚠ No Trackier
-                              </span>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="flex-shrink-0">
+                            {offerLevelExpanded ? (
+                              <ChevronDown size={18} className="text-brand-600 dark:text-brand-400" />
+                            ) : (
+                              <ChevronRight size={18} className="text-neutral-400" />
                             )}
                           </div>
-                          
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 ml-11">
-                            <div className="bg-white/50 dark:bg-neutral-800/30 rounded px-3 py-2">
-                              <p className="text-xs text-neutral-600 dark:text-neutral-400">Accounts</p>
-                              <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">{totalAccounts}</p>
-                            </div>
-                            <div className="bg-white/50 dark:bg-neutral-800/30 rounded px-3 py-2">
-                              <p className="text-xs text-neutral-600 dark:text-neutral-400">Campaigns</p>
-                              <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">{totalCampaigns}</p>
-                            </div>
-                            <div className="bg-white/50 dark:bg-neutral-800/30 rounded px-3 py-2">
-                              <p className="text-xs text-neutral-600 dark:text-neutral-400">Suffixes</p>
-                              <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">{bucketData?.total_suffixes || 0}</p>
-                            </div>
-                            <div className="bg-white/50 dark:bg-neutral-800/30 rounded px-3 py-2">
-                              <p className="text-xs text-neutral-600 dark:text-neutral-400">Unused</p>
-                              <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">{bucketData?.unused_suffixes || 0}</p>
-                            </div>
-                          </div>
+                          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50 truncate">{offerName}</h3>
+                          {trackierCampaign && (
+                            <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-success-100 text-success-700 dark:bg-success-900/40 dark:text-success-400 flex-shrink-0">
+                              ✓ #{trackierCampaign.campaignId}
+                            </span>
+                          )}
+                          {!trackierCampaign && (
+                            <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-warning-100 text-warning-700 dark:bg-warning-900/40 dark:text-warning-400 flex-shrink-0">
+                              ⚠
+                            </span>
+                          )}
                         </div>
-                        <div className="text-xs text-neutral-500 dark:text-neutral-400 text-right">Click to expand</div>
+                        <div className="flex items-center gap-3 flex-shrink-0 text-xs text-neutral-500 dark:text-neutral-400">
+                          <span>{totalAccounts} acc</span>
+                          <span>•</span>
+                          <span>{totalCampaigns} camp</span>
+                          <span>•</span>
+                          <span>{bucketData?.total_suffixes || 0} suf</span>
+                        </div>
                       </div>
 
                       {/* Offer Details - Expanded */}
                       {offerLevelExpanded && trackierCampaign && (
-                        <div className="mt-4 pt-4 border-t border-brand-200 dark:border-brand-800 space-y-3">
+                        <div className="mt-2 pt-2 border-t border-neutral-200 dark:border-neutral-700 space-y-2 px-4 py-3">
                           {/* Tracking Template */}
-                          <div className="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-neutral-200 dark:border-neutral-700">
-                            <div className="flex items-center justify-between mb-2">
-                              <label className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">Tracking Template</label>
+                          <div className="bg-neutral-50 dark:bg-neutral-900/50 rounded p-2.5 border border-neutral-200 dark:border-neutral-700">
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                              <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">Template</label>
                               <button
                                 onClick={() => copyToClipboard(trackierCampaign.trackingTemplate || '', `template-offer-${offerName}`)}
-                                className="text-xs px-3 py-1 rounded-lg bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 hover:bg-brand-200 dark:hover:bg-brand-900/50 transition-smooth"
+                                className="text-xs px-2 py-0.5 rounded bg-brand-600 text-white hover:bg-brand-700 transition-smooth"
                               >
-                                {copiedField === `template-offer-${offerName}` ? '✓ Copied' : 'Copy Template'}
+                                {copiedField === `template-offer-${offerName}` ? '✓' : 'Copy'}
                               </button>
                             </div>
-                            <code className="block p-3 text-xs text-neutral-600 dark:text-neutral-400 break-all bg-neutral-50 dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-700 font-mono">
+                            <code className="block text-xs text-neutral-600 dark:text-neutral-400 break-all bg-white dark:bg-neutral-800 rounded p-1.5 border border-neutral-200 dark:border-neutral-700 font-mono overflow-auto max-h-12">
                               {trackierCampaign.trackingTemplate}
                             </code>
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
-                              ⓘ Add this to Google Ads campaign tracking template for all {totalCampaigns} campaign(s)
-                            </p>
                           </div>
 
                           {/* Postback URL */}
-                          <div className="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-neutral-200 dark:border-neutral-700">
-                            <div className="flex items-center justify-between mb-2">
-                              <label className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">Postback URL for Trackier #{trackierCampaign.campaignId}</label>
+                          <div className="bg-neutral-50 dark:bg-neutral-900/50 rounded p-2.5 border border-neutral-200 dark:border-neutral-700">
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                              <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">Webhook (#{trackierCampaign.campaignId})</label>
                               <button
                                 onClick={() => copyToClipboard(trackierCampaign.webhookUrlWithParams || '', `webhook-offer-${offerName}`)}
-                                className="text-xs px-3 py-1 rounded-lg bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 hover:bg-brand-200 dark:hover:bg-brand-900/50 transition-smooth"
+                                className="text-xs px-2 py-0.5 rounded bg-brand-600 text-white hover:bg-brand-700 transition-smooth"
                               >
-                                {copiedField === `webhook-offer-${offerName}` ? '✓ Copied' : 'Copy URL'}
+                                {copiedField === `webhook-offer-${offerName}` ? '✓' : 'Copy'}
                               </button>
                             </div>
-                            <code className="block p-3 text-xs text-neutral-600 dark:text-neutral-400 break-all bg-neutral-50 dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-700 font-mono">
+                            <code className="block text-xs text-neutral-600 dark:text-neutral-400 break-all bg-white dark:bg-neutral-800 rounded p-1.5 border border-neutral-200 dark:border-neutral-700 font-mono overflow-auto max-h-12">
                               {trackierCampaign.webhookUrlWithParams}
                             </code>
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
-                              ⓘ Add this as S2S postback URL in Trackier Campaign {trackierCampaign.campaignId} settings
-                            </p>
                           </div>
                         </div>
                       )}
@@ -1059,7 +1038,7 @@ export function V5WebhookManager() {
                         <div key={accountId} className="border-b border-neutral-200 dark:border-neutral-800">
                           {/* ACCOUNT LEVEL - Minimal Collapsed View */}
                           <div 
-                            className="px-6 py-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-smooth border-l-4 border-l-blue-400 dark:border-l-blue-500"
+                            className="px-4 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-smooth border-l-4 border-l-blue-400 dark:border-l-blue-500"
                             onClick={() => {
                               if (isAccountExpanded) {
                                 expandedMappings.delete(expandedAccountKey);
@@ -1069,16 +1048,16 @@ export function V5WebhookManager() {
                               setExpandedMappings(new Set(expandedMappings));
                             }}
                           >
-                            <div className="flex items-center justify-between gap-4">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <div className="flex-shrink-0">
                                   {isAccountExpanded ? (
-                                    <ChevronDown size={18} className="text-blue-600 dark:text-blue-400" />
+                                    <ChevronDown size={16} className="text-blue-600 dark:text-blue-400" />
                                   ) : (
-                                    <ChevronRight size={18} className="text-neutral-400" />
+                                    <ChevronRight size={16} className="text-neutral-400" />
                                   )}
                                 </div>
-                                <span className="font-mono text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate">
+                                <span className="font-mono text-xs font-medium text-neutral-700 dark:text-neutral-300 truncate">
                                   {accountId}
                                 </span>
                                 <span className="px-2 py-0.5 text-xs font-medium rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 flex-shrink-0">
@@ -1090,15 +1069,15 @@ export function V5WebhookManager() {
 
                           {/* ACCOUNT DETAILS - Expanded */}
                           {isAccountExpanded && (
-                            <div className="bg-neutral-50 dark:bg-neutral-900/30 px-6 py-4 border-b border-neutral-200 dark:border-neutral-700 space-y-3">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-white dark:bg-neutral-800 rounded-lg px-3 py-2">
-                                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Suffix Bucket</p>
-                                  <p className="font-semibold text-neutral-900 dark:text-neutral-50">{bucketSize}</p>
+                            <div className="bg-neutral-50 dark:bg-neutral-900/30 px-4 py-2 border-b border-neutral-200 dark:border-neutral-700 space-y-1.5">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-white dark:bg-neutral-800 rounded px-2 py-1.5">
+                                  <p className="text-xs text-neutral-500 dark:text-neutral-400">Bucket</p>
+                                  <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{bucketSize}</p>
                                 </div>
-                                <div className="bg-white dark:bg-neutral-800 rounded-lg px-3 py-2">
-                                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Active</p>
-                                  <p className="font-semibold text-neutral-900 dark:text-neutral-50">{mappingsForAccount.filter(m => m.is_active).length}/{mappingsForAccount.length}</p>
+                                <div className="bg-white dark:bg-neutral-800 rounded px-2 py-1.5">
+                                  <p className="text-xs text-neutral-500 dark:text-neutral-400">Active</p>
+                                  <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{mappingsForAccount.filter(m => m.is_active).length}/{mappingsForAccount.length}</p>
                                 </div>
                               </div>
                             </div>
