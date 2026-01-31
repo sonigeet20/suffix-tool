@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Activity, Database, TrendingUp, Settings as SettingsIcon, RefreshCw, Zap, Plus, Copy, CheckCircle, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Activity, Database, TrendingUp, Settings as SettingsIcon, RefreshCw, Zap, Plus, Copy, CheckCircle, X, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 
 interface QueueStats {
   offer_name: string;
@@ -326,6 +326,31 @@ export function V5WebhookManager() {
     } catch (error) {
       console.error('Load error:', error);
       alert('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearBucket = async (offerName: string) => {
+    if (!confirm(`Are you sure you want to clear all suffixes for offer "${offerName}"? This cannot be undone and will allow a fresh zero-click collection.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('google_ads_buckets')
+        .delete()
+        .eq('account_id', accountId)
+        .eq('offer_name', offerName);
+
+      if (error) throw error;
+
+      alert(`Successfully cleared all suffixes for ${offerName}`);
+      await loadData(); // Reload data
+    } catch (error: any) {
+      console.error('Clear bucket error:', error);
+      alert(`Failed to clear bucket: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -739,6 +764,7 @@ export function V5WebhookManager() {
                   <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Used</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Traced</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Zero-Click</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
@@ -750,6 +776,17 @@ export function V5WebhookManager() {
                     <td className="px-6 py-4 text-sm text-right text-neutral-500 dark:text-neutral-500">{inv.used_suffixes}</td>
                     <td className="px-6 py-4 text-sm text-right text-brand-600 dark:text-brand-400">{inv.traced_count}</td>
                     <td className="px-6 py-4 text-sm text-right text-purple-600 dark:text-purple-400">{inv.zero_click_count}</td>
+                    <td className="px-6 py-4 text-sm text-right">
+                      <button
+                        onClick={() => clearBucket(inv.offer_name)}
+                        disabled={loading}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-danger-600 hover:text-danger-700 dark:text-danger-400 dark:hover:text-danger-300 hover:bg-danger-50 dark:hover:bg-danger-900/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Clear all suffixes for this offer"
+                      >
+                        <Trash2 size={14} />
+                        Clear
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
