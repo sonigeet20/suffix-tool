@@ -1059,7 +1059,7 @@ export function V5WebhookManager() {
                         <div key={accountId} className="border-b border-neutral-200 dark:border-neutral-800">
                           {/* ACCOUNT LEVEL */}
                           <div 
-                            className="px-6 py-4 hover:bg-neutral-50 dark:hover:bg-neutral-850/50 cursor-pointer transition-smooth border-l-4 border-l-brand-400 dark:border-l-brand-600"
+                            className="px-6 py-5 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer transition-all duration-200 border-l-4 border-l-blue-500 dark:border-l-blue-400"
                             onClick={() => {
                               if (isAccountExpanded) {
                                 expandedMappings.delete(expandedAccountKey);
@@ -1069,33 +1069,42 @@ export function V5WebhookManager() {
                               setExpandedMappings(new Set(expandedMappings));
                             }}
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="flex-shrink-0">
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-4 flex-1 min-w-0">
+                                <div className="flex-shrink-0 pt-1">
                                   {isAccountExpanded ? (
-                                    <ChevronDown size={20} className="text-brand-600 dark:text-brand-400" />
+                                    <ChevronDown size={20} className="text-blue-600 dark:text-blue-400" />
                                   ) : (
                                     <ChevronRight size={20} className="text-neutral-400" />
                                   )}
                                 </div>
-                                <div>
-                                  <div className="flex items-center gap-3">
-                                    <span className="font-mono text-base font-semibold text-neutral-900 dark:text-neutral-50">Account: {accountId}</span>
-                                    <span className="px-2 py-1 text-xs rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
-                                      {mappingsForAccount.length} campaign(s)
+                                <div className="flex-1 min-w-0">
+                                  {/* Account ID */}
+                                  <div className="flex items-center gap-3 mb-3">
+                                    <span className="font-mono font-semibold text-neutral-900 dark:text-neutral-50 text-base truncate">
+                                      {accountId}
+                                    </span>
+                                    <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 whitespace-nowrap">
+                                      {mappingsForAccount.length} campaign{mappingsForAccount.length !== 1 ? 's' : ''}
                                     </span>
                                   </div>
-                                  <div className="mt-2 flex items-center gap-4 text-sm">
-                                    <span className="text-neutral-600 dark:text-neutral-400">
-                                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">Bucket Size:</span> {bucketSize} suffix{bucketSize !== 1 ? 'es' : ''}
-                                    </span>
-                                    <span className="text-neutral-600 dark:text-neutral-400">
-                                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">Health:</span> {mappingsForAccount.filter(m => m.is_active).length}/{mappingsForAccount.length} active
-                                    </span>
+                                  
+                                  {/* Metrics Grid */}
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg px-3 py-2">
+                                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Suffix Bucket</p>
+                                      <p className="font-semibold text-neutral-900 dark:text-neutral-50">{bucketSize}</p>
+                                    </div>
+                                    <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg px-3 py-2">
+                                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Active</p>
+                                      <p className="font-semibold text-neutral-900 dark:text-neutral-50">{mappingsForAccount.filter(m => m.is_active).length}/{mappingsForAccount.length}</p>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                              <div className="text-xs text-neutral-500 dark:text-neutral-400">Click to expand</div>
+                              <div className="text-xs text-neutral-400 dark:text-neutral-500 flex-shrink-0">
+                                {isAccountExpanded ? 'Collapse' : 'Expand'}
+                              </div>
                             </div>
                           </div>
 
