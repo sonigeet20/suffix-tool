@@ -130,7 +130,7 @@ export function V5WebhookManager() {
   const loadAllMappings = async () => {
     setLoadingMappings(true);
     try {
-      const [campaignRes, trackierRes, overridesRes] = await Promise.all([
+      const [campaignRes, trackierRes, overridesRes, bucketRes] = await Promise.all([
         supabase
           .from('v5_campaign_offer_mapping')
           .select('*')
@@ -140,7 +140,8 @@ export function V5WebhookManager() {
           .select('*'),
         supabase
           .from('v5_trace_overrides')
-          .select('*')
+          .select('*'),
+        supabase.rpc('v5_get_bucket_inventory_all_accounts')
       ]);
 
       // Index trackier records both by mapping_id and by offer_name
@@ -162,6 +163,11 @@ export function V5WebhookManager() {
         overridesMapLocal[key] = o;
       });
       setOverrides(overridesRes.data || []);
+
+      // Load bucket inventory for all accounts automatically
+      if (!bucketRes.error && bucketRes.data) {
+        setBucketInventory(bucketRes.data);
+      }
 
       if (!campaignRes.error && campaignRes.data) {
         const enriched = campaignRes.data.map((mapping: any) => {
