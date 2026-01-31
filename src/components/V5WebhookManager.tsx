@@ -505,6 +505,57 @@ export function V5WebhookManager() {
     setExpandedMappings(newExpanded);
   };
 
+  const deleteMapping = async (mappingId: string) => {
+    if (!confirm('Are you sure you want to delete this mapping? This cannot be undone.')) {
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('v5_campaign_offer_mapping')
+        .delete()
+        .eq('id', mappingId);
+      
+      if (error) throw error;
+      alert('✅ Mapping deleted successfully');
+      await loadAllMappings();
+    } catch (err: any) {
+      console.error('Delete mapping error:', err);
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  const createTrackierCampaign = async (mapping: MappingWithTrackier) => {
+    if (mapping.trackier) {
+      alert('✅ Trackier campaign already created for this mapping');
+      return;
+    }
+
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/v5-create-mapping`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          account_id: mapping.account_id,
+          google_campaign_id: mapping.campaign_id,
+          offer_name: mapping.offer_name
+        })
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create Trackier campaign');
+      }
+
+      alert('✅ Trackier campaign created successfully!\n\nTracking Template and Webhook URL are ready to be configured.');
+      await loadAllMappings();
+    } catch (error: any) {
+      console.error('Create Trackier campaign error:', error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-neutral-200 dark:border-neutral-800 p-6">
@@ -1015,6 +1066,18 @@ export function V5WebhookManager() {
                 {/* Expanded Details View */}
                 {isExpanded && mapping.trackier && (
                   <div className="mt-6 space-y-3 pt-6 border-t border-neutral-200 dark:border-neutral-800" onClick={(e) => e.stopPropagation()}>
+                    {/* Action Buttons */}
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => deleteMapping(mapping.id)}
+                        className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-danger-100 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400 hover:bg-danger-200 dark:hover:bg-danger-900/40 transition-smooth"
+                        title="Delete this mapping"
+                      >
+                        <Trash2 size={14} />
+                        Delete Mapping
+                      </button>
+                    </div>
+
                     {/* Manual trace trigger for this account */}
                     <div className="flex items-center justify-between bg-neutral-50 dark:bg-neutral-850 rounded-lg p-4">
                       <div>
@@ -1184,9 +1247,23 @@ export function V5WebhookManager() {
 
                 {!mapping.trackier && isExpanded && (
                   <div className="bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 rounded-lg p-4 mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800">
-                    <p className="text-sm text-warning-900 dark:text-warning-300">
-                      ⚠️ Trackier campaign not yet created. This mapping may have been created manually.
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-warning-900 dark:text-warning-300">
+                          ⚠️ Trackier campaign not yet created
+                        </p>
+                        <p className="text-xs text-warning-800 dark:text-warning-400 mt-1">
+                          Click the button below to auto-create the Trackier campaign, tracking template, and webhook URL
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => createTrackierCampaign(mapping)}
+                        className="flex items-center gap-2 px-4 py-2 bg-warning-600 dark:bg-warning-500 text-white rounded-lg hover:bg-warning-700 dark:hover:bg-warning-600 transition-smooth whitespace-nowrap"
+                      >
+                        <Zap size={14} />
+                        Create Trackier
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
