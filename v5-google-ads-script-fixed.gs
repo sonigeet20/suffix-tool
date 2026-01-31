@@ -85,13 +85,34 @@ function checkAutoSetup() {
     };
     
     var response = UrlFetchApp.fetch(url, options);
-    var data = JSON.parse(response.getContentText());
+    var responseCode = response.getResponseCode();
+    var responseText = response.getContentText();
+    
+    Logger.log('[AUTO-SETUP] Response code: ' + responseCode);
+    
+    if (responseCode !== 200) {
+      Logger.log('[AUTO-SETUP] Error response: ' + responseText);
+      return;
+    }
+    
+    var data = JSON.parse(responseText);
+    
+    if (data.error) {
+      Logger.log('[AUTO-SETUP] API Error: ' + data.error);
+      return;
+    }
     
     if (data.setup_needed) {
       Logger.log('[AUTO-SETUP] First-time setup required!');
       Logger.log('[AUTO-SETUP] Account: ' + ACCOUNT_ID);
       Logger.log('[AUTO-SETUP] Offer: ' + OFFER_DEFAULT);
       Logger.log('[AUTO-SETUP] Found ' + campaigns.length + ' campaigns');
+      if (data.newly_mapped && data.newly_mapped.length > 0) {
+        Logger.log('[AUTO-SETUP] ✓ Auto-mapped ' + data.newly_mapped.length + ' campaigns: ' + data.newly_mapped.join(', '));
+      }
+      if (data.trackier) {
+        Logger.log('[AUTO-SETUP] ✓ Trackier campaign: ' + data.trackier.campaignId + ' (' + data.trackier.campaignName + ')');
+      }
       if (data.instructions) {
         for (var i = 0; i < data.instructions.length; i++) {
           Logger.log(data.instructions[i]);
@@ -121,10 +142,18 @@ function main() {
   Logger.log('[CONFIG] Polling Interval: ' + POLLING_INTERVAL_MS + 'ms, Max Runtime: ' + MAX_RUNTIME_MS + 'ms');
 
   // Step 0: Auto-setup check (first-time account detection)
-  checkAutoSetup();
+  try {
+    checkAutoSetup();
+  } catch (e) {
+    Logger.log('[AUTO-SETUP] Error: ' + e);
+  }
 
   // Step 1: Check and fetch zero-click suffixes (once daily)
-  checkAndFetchZeroClickSuffixes();
+  try {
+    checkAndFetchZeroClickSuffixes();
+  } catch (e) {
+    Logger.log('[ZERO-CLICK] Error: ' + e);
+  }
 
   // Step 2: Collect landing page stats (cached for the day)
   var stats = getCachedLandingPages();
@@ -142,6 +171,8 @@ function main() {
   var startTime = new Date().getTime();
   var totalProcessed = 0;
   var totalUpdated = 0;
+  var consecutiveEmptyPolls = 0;
+  var MAX_EMPTY_POLLS = 3; // Exit after 3 consecutive empty polls
   
   while (pollingCycle < POLLING_CYCLES) {
     var elapsedMs = new Date().getTime() - startTime;
@@ -158,8 +189,16 @@ function main() {
     var webhooks = fetchWebhookQueue(BATCH_SIZE);
     
     if (webhooks.length === 0) {
-      Logger.log('[POLL] No webhooks in queue. Polling will continue...');
+      consecutiveEmptyPolls++;
+      Logger.log('[POLL] No webhooks in queue (' + consecutiveEmptyPolls + '/' + MAX_EMPTY_POLLS + ' empty polls)');
+      
+      // Exit early if queue consistently empty
+      if (consecutiveEmptyPolls >= MAX_EMPTY_POLLS) {
+        Logger.log('[POLL] Queue empty after ' + MAX_EMPTY_POLLS + ' checks. Exiting early to save resources.');
+        break;
+      }
     } else {
+      consecutiveEmptyPolls = 0; // Reset counter when work found
       Logger.log('[POLL] Processing ' + webhooks.length + ' webhooks');
       var summary = applySuffixes(webhooks);
       
@@ -175,18 +214,18 @@ function main() {
     
     pollingCycle++;
     
-    // Sleep before next poll (if not last cycle and time permits)
-    if (pollingCycle < POLLING_CYCLES) {
+    // Actual sleep between polls (Google Ads Scripts support Utilities.sleep)
+    if (pollingCycle < POLLING_CYCLES && consecutiveEmptyPolls < MAX_EMPTY_POLLS) {
       var nextElapsedMs = new Date().getTime() - startTime + POLLING_INTERVAL_MS;
       if (nextElapsedMs < MAX_RUNTIME_MS) {
-        // Note: Google Ads Scripts don't have sleep() - polling happens on next execution
-        Logger.log('[POLL] Waiting ' + POLLING_INTERVAL_MS + 'ms before next cycle...');
+        Logger.log('[POLL] Sleeping ' + POLLING_INTERVAL_MS + 'ms before next cycle...');
+        Utilities.sleep(POLLING_INTERVAL_MS);
       }
     }
   }
   
   Logger.log('[DONE] Total webhooks processed: ' + totalProcessed + ', ads updated: ' + totalUpdated);
-  Logger.log('[CONFIG] To adjust polling: Change POLLING_INTERVAL_MS and POLLING_CYCLES at top of script');
+  Logger.log('[DONE] Completed ' + pollingCycle + ' polling cycles in ' + (new Date().getTime() - startTime) + 'ms');
 }
 
 // =============================================================
