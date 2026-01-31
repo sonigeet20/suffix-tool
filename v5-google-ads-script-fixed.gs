@@ -36,6 +36,11 @@ var ALLOWED_CAMPAIGN_IDS = [];
 // Batch controls
 var BATCH_SIZE = 15; // how many webhooks per run
 
+// ⚙️ POLLING INTERVAL CONTROL (Configure the polling frequency here)
+var POLLING_INTERVAL_MS = 5000;  // 5 seconds between polls (adjust as needed)
+var MAX_RUNTIME_MS = 540000;     // 9 minutes max (Google Ads Script limit is 10min)
+var POLLING_CYCLES = 10;         // Max polling cycles per execution
+
 // Zero-click fetch controls
 var ZERO_CLICK_LOOKBACK_DAYS = 7; // fetch last 7 days
 var ZERO_CLICK_FETCH_KEY = 'v5-zero-click-fetch'; // PropertiesService key
@@ -113,6 +118,7 @@ function main() {
   ACCOUNT_ID = getAccountId();
   Logger.log('=== V5 WEBHOOK (ALL-IN) ===');
   Logger.log('Account: ' + ACCOUNT_ID);
+  Logger.log('[CONFIG] Polling Interval: ' + POLLING_INTERVAL_MS + 'ms, Max Runtime: ' + MAX_RUNTIME_MS + 'ms');
 
   // Step 0: Auto-setup check (first-time account detection)
   checkAutoSetup();
@@ -129,20 +135,58 @@ function main() {
     }
   }
 
-  // Step 3: Process webhook queue (suffix already attached by webhook handler)
-  var webhooks = fetchWebhookQueue(BATCH_SIZE);
-
-  if (webhooks.length === 0) {
-    Logger.log('[IDLE] Nothing to process.');
-    return;
+  // ========================================================
+  // Step 3: POLLING LOOP for webhook queue
+  // ========================================================
+  var pollingCycle = 0;
+  var startTime = new Date().getTime();
+  var totalProcessed = 0;
+  var totalUpdated = 0;
+  
+  while (pollingCycle < POLLING_CYCLES) {
+    var elapsedMs = new Date().getTime() - startTime;
+    
+    // Check runtime limit
+    if (elapsedMs > MAX_RUNTIME_MS) {
+      Logger.log('[POLL] Max runtime reached (' + elapsedMs + 'ms). Ending polling loop.');
+      break;
+    }
+    
+    Logger.log('[POLL] Cycle ' + (pollingCycle + 1) + '/' + POLLING_CYCLES + ' - Elapsed: ' + elapsedMs + 'ms');
+    
+    // Fetch and process webhooks
+    var webhooks = fetchWebhookQueue(BATCH_SIZE);
+    
+    if (webhooks.length === 0) {
+      Logger.log('[POLL] No webhooks in queue. Polling will continue...');
+    } else {
+      Logger.log('[POLL] Processing ' + webhooks.length + ' webhooks');
+      var summary = applySuffixes(webhooks);
+      
+      if (summary.queueIds.length > 0) {
+        markQueueItemsProcessed(summary.queueIds);
+      }
+      
+      totalProcessed += summary.processed;
+      totalUpdated += summary.updatedAds;
+      
+      Logger.log('[POLL] This cycle: ' + summary.processed + ' webhooks, ' + summary.updatedAds + ' ads updated');
+    }
+    
+    pollingCycle++;
+    
+    // Sleep before next poll (if not last cycle and time permits)
+    if (pollingCycle < POLLING_CYCLES) {
+      var nextElapsedMs = new Date().getTime() - startTime + POLLING_INTERVAL_MS;
+      if (nextElapsedMs < MAX_RUNTIME_MS) {
+        // Note: Google Ads Scripts don't have sleep() - polling happens on next execution
+        Logger.log('[POLL] Waiting ' + POLLING_INTERVAL_MS + 'ms before next cycle...');
+      }
+    }
   }
-
-  var summary = applySuffixes(webhooks);
-  if (summary.queueIds.length > 0) {
-    markQueueItemsProcessed(summary.queueIds);
-  }
-
-  Logger.log('[DONE] Webhooks processed: ' + summary.processed + ', ads updated: ' + summary.updatedAds);
+  
+  Logger.log('[DONE] Total webhooks processed: ' + totalProcessed + ', ads updated: ' + totalUpdated);
+  Logger.log('[CONFIG] To adjust polling: Change POLLING_INTERVAL_MS and POLLING_CYCLES at top of script');
 }
 
 // =============================================================

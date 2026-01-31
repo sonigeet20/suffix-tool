@@ -35,85 +35,10 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    console.log(`[V5-AUTO-SETUP] Checking account: ${account_id}, offer: ${offer_name}`);
-    if (campaigns) {
-      console.log(`[V5-AUTO-SETUP] Received ${campaigns.length} campaigns to map`);
-    }
-
-    // Check if any mapping exists for this account_id + offer_name
-    const { data: existingMappings } = await supabase
-      .from('v5_campaign_offer_mapping')
-      .select('*')
-      .eq('account_id', account_id)
-      .eq('offer_name', offer_name);
-
-    // If campaigns provided, create mappings for any that don't exist yet
-    let newlyMapped: string[] = [];
-    if (campaigns && campaigns.length > 0) {
-      console.log(`[V5-AUTO-SETUP] Auto-creating mappings for ${campaigns.length} campaigns...`);
-      
-      for (const campaign of campaigns) {
-        const { data: existing } = await supabase
-          .from('v5_campaign_offer_mapping')
-          .select('id')
-          .eq('account_id', account_id)
-          .eq('campaign_id', campaign.id)
-          .maybeSingle();
-
-        if (!existing) {
-          // Create mapping
-          const { error: insertError } = await supabase
-            .from('v5_campaign_offer_mapping')
-            .insert({
-              account_id,
-              campaign_id: campaign.id,
-              campaign_name: campaign.name,
-              offer_name,
-              is_active: true,
-              auto_created: true
-            });
-
-          if (!insertError) {
-            newlyMapped.push(campaign.id);
-            console.log(`[V5-AUTO-SETUP] Created mapping for campaign ${campaign.id}`);
-          } else {
-            console.error(`[V5-AUTO-SETUP] Failed to create mapping for campaign ${campaign.id}:`, insertError);
-          }
-        }
-      }
-    }
-
-    if (existingMappings && existingMappings.length > 0) {
-      console.log(`[V5-AUTO-SETUP] Found ${existingMappings.length} existing mappings`);
-      
-      // Load shared Trackier campaign details
-      const { data: trackierData } = await supabase
-        .from('v5_trackier_campaigns')
-        .select('*')
-        .eq('offer_name', offer_name)
-        .maybeSingle();
-
-      return new Response(JSON.stringify({
-        success: true,
-        setup_needed: false,
-        message: 'Account already configured',
-        existing_campaigns: existingMappings.map(m => m.campaign_id),
-        trackier: trackierData ? {
-          campaignId: trackierData.trackier_campaign_id,
-          campaignName: trackierData.trackier_campaign_name,
-          trackingTemplate: trackierData.tracking_template,
-          webhookUrl: `${trackierData.webhook_url}?campaign_id={p1}&offer_name=${offer_name}`
-        } : null
-      }), { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
-
-    console.log(`[V5-AUTO-SETUP] No mappings found for account ${account_id}, fetching campaigns...`);
-
-    // NEW ACCOUNT: Need to detect Google Ads campaigns and create mappings
-    // Step 1: Get Trackier API credentials
+    // FIRST: Ensure Trackier campaign exists for this offer (before checking mappings)
+    console.log(`[V5-AUTO-SETUP] Ensuring Trackier campaign exists for offer: ${offer_name}`);
+    
+    // Get Trackier API credentials from settings
     const { data: settings } = await supabase
       .from('settings')
       .select('trackier_api_key, trackier_api_url, trackier_advertiser_id')
@@ -130,18 +55,18 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Step 2: Check if shared Trackier campaign exists for this offer
-    const { data: existingTrackier } = await supabase
-      .from('v5_trackier_campaigns')
-      .select('*')
-      .eq('offer_name', offer_name)
-      .maybeSingle();
-
+    // Check if shared Trackier campaign already exists for this offer
     let trackierCampaignId: string;
     let trackingTemplate: string;
     let webhookUrl: string;
     let trackierCampaignName: string;
     let isNewTrackierCampaign = false;
+
+    const { data: existingTrackier } = await supabase
+      .from('v5_trackier_campaigns')
+      .select('*')
+      .eq('offer_name', offer_name)
+      .maybeSingle();
 
     if (existingTrackier) {
       console.log(`[V5-AUTO-SETUP] Reusing existing Trackier campaign for offer: ${offer_name}`);
@@ -231,11 +156,81 @@ Deno.serve(async (req: Request) => {
       console.log(`[V5-AUTO-SETUP] Created Trackier campaign: ${trackierCampaignId}`);
     }
 
-    // Response with setup instructions
+    // SECOND: Check if any mapping exists for this account_id + offer_name
+    const { data: existingMappings } = await supabase
+      .from('v5_campaign_offer_mapping')
+      .select('*')
+      .eq('account_id', account_id)
+      .eq('offer_name', offer_name);
+
+    // If campaigns provided, create mappings for any that don't exist yet
+    let newlyMapped: string[] = [];
+    if (campaigns && campaigns.length > 0) {
+      console.log(`[V5-AUTO-SETUP] Auto-creating mappings for ${campaigns.length} campaigns...`);
+      
+      for (const campaign of campaigns) {
+        const { data: existing } = await supabase
+          .from('v5_campaign_offer_mapping')
+          .select('id')
+          .eq('account_id', account_id)
+          .eq('campaign_id', campaign.id)
+          .maybeSingle();
+
+        if (!existing) {
+          // Create mapping
+          const { error: insertError } = await supabase
+            .from('v5_campaign_offer_mapping')
+            .insert({
+              account_id,
+              campaign_id: campaign.id,
+              campaign_name: campaign.name,
+              offer_name,
+              is_active: true,
+              auto_created: true
+            });
+
+          if (!insertError) {
+            newlyMapped.push(campaign.id);
+            console.log(`[V5-AUTO-SETUP] Created mapping for campaign ${campaign.id}`);
+          } else {
+            console.error(`[V5-AUTO-SETUP] Failed to create mapping for campaign ${campaign.id}:`, insertError);
+          }
+        }
+      }
+    }
+
+    if (existingMappings && existingMappings.length > 0) {
+      console.log(`[V5-AUTO-SETUP] Found ${existingMappings.length} existing mappings`);
+      
+      // Load shared Trackier campaign details
+      const { data: trackierData } = await supabase
+        .from('v5_trackier_campaigns')
+        .select('*')
+        .eq('offer_name', offer_name)
+        .maybeSingle();
+
+      return new Response(JSON.stringify({
+        success: true,
+        setup_needed: false,
+        message: 'Account already configured',
+        existing_campaigns: existingMappings.map(m => m.campaign_id),
+        trackier: trackierData ? {
+          campaignId: trackierData.trackier_campaign_id,
+          campaignName: trackierData.trackier_campaign_name,
+          trackingTemplate: trackierData.tracking_template,
+          webhookUrl: `${trackierData.webhook_url}?campaign_id={p1}&offer_name=${offer_name}`
+        } : null
+      }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    // THIRD: Prepare final response with Trackier campaign details
     return new Response(JSON.stringify({
       success: true,
-      setup_needed: existingMappings && existingMappings.length === 0,
-      message: newlyMapped.length > 0 ? `Auto-mapped ${newlyMapped.length} campaigns` : 'First-time setup for this account',
+      setup_needed: newlyMapped.length > 0 || (existingMappings && existingMappings.length === 0),
+      message: newlyMapped.length > 0 ? `Auto-mapped ${newlyMapped.length} campaigns and created Trackier campaign` : 'Setup complete',
       account_id,
       offer_name,
       newly_mapped: newlyMapped,
@@ -249,27 +244,21 @@ Deno.serve(async (req: Request) => {
       },
       instructions: [
         `✅ Trackier campaign ${isNewTrackierCampaign ? 'created' : 'exists'}: ${trackierCampaignId}`,
+        `✅ ${newlyMapped.length > 0 ? `Auto-mapped ${newlyMapped.length} campaign(s)` : 'Campaigns already mapped'}`,
         ``,
         `📋 Next Steps:`,
-        `1. Get your Google Ads Campaign IDs from Google Ads UI`,
-        `2. For each campaign, call v5-create-mapping with:`,
-        `   - account_id: ${account_id}`,
-        `   - google_campaign_id: YOUR_CAMPAIGN_ID`,
-        `   - offer_name: ${offer_name}`,
-        ``,
-        `3. Add this tracking template to each Google Ads campaign:`,
+        `1. Add tracking template to each Google Ads campaign:`,
         `   ${trackingTemplate}`,
         ``,
-        `4. Add this postback URL to Trackier campaign ${trackierCampaignId}:`,
+        `2. Add postback URL to Trackier campaign ${trackierCampaignId}:`,
         `   ${webhookUrl}?campaign_id={p1}&offer_name=${offer_name}`,
         ``,
-        `Note: {p1} passes Google campaign ID → webhook resolves account_id automatically`
+        `3. In Trackier, set {p1} to pass Google Ads campaign ID`
       ]
     }), { 
       status: 200, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
-
   } catch (error: any) {
     console.error('[V5-AUTO-SETUP] Error:', error);
     return new Response(JSON.stringify({ 
