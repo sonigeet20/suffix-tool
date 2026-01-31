@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Activity, Database, TrendingUp, Settings as SettingsIcon, RefreshCw, Zap, Plus, Copy, CheckCircle, X, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import { Activity, Database, TrendingUp, Settings as SettingsIcon, RefreshCw, Zap, Plus, X, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 
 interface QueueStats {
   offer_name: string;
@@ -68,7 +68,6 @@ export function V5WebhookManager() {
   const [bucketInventory, setBucketInventory] = useState<BucketInventory[]>([]);
   const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
   const [overrides, setOverrides] = useState<TraceOverride[]>([]);
-  const [overridesMap, setOverridesMap] = useState<Record<string, TraceOverride>>({});
   const [campaigns, setCampaigns] = useState<MappingWithTrackier[]>([]);
   const [allCampaigns, setAllCampaigns] = useState<MappingWithTrackier[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -87,42 +86,7 @@ export function V5WebhookManager() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [loadingMappings, setLoadingMappings] = useState(false);
-  const [savingOverride, setSavingOverride] = useState<string | null>(null);
-  const [overrideEdits, setOverrideEdits] = useState<Record<string, {
-    enabled: boolean;
-    traces_per_day: number | null;
-    speed_multiplier: number | null;
-    trace_also_on_webhook: boolean;
-  }>>({});
 
-  // Helper: randomized cadence suggestion (non-periodic)
-  const getRandomizedGapMinutes = (account_id: string, offer_name: string) => {
-    const key = getOverrideKey(account_id, offer_name);
-    const o = overrideEdits[key] || overridesMap[key];
-    const DEFAULT_BASE_MIN = 60; // fallback when no overrides set
-    if (!o) {
-      return {
-        base: DEFAULT_BASE_MIN,
-        min: Math.round(DEFAULT_BASE_MIN * 0.7),
-        max: Math.round(DEFAULT_BASE_MIN * 1.3)
-      };
-    }
-
-    const tracesPerDay = o.traces_per_day ?? null;
-    const speedMult = o.speed_multiplier ?? 1;
-
-    // Base gap from traces_per_day if provided; otherwise from default scaled by speed multiplier
-    const baseGap = tracesPerDay && tracesPerDay > 0
-      ? 1440 / tracesPerDay
-      : DEFAULT_BASE_MIN / (speedMult || 1);
-
-    const gap = Math.max(baseGap, 5); // floor to avoid bursts
-    return {
-      base: Math.round(gap),
-      min: Math.round(gap * 0.7),
-      max: Math.round(gap * 1.3)
-    };
-  };
   
   // Create form state
   const [formData, setFormData] = useState({
@@ -197,7 +161,6 @@ export function V5WebhookManager() {
         const key = `${o.account_id}||${o.offer_name}`;
         overridesMapLocal[key] = o;
       });
-      setOverridesMap(overridesMapLocal);
       setOverrides(overridesRes.data || []);
 
       if (!campaignRes.error && campaignRes.data) {
@@ -290,14 +253,6 @@ export function V5WebhookManager() {
         .select('*')
         .eq('account_id', accountId);
       if (!oError && oData) setOverrides(oData);
-      if (!oError && oData) {
-        const map: Record<string, TraceOverride> = {};
-        oData.forEach((o: any) => {
-          const key = `${o.account_id}||${o.offer_name}`;
-          map[key] = o;
-        });
-        setOverridesMap((prev) => ({ ...prev, ...map }));
-      }
 
       // Load campaign mappings with Trackier details
       const { data: cData, error: cError } = await supabase
@@ -457,66 +412,6 @@ export function V5WebhookManager() {
     setTimeout(() => setCopiedField(''), 2000);
   };
 
-  const getOverrideKey = (account_id: string, offer_name: string) => `${account_id}||${offer_name}`;
-
-  const getOverrideDraft = (account_id: string, offer_name: string) => {
-    const key = getOverrideKey(account_id, offer_name);
-    const existing = overrideEdits[key] || overridesMap[key];
-    return existing ? {
-      enabled: existing.enabled,
-      traces_per_day: existing.traces_per_day ?? null,
-      speed_multiplier: existing.speed_multiplier ?? null,
-      trace_also_on_webhook: existing.trace_also_on_webhook
-    } : {
-      enabled: false,
-      traces_per_day: null,
-      speed_multiplier: null,
-      trace_also_on_webhook: true
-    };
-  };
-
-  const updateOverrideDraft = (account_id: string, offer_name: string, patch: Partial<{ enabled: boolean; traces_per_day: number | null; speed_multiplier: number | null; trace_also_on_webhook: boolean; }>) => {
-    const key = getOverrideKey(account_id, offer_name);
-    setOverrideEdits((prev) => ({
-      ...prev,
-      [key]: {
-        ...getOverrideDraft(account_id, offer_name),
-        ...patch
-      }
-    }));
-  };
-
-  const saveOverride = async (account_id: string, offer_name: string) => {
-    const key = getOverrideKey(account_id, offer_name);
-    const draft = getOverrideDraft(account_id, offer_name);
-    setSavingOverride(key);
-    try {
-      const { error, data } = await supabase
-        .from('v5_trace_overrides')
-        .upsert({
-          account_id,
-          offer_name,
-          enabled: draft.enabled,
-          traces_per_day: draft.traces_per_day,
-          speed_multiplier: draft.speed_multiplier,
-          trace_also_on_webhook: draft.trace_also_on_webhook
-        }, { onConflict: 'account_id,offer_name' })
-        .select()
-        .maybeSingle();
-      if (error) throw error;
-      setOverridesMap((prev) => ({ ...prev, [key]: data as TraceOverride }));
-      setOverrides((prev) => {
-        const others = prev.filter(o => getOverrideKey(o.account_id, o.offer_name) !== key);
-        return data ? [...others, data as TraceOverride] : others;
-      });
-    } catch (err) {
-      console.error('Save override error:', err);
-      alert('Failed to save override');
-    } finally {
-      setSavingOverride(null);
-    }
-  };
-
   const toggleMappingExpanded = (mappingId: string) => {
     const newExpanded = new Set(expandedMappings);
     if (newExpanded.has(mappingId)) {
@@ -543,78 +438,6 @@ export function V5WebhookManager() {
     } catch (err: any) {
       console.error('Delete mapping error:', err);
       alert(`Error: ${err.message}`);
-    }
-  };
-
-  const createTrackierCampaign = async (mapping: MappingWithTrackier) => {
-    if (mapping.trackier) {
-      alert('✅ Trackier campaign already created for this mapping');
-      return;
-    }
-
-    try {
-      setLoadingMappings(true);
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(`${supabaseUrl}/functions/v1/v5-create-mapping`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          account_id: mapping.account_id,
-          google_campaign_id: mapping.campaign_id,
-          offer_name: mapping.offer_name
-        })
-      });
-
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create Trackier campaign');
-      }
-
-      alert('✅ Trackier campaign created successfully!\n\nTracking Template and Webhook URL are ready to be configured.');
-      // Refresh all mappings to reflect the new Trackier campaign
-      await loadAllMappings();
-    } catch (error: any) {
-      console.error('Create Trackier campaign error:', error);
-      alert(`Error: ${error.message}`);
-    } finally {
-      setLoadingMappings(false);
-    }
-  };
-
-  // @ts-ignore - Functions will be used in future UI updates
-  const loadCampaignSuffixLogs = async (offerName: string) => {
-    if (!offerName) return;
-    try {
-      const { data, error } = await supabase
-        .from('v5_campaign_suffix_log')
-        .select('*')
-        .eq('offer_name', offerName)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      
-      if (error) throw error;
-      console.log('Campaign suffix logs loaded:', data?.length);
-    } catch (err) {
-      console.error('Load campaign suffix logs error:', err);
-    }
-  };
-
-  // @ts-ignore - Functions will be used in future UI updates
-  const loadTraceLogs = async (offerName: string) => {
-    if (!offerName) return;
-    try {
-      const { data, error } = await supabase
-        .from('v5_trace_log')
-        .select('*')
-        .eq('offer_name', offerName)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      
-      if (error) throw error;
-      console.log('Trace logs loaded:', data?.length);
-    } catch (err) {
-      console.error('Load trace logs error:', err);
     }
   };
 
@@ -1091,270 +914,188 @@ export function V5WebhookManager() {
           </div>
         ) : (
           <>
+            {/* Hierarchical View: Offer → Account → Campaigns */}
             <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
-              {campaigns
-                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                .map((mapping) => {
-                  const isExpanded = expandedMappings.has(mapping.id);
-                  return (
-              <div key={mapping.id} className="p-6">
-                {/* Collapsed Summary View */}
-                <div 
-                  className="flex items-center justify-between cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-850/50 -m-6 p-6 rounded-lg transition-smooth"
-                  onClick={() => toggleMappingExpanded(mapping.id)}
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="flex-shrink-0">
-                      {isExpanded ? (
-                        <ChevronDown size={20} className="text-brand-600 dark:text-brand-400" />
-                      ) : (
-                        <ChevronRight size={20} className="text-neutral-400" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-base font-medium text-neutral-900 dark:text-neutral-50 truncate">{mapping.offer_name}</h4>
-                      <div className="mt-1 flex items-center gap-4 text-sm text-neutral-500 dark:text-neutral-400">
-                        <span className="font-mono">{mapping.campaign_id}</span>
-                        {mapping.trackier && (
-                          <>
-                            <span>•</span>
-                            <span className="font-mono text-brand-600 dark:text-brand-400">Trackier #{mapping.trackier.campaignId}</span>
-                          </>
-                        )}
-                        <span>•</span>
-                        <span className="text-xs">{mapping.account_id}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`px-3 py-1 text-xs rounded-full ${mapping.is_active ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400' : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'}`}>
-                      {mapping.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                    {mapping.auto_created && (
-                      <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
-                        Auto
-                      </span>
-                    )}
-                    {mapping.trackier && (
-                      <span className="px-2 py-1 text-xs rounded-full bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400">
-                        {mapping.trackier.redirectType}
-                      </span>
-                    )}
-                  </div>
-                </div>
+              {(() => {
+                // Group campaigns by offer, then by account
+                const groupedByOffer = campaigns.reduce((acc, mapping) => {
+                  if (!acc[mapping.offer_name]) {
+                    acc[mapping.offer_name] = {};
+                  }
+                  if (!acc[mapping.offer_name][mapping.account_id]) {
+                    acc[mapping.offer_name][mapping.account_id] = [];
+                  }
+                  acc[mapping.offer_name][mapping.account_id].push(mapping);
+                  return acc;
+                }, {} as Record<string, Record<string, any[]>>);
 
-                {/* Expanded Details View */}
-                {isExpanded && (
-                  <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800 space-y-3" onClick={(e) => e.stopPropagation()}>
-                    {/* Action Buttons - Always visible when expanded */}
-                    <div className="flex items-center justify-end gap-2 pb-4 border-b border-neutral-200 dark:border-neutral-800">
-                      <button
-                        onClick={() => deleteMapping(mapping.id)}
-                        className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-danger-100 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400 hover:bg-danger-200 dark:hover:bg-danger-900/40 transition-smooth"
-                        title="Delete this mapping"
-                      >
-                        <Trash2 size={14} />
-                        Delete Mapping
-                      </button>
+                return Object.entries(groupedByOffer).map(([offerName, accountsMap]) => (
+                  <div key={offerName} className="border-b border-neutral-200 dark:border-neutral-800">
+                    {/* OFFER LEVEL */}
+                    <div className="bg-brand-50 dark:bg-brand-900/10 px-6 py-4 border-b border-brand-200 dark:border-brand-800/50">
+                      <h3 className="text-lg font-bold text-brand-900 dark:text-brand-100">{offerName}</h3>
+                      <p className="text-xs text-brand-700 dark:text-brand-300 mt-1">{Object.keys(accountsMap).length} account(s) using this offer</p>
                     </div>
 
-                    {/* Trackier Details Section */}
-                    {mapping.trackier && (
-                      <div className="space-y-3">
-                        {/* Manual trace trigger for this account */}
-                    <div className="flex items-center justify-between bg-neutral-50 dark:bg-neutral-850 rounded-lg p-4">
-                      <div>
-                        <p className="text-sm font-medium text-neutral-800 dark:text-neutral-200">Manual trace (account scope)</p>
-                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Runs v5_trigger_manual_trace for account {mapping.account_id}</p>
-                      </div>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const { error } = await supabase.rpc('v5_trigger_manual_trace', { p_account_id: mapping.account_id });
-                            if (error) throw error;
-                            alert('Manual trace triggered');
-                          } catch (err) {
-                            console.error('Manual trace error:', err);
-                            alert('Failed to trigger manual trace');
-                          }
-                        }}
-                        className="flex items-center gap-2 px-3 py-2 bg-purple-600 dark:bg-purple-500 text-white rounded-lg hover:bg-purple-700 dark:hover:bg-purple-600 transition-smooth"
-                      >
-                        <Zap size={14} />
-                        Trigger
-                      </button>
-                    </div>
-
-                    {/* Tracking Template */}
-                    <div className="bg-neutral-50 dark:bg-neutral-850 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                          Tracking Template (Add to Google Ads)
-                        </label>
-                        <button
-                          onClick={() => copyToClipboard(mapping.trackier?.trackingTemplate || '', `template-${mapping.id}`)}
-                          className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-smooth"
-                        >
-                          {copiedField === `template-${mapping.id}` ? (
-                            <>
-                              <CheckCircle size={14} />
-                              Copied
-                            </>
-                          ) : (
-                            <>
-                              <Copy size={14} />
-                              Copy
-                            </>
-                          )}
-                        </button>
-                      </div>
-                      <div className="bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 p-3">
-                        <code className="text-xs text-neutral-600 dark:text-neutral-400 break-all">
-                          {mapping.trackier?.trackingTemplate}
-                        </code>
-                      </div>
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
-                        ⚠️ Contains p1={'{'} campaignid{'}'} to pass Google campaign ID to Trackier
-                      </p>
-                    </div>
-
-                    {/* Webhook URL */}
-                    <div className="bg-neutral-50 dark:bg-neutral-850 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                          Postback URL (Add to Trackier Campaign {mapping.trackier?.campaignId})
-                        </label>
-                        <button
-                          onClick={() => copyToClipboard(mapping.trackier?.webhookUrlWithParams || '', `webhook-${mapping.id}`)}
-                          className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-smooth"
-                        >
-                          {copiedField === `webhook-${mapping.id}` ? (
-                            <>
-                              <CheckCircle size={14} />
-                              Copied
-                            </>
-                          ) : (
-                            <>
-                              <Copy size={14} />
-                              Copy
-                            </>
-                          )}
-                        </button>
-                      </div>
-                      <div className="bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 p-3">
-                        <code className="text-xs text-neutral-600 dark:text-neutral-400 break-all">
-                          {mapping.trackier.webhookUrlWithParams}
-                        </code>
-                      </div>
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
-                        ⚠️ Contains {'{'} p1{'}'} and {'{'} transaction_id{'}'} macros - Trackier will replace these
-                      </p>
-                    </div>
-
-                    {/* Instructions */}
-                    <div className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-lg p-4">
-                      <p className="text-sm font-medium text-brand-900 dark:text-brand-300 mb-2">Setup Flow:</p>
-                      <ol className="text-xs text-brand-800 dark:text-brand-400 space-y-1 list-decimal list-inside">
-                        <li>Copy Tracking Template → paste in Google Ads Campaign {mapping.campaign_id}</li>
-                        <li>Copy Postback URL → paste in Trackier Campaign {mapping.trackier.campaignId} S2S settings</li>
-                        <li>Verify: Google click → Trackier (with p1) → Webhook (campaign_id from p1) → V5 Queue</li>
-                      </ol>
-                    </div>
-
-                    {/* Override Editor */}
-                    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Trace override (account + offer)</p>
-                          <p className="text-xs text-neutral-500 dark:text-neutral-400">Randomized cadence for {mapping.account_id} / {mapping.offer_name} (non-periodic with jitter)</p>
-                        </div>
-                        <button
-                          onClick={() => saveOverride(mapping.account_id, mapping.offer_name)}
-                          disabled={savingOverride === getOverrideKey(mapping.account_id, mapping.offer_name)}
-                          className="px-3 py-2 text-sm rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-smooth disabled:opacity-50"
-                        >
-                          {savingOverride === getOverrideKey(mapping.account_id, mapping.offer_name) ? 'Saving...' : 'Save Override'}
-                        </button>
-                      </div>
-                      <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
-                        Cadence uses jitter (≈70%–130% of base) to avoid periodic traces.
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
-                          <input
-                            type="checkbox"
-                            checked={getOverrideDraft(mapping.account_id, mapping.offer_name).enabled}
-                            onChange={(e) => updateOverrideDraft(mapping.account_id, mapping.offer_name, { enabled: e.target.checked })}
-                          />
-                          Enabled
-                        </label>
-                        <div>
-                          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Traces per day</p>
-                          <input
-                            type="number"
-                            min={0}
-                            className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850"
-                            value={getOverrideDraft(mapping.account_id, mapping.offer_name).traces_per_day ?? ''}
-                            onChange={(e) => updateOverrideDraft(mapping.account_id, mapping.offer_name, { traces_per_day: e.target.value === '' ? null : Number(e.target.value) })}
-                          />
-                        </div>
-                        <div>
-                          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Speed multiplier</p>
-                          <input
-                            type="number"
-                            step="0.1"
-                            min={0}
-                            className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-850"
-                            value={getOverrideDraft(mapping.account_id, mapping.offer_name).speed_multiplier ?? ''}
-                            onChange={(e) => updateOverrideDraft(mapping.account_id, mapping.offer_name, { speed_multiplier: e.target.value === '' ? null : Number(e.target.value) })}
-                          />
-                        </div>
-                        <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
-                          <input
-                            type="checkbox"
-                            checked={getOverrideDraft(mapping.account_id, mapping.offer_name).trace_also_on_webhook}
-                            onChange={(e) => updateOverrideDraft(mapping.account_id, mapping.offer_name, { trace_also_on_webhook: e.target.checked })}
-                          />
-                          Trace on webhook
-                        </label>
-                      </div>
-                      <div className="mt-3 text-xs text-neutral-600 dark:text-neutral-400">
-                        {(() => {
-                          const band = getRandomizedGapMinutes(mapping.account_id, mapping.offer_name);
-                          return `Approx gap: ~${band.base} min (range ${band.min}–${band.max} min) with jitter`;
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                    )}
-
-                    {/* Trackier Not Yet Created */}
-                    {!mapping.trackier && (
-                      <div className="bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 rounded-lg p-4 border-t border-neutral-200 dark:border-neutral-800">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-warning-900 dark:text-warning-300">
-                              ⚠️ Trackier campaign not yet created
-                            </p>
-                            <p className="text-xs text-warning-800 dark:text-warning-400 mt-1">
-                              Click the button below to auto-create the Trackier campaign, tracking template, and webhook URL
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => createTrackierCampaign(mapping)}
-                            className="flex items-center gap-2 px-4 py-2 bg-warning-600 dark:bg-warning-500 text-white rounded-lg hover:bg-warning-700 dark:hover:bg-warning-600 transition-smooth whitespace-nowrap"
+                    {Object.entries(accountsMap).map(([accountId, mappingsForAccount]) => {
+                      const bucketSize = bucketInventory.find(b => b.offer_name === offerName)?.total_suffixes || 0;
+                      const expandedAccountKey = `${offerName}|${accountId}`;
+                      const isAccountExpanded = expandedMappings.has(expandedAccountKey);
+                      
+                      return (
+                        <div key={accountId} className="border-b border-neutral-200 dark:border-neutral-800">
+                          {/* ACCOUNT LEVEL */}
+                          <div 
+                            className="px-6 py-4 hover:bg-neutral-50 dark:hover:bg-neutral-850/50 cursor-pointer transition-smooth border-l-4 border-l-brand-400 dark:border-l-brand-600"
+                            onClick={() => {
+                              if (isAccountExpanded) {
+                                expandedMappings.delete(expandedAccountKey);
+                              } else {
+                                expandedMappings.add(expandedAccountKey);
+                              }
+                              setExpandedMappings(new Set(expandedMappings));
+                            }}
                           >
-                            <Zap size={14} />
-                            Create Trackier
-                          </button>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="flex-shrink-0">
+                                  {isAccountExpanded ? (
+                                    <ChevronDown size={20} className="text-brand-600 dark:text-brand-400" />
+                                  ) : (
+                                    <ChevronRight size={20} className="text-neutral-400" />
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="font-mono text-base font-semibold text-neutral-900 dark:text-neutral-50">Account: {accountId}</span>
+                                    <span className="px-2 py-1 text-xs rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+                                      {mappingsForAccount.length} campaign(s)
+                                    </span>
+                                  </div>
+                                  <div className="mt-2 flex items-center gap-4 text-sm">
+                                    <span className="text-neutral-600 dark:text-neutral-400">
+                                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">Bucket Size:</span> {bucketSize} suffix{bucketSize !== 1 ? 'es' : ''}
+                                    </span>
+                                    <span className="text-neutral-600 dark:text-neutral-400">
+                                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">Health:</span> {mappingsForAccount.filter(m => m.is_active).length}/{mappingsForAccount.length} active
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-xs text-neutral-500 dark:text-neutral-400">Click to expand</div>
+                            </div>
+                          </div>
+
+                          {/* CAMPAIGNS LEVEL */}
+                          {isAccountExpanded && (
+                            <div className="bg-neutral-50 dark:bg-neutral-900/50 pl-12 border-l-4 border-l-neutral-300 dark:border-l-neutral-700">
+                              {mappingsForAccount.map((mapping, idx) => {
+                                const isExpanded = expandedMappings.has(mapping.id);
+                                return (
+                                  <div key={mapping.id} className={`p-4 ${idx !== mappingsForAccount.length - 1 ? 'border-b border-neutral-200 dark:border-neutral-800' : ''}`}>
+                                    {/* Campaign Summary */}
+                                    <div 
+                                      className="flex items-center justify-between cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 -m-4 p-4 rounded transition-smooth"
+                                      onClick={() => toggleMappingExpanded(mapping.id)}
+                                    >
+                                      <div className="flex items-center gap-3 flex-1">
+                                        <div className="flex-shrink-0">
+                                          {isExpanded ? (
+                                            <ChevronDown size={18} className="text-brand-600 dark:text-brand-400" />
+                                          ) : (
+                                            <ChevronRight size={18} className="text-neutral-400" />
+                                          )}
+                                        </div>
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-3">
+                                            <span className="font-mono font-semibold text-neutral-900 dark:text-neutral-50">Campaign {mapping.campaign_id}</span>
+                                            <span className="text-xs text-neutral-500 dark:text-neutral-400">{mapping.campaign_name}</span>
+                                          </div>
+                                          <div className="mt-2 flex items-center gap-3 text-sm">
+                                            {mapping.trackier && (
+                                              <span className="font-mono text-brand-600 dark:text-brand-400">
+                                                ✓ Trackier #{mapping.trackier.campaignId}
+                                              </span>
+                                            )}
+                                            {!mapping.trackier && (
+                                              <span className="text-warning-600 dark:text-warning-400">
+                                                ⚠ No Trackier campaign
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 flex-shrink-0">
+                                        <span className={`px-3 py-1 text-xs rounded-full ${mapping.is_active ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400' : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'}`}>
+                                          {mapping.is_active ? 'Active' : 'Inactive'}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Campaign Details - Expanded */}
+                                    {isExpanded && (
+                                      <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800 space-y-3">
+                                        {mapping.trackier && (
+                                          <div className="space-y-3">
+                                            {/* Tracking Template */}
+                                            <div className="bg-white dark:bg-neutral-800 rounded-lg p-3 border border-neutral-200 dark:border-neutral-700">
+                                              <div className="flex items-center justify-between mb-2">
+                                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">Tracking Template</label>
+                                                <button
+                                                  onClick={() => copyToClipboard(mapping.trackier?.trackingTemplate || '', `template-${mapping.id}`)}
+                                                  className="text-xs px-2 py-1 rounded bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600"
+                                                >
+                                                  {copiedField === `template-${mapping.id}` ? '✓ Copied' : 'Copy'}
+                                                </button>
+                                              </div>
+                                              <code className="text-xs text-neutral-600 dark:text-neutral-400 break-all">{mapping.trackier?.trackingTemplate}</code>
+                                            </div>
+
+                                            {/* Postback URL */}
+                                            <div className="bg-white dark:bg-neutral-800 rounded-lg p-3 border border-neutral-200 dark:border-neutral-700">
+                                              <div className="flex items-center justify-between mb-2">
+                                                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">Postback URL</label>
+                                                <button
+                                                  onClick={() => copyToClipboard(mapping.trackier?.webhookUrlWithParams || '', `webhook-${mapping.id}`)}
+                                                  className="text-xs px-2 py-1 rounded bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600"
+                                                >
+                                                  {copiedField === `webhook-${mapping.id}` ? '✓ Copied' : 'Copy'}
+                                                </button>
+                                              </div>
+                                              <code className="text-xs text-neutral-600 dark:text-neutral-400 break-all">{mapping.trackier?.webhookUrlWithParams}</code>
+                                            </div>
+                                          </div>
+                                        )}
+                                        
+                                        {!mapping.trackier && (
+                                          <div className="bg-warning-50 dark:bg-warning-900/20 rounded-lg p-3 border border-warning-200 dark:border-warning-800">
+                                            <p className="text-sm text-warning-900 dark:text-warning-300">
+                                              Click the "Create Trackier" button below to set up the campaign
+                                            </p>
+                                          </div>
+                                        )}
+
+                                        {/* Delete Button */}
+                                        <button
+                                          onClick={() => deleteMapping(mapping.id)}
+                                          className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg bg-danger-100 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400 hover:bg-danger-200 dark:hover:bg-danger-900/40"
+                                        >
+                                          <Trash2 size={14} />
+                                          Delete Campaign
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-            );
-            })}
+                ));
+              })()}
             </div>
             
             {/* Pagination */}
