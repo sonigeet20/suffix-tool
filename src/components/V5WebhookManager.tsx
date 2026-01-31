@@ -179,9 +179,17 @@ export function V5WebhookManager() {
           .select('*')
       ]);
 
+      // Index trackier records both by mapping_id and by offer_name
       const trackierByMapping: Record<string, any> = {};
+      const trackierByOffer: Record<string, any> = {};
       (trackierRes.data || []).forEach((t) => {
-        trackierByMapping[t.mapping_id] = t;
+        if (t.mapping_id) {
+          trackierByMapping[t.mapping_id] = t;
+        }
+        // Also index by offer_name as fallback
+        if (t.offer_name && !trackierByOffer[t.offer_name]) {
+          trackierByOffer[t.offer_name] = t;  // Keep first/most recent
+        }
       });
 
       const overridesMapLocal: Record<string, TraceOverride> = {};
@@ -194,7 +202,8 @@ export function V5WebhookManager() {
 
       if (!campaignRes.error && campaignRes.data) {
         const enriched = campaignRes.data.map((mapping: any) => {
-          const trackier = trackierByMapping[mapping.id];
+          // First try by mapping_id, then fallback to offer_name
+          const trackier = trackierByMapping[mapping.id] || trackierByOffer[mapping.offer_name];
           return {
             ...mapping,
             trackier: trackier ? {
@@ -301,11 +310,24 @@ export function V5WebhookManager() {
         // Enrich with Trackier campaign details
         const enriched = await Promise.all(
           cData.map(async (mapping) => {
-            const { data: trackier } = await supabase
+            // First try: query by mapping_id (new properly-linked records)
+            let { data: trackier } = await supabase
               .from('v5_trackier_campaigns')
               .select('*')
               .eq('mapping_id', mapping.id)
               .maybeSingle();
+            
+            // Fallback: if not found, query by offer_name (for old broken records)
+            if (!trackier) {
+              const { data: trackierByOffer } = await supabase
+                .from('v5_trackier_campaigns')
+                .select('*')
+                .eq('offer_name', mapping.offer_name)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              trackier = trackierByOffer;
+            }
             
             return {
               ...mapping,
