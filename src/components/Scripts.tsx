@@ -1327,8 +1327,12 @@ function collectYesterdayLandingPages() {
 
 function cacheStats(stats) {
   try {
-    var cache = CacheService.getScriptCache();
-    cache.put(CACHE_KEY_STATS, JSON.stringify(stats), CACHE_TTL_SECONDS);
+    var props = PropertiesService.getScriptProperties();
+    var cacheData = {
+      data: stats,
+      timestamp: new Date().getTime()
+    };
+    props.setProperty(CACHE_KEY_STATS, JSON.stringify(cacheData));
   } catch (e) {
     Logger.log('[CACHE] Failed to write: ' + e);
   }
@@ -1336,10 +1340,22 @@ function cacheStats(stats) {
 
 function getCachedLandingPages() {
   try {
-    var cache = CacheService.getScriptCache();
-    var raw = cache.get(CACHE_KEY_STATS);
+    var props = PropertiesService.getScriptProperties();
+    var raw = props.getProperty(CACHE_KEY_STATS);
     if (!raw) return null;
-    return JSON.parse(raw);
+    
+    var cacheData = JSON.parse(raw);
+    var now = new Date().getTime();
+    var age = now - cacheData.timestamp;
+    
+    // Check if cache expired (CACHE_TTL_SECONDS is in seconds, convert to ms)
+    if (age > (CACHE_TTL_SECONDS * 1000)) {
+      Logger.log('[CACHE] Expired, clearing old data');
+      props.deleteProperty(CACHE_KEY_STATS);
+      return null;
+    }
+    
+    return cacheData.data;
   } catch (e) {
     Logger.log('[CACHE] Read miss: ' + e);
     return null;
