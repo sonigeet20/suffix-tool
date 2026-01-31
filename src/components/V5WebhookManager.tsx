@@ -1064,10 +1064,10 @@ export function V5WebhookManager() {
                 </div>
 
                 {/* Expanded Details View */}
-                {isExpanded && mapping.trackier && (
-                  <div className="mt-6 space-y-3 pt-6 border-t border-neutral-200 dark:border-neutral-800" onClick={(e) => e.stopPropagation()}>
-                    {/* Action Buttons */}
-                    <div className="flex items-center justify-end gap-2">
+                {isExpanded && (
+                  <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800 space-y-3" onClick={(e) => e.stopPropagation()}>
+                    {/* Action Buttons - Always visible when expanded */}
+                    <div className="flex items-center justify-end gap-2 pb-4 border-b border-neutral-200 dark:border-neutral-800">
                       <button
                         onClick={() => deleteMapping(mapping.id)}
                         className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-danger-100 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400 hover:bg-danger-200 dark:hover:bg-danger-900/40 transition-smooth"
@@ -1078,7 +1078,10 @@ export function V5WebhookManager() {
                       </button>
                     </div>
 
-                    {/* Manual trace trigger for this account */}
+                    {/* Trackier Details Section */}
+                    {mapping.trackier && (
+                      <div className="space-y-3">
+                        {/* Manual trace trigger for this account */}
                     <div className="flex items-center justify-between bg-neutral-50 dark:bg-neutral-850 rounded-lg p-4">
                       <div>
                         <p className="text-sm font-medium text-neutral-800 dark:text-neutral-200">Manual trace (account scope)</p>
@@ -1243,27 +1246,30 @@ export function V5WebhookManager() {
                       </div>
                     </div>
                   </div>
-                )}
+                    )}
 
-                {!mapping.trackier && isExpanded && (
-                  <div className="bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 rounded-lg p-4 mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-warning-900 dark:text-warning-300">
-                          ⚠️ Trackier campaign not yet created
-                        </p>
-                        <p className="text-xs text-warning-800 dark:text-warning-400 mt-1">
-                          Click the button below to auto-create the Trackier campaign, tracking template, and webhook URL
-                        </p>
+                    {/* Trackier Not Yet Created */}
+                    {!mapping.trackier && (
+                      <div className="bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 rounded-lg p-4 border-t border-neutral-200 dark:border-neutral-800">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-warning-900 dark:text-warning-300">
+                              ⚠️ Trackier campaign not yet created
+                            </p>
+                            <p className="text-xs text-warning-800 dark:text-warning-400 mt-1">
+                              Click the button below to auto-create the Trackier campaign, tracking template, and webhook URL
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => createTrackierCampaign(mapping)}
+                            className="flex items-center gap-2 px-4 py-2 bg-warning-600 dark:bg-warning-500 text-white rounded-lg hover:bg-warning-700 dark:hover:bg-warning-600 transition-smooth whitespace-nowrap"
+                          >
+                            <Zap size={14} />
+                            Create Trackier
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => createTrackierCampaign(mapping)}
-                        className="flex items-center gap-2 px-4 py-2 bg-warning-600 dark:bg-warning-500 text-white rounded-lg hover:bg-warning-700 dark:hover:bg-warning-600 transition-smooth whitespace-nowrap"
-                      >
-                        <Zap size={14} />
-                        Create Trackier
-                      </button>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
