@@ -130,16 +130,37 @@ Deno.serve(async (req: Request) => {
       trackier_click_id: clickId,
     };
 
-    const { error } = await supabase.from('v5_webhook_queue').insert(payload);
-    if (error) {
-      console.error(`[v5-webhook ${requestId}] Queue insert error:`, error.message);
+    const { error: queueError, data: queuedItem } = await supabase
+      .from('v5_webhook_queue')
+      .insert(payload)
+      .select('id')
+      .single();
+    
+    if (queueError) {
+      console.error(`[v5-webhook ${requestId}] Queue insert error:`, queueError.message);
       return new Response(
-        JSON.stringify({ error: 'Failed to queue webhook', details: error.message }),
+        JSON.stringify({ error: 'Failed to queue webhook', details: queueError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log(`[v5-webhook ${requestId}] queued with suffix`, payload);
+
+    // Log to campaign suffix log (for campaign-level stats)
+    try {
+      await supabase.from('v5_campaign_suffix_log').insert({
+        account_id: accountId,
+        campaign_id: campaignId,
+        offer_name: offerName,
+        suffix_sent: suffixToQueue || '',
+        webhook_id: queuedItem?.id,
+        status: 'pending',
+        webhook_received_at: new Date().toISOString()
+      });
+      console.log(`[v5-webhook ${requestId}] Logged to campaign suffix log`);
+    } catch (e) {
+      console.warn(`[v5-webhook ${requestId}] Failed to log to campaign suffix log:`, e?.message || e);
+    }
 
     // Auto-create mapping if missing (best-effort, non-blocking)
     try {
@@ -153,31 +174,101 @@ Deno.serve(async (req: Request) => {
       console.warn(`[v5-webhook ${requestId}] Mapping insert skipped:`, e?.message || e);
     }
 
-    // Trigger trace immediately to refill bucket (non-blocking background)
+    // Check trace override settings (NEW: conditionally trigger trace)
     try {
-      console.log(`[v5-webhook ${requestId}] Triggering trace for ${offerName}...`);
-      const traceUrl = `${supabaseUrl}/functions/v1/get-suffix?offer_name=${encodeURIComponent(offerName)}`;
-      fetch(traceUrl, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${supabaseKey}` }
-      }).then(async (traceResp) => {
-        if (traceResp.ok) {
-          const traceData = await traceResp.json();
-          if (traceData.success && traceData.suffix) {
-            // Store traced suffix to bucket
-            await supabase.rpc('v5_store_traced_suffixes', {
-              p_account_id: accountId,
-              p_offer_name: offerName,
-              p_suffixes: [{ suffix: traceData.suffix, source: 'traced' }]
-            });
-            console.log(`[v5-webhook ${requestId}] Trace complete, stored to bucket`);
-          }
+      console.log(`[v5-webhook ${requestId}] Checking trace override for ${offerName}...`);
+      const { data: traceOverride } = await supabase
+        .from('v5_trace_overrides')
+        .select('trace_on_webhook, traces_per_day, traces_count_today')
+        .eq('offer_name', offerName)
+        .maybeSingle();
+
+      let shouldTrace = true;  // Default: trace on webhook
+      let reason = 'default (no override)';
+
+      if (traceOverride) {
+        // Check if trace_on_webhook is disabled
+        if (!traceOverride.trace_on_webhook) {
+          shouldTrace = false;
+          reason = 'trace_on_webhook disabled in override';
         }
-      }).catch((e) => {
-        console.warn(`[v5-webhook ${requestId}] Trace error:`, e?.message);
-      });
+        // Check if daily trace limit reached
+        else if (traceOverride.traces_per_day && traceOverride.traces_count_today >= traceOverride.traces_per_day) {
+          shouldTrace = false;
+          reason = `daily limit reached (${traceOverride.traces_count_today}/${traceOverride.traces_per_day})`;
+        }
+      }
+
+      console.log(`[v5-webhook ${requestId}] Trace decision: shouldTrace=${shouldTrace}, reason=${reason}`);
+
+      if (shouldTrace) {
+        // Trigger trace immediately to refill bucket (non-blocking background)
+        console.log(`[v5-webhook ${requestId}] Triggering auto-trace for ${offerName}...`);
+        const traceUrl = `${supabaseUrl}/functions/v1/get-suffix?offer_name=${encodeURIComponent(offerName)}`;
+        fetch(traceUrl, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${supabaseKey}` }
+        }).then(async (traceResp) => {
+          if (traceResp.ok) {
+            const traceData = await traceResp.json();
+            console.log(`[v5-webhook ${requestId}] Trace response:`, { success: traceData.success, suffix: traceData.suffix?.substring(0, 20) });
+            
+            if (traceData.success && traceData.suffix) {
+              // Store traced suffix to bucket (offer-level now)
+              await supabase.rpc('v5_store_traced_suffixes', {
+                p_offer_name: offerName,
+                p_suffixes: [{ suffix: traceData.suffix, source: 'traced' }]
+              });
+              
+              // Log trace to v5_trace_log
+              await supabase.from('v5_trace_log').insert({
+                offer_name: offerName,
+                trace_result: 'success',
+                suffix_generated: traceData.suffix,
+                geo_pool_used: traceData.geo_pool_used || null
+              });
+              
+              // Increment traces_count_today in v5_trace_overrides
+              if (traceOverride) {
+                await supabase
+                  .from('v5_trace_overrides')
+                  .update({ 
+                    traces_count_today: (traceOverride.traces_count_today || 0) + 1,
+                    last_trace_time: new Date().toISOString()
+                  })
+                  .eq('offer_name', offerName);
+              }
+              
+              console.log(`[v5-webhook ${requestId}] Trace complete, stored to bucket`);
+            }
+          } else {
+            // Log failed trace
+            await supabase.from('v5_trace_log').insert({
+              offer_name: offerName,
+              trace_result: 'failed',
+              error_message: `HTTP ${traceResp.status}`
+            }).catch(() => {});
+            console.warn(`[v5-webhook ${requestId}] Trace failed with status ${traceResp.status}`);
+          }
+        }).catch((e) => {
+          // Log error trace
+          supabase.from('v5_trace_log').insert({
+            offer_name: offerName,
+            trace_result: 'failed',
+            error_message: e?.message || 'Unknown error'
+          }).catch(() => {});
+          console.warn(`[v5-webhook ${requestId}] Trace error:`, e?.message);
+        });
+      } else {
+        // Log that trace was skipped
+        await supabase.from('v5_trace_log').insert({
+          offer_name: offerName,
+          trace_result: 'skipped',
+          error_message: reason
+        }).catch(() => {});
+      }
     } catch (e) {
-      console.warn(`[v5-webhook ${requestId}] Trace trigger error:`, e?.message || e);
+      console.warn(`[v5-webhook ${requestId}] Trace override check error:`, e?.message || e);
     }
 
     return new Response(
