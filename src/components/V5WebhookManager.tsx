@@ -1027,12 +1027,13 @@ export function V5WebhookManager() {
                       )}
                     </div>
 
-                    {/* ACCOUNTS LEVEL - within same offer container */}
-                    <div>
-                      {Object.entries(accountsMap).map(([accountId, mappingsForAccount]) => {
-                      const bucketSize = bucketInventory.find(b => b.offer_name === offerName)?.total_suffixes || 0;
-                      const expandedAccountKey = `${offerName}|${accountId}`;
-                      const isAccountExpanded = expandedMappings.has(expandedAccountKey);
+                    {/* ACCOUNTS LEVEL - Only show when offer is expanded */}
+                    {offerLevelExpanded && (
+                      <div>
+                        {Object.entries(accountsMap).map(([accountId, mappingsForAccount]) => {
+                        const bucketSize = bucketInventory.find(b => b.offer_name === offerName)?.total_suffixes || 0;
+                        const expandedAccountKey = `${offerName}|${accountId}`;
+                        const isAccountExpanded = expandedMappings.has(expandedAccountKey);
                       
                       return (
                         <div key={accountId} className="border-b border-neutral-200 dark:border-neutral-800">
@@ -1156,7 +1157,8 @@ export function V5WebhookManager() {
                         </div>
                       );
                     })}
-                    </div>
+                      </div>
+                    )}
                     </div>
                   );
                 });
