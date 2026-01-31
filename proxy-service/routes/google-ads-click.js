@@ -166,32 +166,15 @@ async function handleClick(req, res) {
     // Load offer configuration with ALL settings
     const { data: offer, error: offerError } = await supabase
       .from('offers')
-      .select(`
-        google_ads_config,
-        url,
-        referrer_pool,
-        referrer_hops,
-        geo_pool,
-        geo_strategy,
-        geo_weights,
-        trace_mode,
-        preferred_mode,
-        tracer_mode,
-        device_distribution,
-        bandwidth_limit_kb,
-        expected_final_url,
-        proxy_protocol,
-        extract_from_location_header,
-        location_extract_hop,
-        block_resources,
-        target_geo,
-        target_country
-      `)
+      .select('*')
       .eq('offer_name', offer_name)
       .single();
 
     if (offerError || !offer) {
-      console.error(`[google-ads-click] Offer not found: ${offer_name}`);
+      console.error(`[google-ads-click] Offer lookup failed for: ${offer_name}`);
+      if (offerError) {
+        console.error(`[google-ads-click] Supabase error:`, offerError);
+      }
       return res.status(404).json({ error: 'Offer not found' });
     }
 
@@ -402,45 +385,64 @@ async function handleClick(req, res) {
             console.log(`[google-ads-click] ⚠️  GCLID present but no gclid_param_token configured: ${gclidValue}`);
           }
           
-          console.log(`[google-ads-click] Server-side tracing: ${trackingUrlWithGclid.substring(0, 100)}...`);
+          console.log(`[google-ads-click] 🎯 Tracking URL with GCLID: ${trackingUrlWithGclid.substring(0, 100)}...`);
           
-          // Use the full trace infrastructure with ALL offer settings (no compromise)
+          // Call trace-redirects endpoint with the GCLID-modified tracking URL
+          // Pass all offer settings to ensure comprehensive trace with proxy, geo, referrer, etc.
           const tracePayload = {
-            url: trackingUrlWithGclid,
-            mode: traceMode,
-            target_country: clientCountry,
+            url: trackingUrlWithGclid,  // Use the modified URL with GCLID as first param
+            max_redirects: 20,
             timeout_ms: traceMode === 'http_only' ? 15000 : 45000,
-            max_redirects: 20
+            use_proxy: true,
+            tracer_mode: traceMode,
+            offer_id: offer.id
           };
 
-          // Referrer rotation from offer
+          // Geo targeting - use client's geo if in pool, otherwise random from pool
+          let traceSelectedGeo = null;
+          if (offer.geo_pool && offer.geo_pool.length > 0) {
+            // Check if client's country is in the geo pool
+            const normalizedClientCountry = normalizeCountryCode(clientCountry);
+            const normalizedGeoPool = offer.geo_pool.map(c => normalizeCountryCode(c));
+            
+            if (normalizedGeoPool.includes(normalizedClientCountry)) {
+              // Client country is in pool - use it
+              traceSelectedGeo = normalizedClientCountry;
+              tracePayload.target_country = normalizedClientCountry;
+              console.log(`[google-ads-click] 🌍 Using client's geo for trace: ${normalizedClientCountry}`);
+            } else {
+              // Client country not in pool - pick random from pool
+              traceSelectedGeo = offer.geo_pool[Math.floor(Math.random() * offer.geo_pool.length)];
+              tracePayload.target_country = traceSelectedGeo;
+              console.log(`[google-ads-click] 🎲 Client geo ${normalizedClientCountry} not in pool, using random: ${traceSelectedGeo}`);
+            }
+          } else if (offer.target_country) {
+            // Single geo: use target_country
+            traceSelectedGeo = offer.target_country;
+            tracePayload.target_country = offer.target_country;
+            console.log(`[google-ads-click] 🎯 Using single target country: ${offer.target_country}`);
+          } else {
+            // No geo configured - use client's country
+            traceSelectedGeo = normalizeCountryCode(clientCountry);
+            tracePayload.target_country = traceSelectedGeo;
+            console.log(`[google-ads-click] 🌐 No geo pool, using client country: ${traceSelectedGeo}`);
+          }
+
+          // Referrer rotation
           if (offer.referrer_pool && offer.referrer_pool.length > 0) {
             const randomReferrer = offer.referrer_pool[Math.floor(Math.random() * offer.referrer_pool.length)];
             tracePayload.referrer = randomReferrer;
-            tracePayload.referrer_hops = offer.referrer_hops || null;
-          }
-
-          // Geo targeting (prioritize google_ads_config, fallback to offer settings)
-          const geoPool = googleAdsConfig.multi_geo_targets || googleAdsConfig.single_geo_targets || offer.geo_pool;
-          if (geoPool && geoPool.length > 0) {
-            tracePayload.geo_pool = geoPool;
-            tracePayload.geo_strategy = googleAdsConfig.geo_strategy || offer.geo_strategy || 'round_robin';
-            if (offer.geo_weights) {
-              tracePayload.geo_weights = offer.geo_weights;
+            if (offer.referrer_hops) {
+              tracePayload.referrer_hops = offer.referrer_hops;
             }
           }
 
-          // Device distribution for user agent rotation
+          // Device distribution
           if (offer.device_distribution && Array.isArray(offer.device_distribution)) {
             tracePayload.device_distribution = offer.device_distribution;
           }
 
-          // Bandwidth limit
-          if (offer.bandwidth_limit_kb) {
-            tracePayload.bandwidth_limit_kb = offer.bandwidth_limit_kb;
-          }
-
-          // Expected final URL for early termination
+          // Expected final URL
           if (offer.expected_final_url) {
             tracePayload.expected_final_url = offer.expected_final_url;
           }
@@ -453,29 +455,105 @@ async function handleClick(req, res) {
           // Location header extraction
           if (offer.extract_from_location_header) {
             tracePayload.extract_from_location_header = true;
-            if (offer.location_extract_hop) {
+            if (offer.location_extract_hop !== null && offer.location_extract_hop !== undefined) {
               tracePayload.location_extract_hop = offer.location_extract_hop;
             }
           }
 
-          // Suffix step for multi-hop tracking
-          if (offer.redirect_chain_step) {
+          // Suffix step
+          if (offer.redirect_chain_step !== null && offer.redirect_chain_step !== undefined) {
             tracePayload.suffix_step = offer.redirect_chain_step;
           }
-
-          axios.post('http://localhost:3000/trace', tracePayload, {
-            timeout: traceMode === 'http_only' ? 20000 : 60000,
+          
+          const traceUrl = `${supabaseUrl}/functions/v1/trace-redirects`;
+          console.log(`[google-ads-click] 🚀 Calling trace-redirects with GCLID-modified URL`);
+          
+          axios.post(traceUrl, tracePayload, {
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 60000,
             validateStatus: () => true
           }).then(response => {
-            if (response.data && response.data.success) {
-              const trace = response.data;
-              console.log(`[google-ads-click] ✅ Tracking URL traced: ${trace.steps?.length || 0} hops, final: ${trace.final_url?.substring(0, 80)}...`);
-              console.log(`[google-ads-click] 🌍 Proxy IP: ${trace.proxy_ip_used || 'unknown'}, Country: ${trace.location || clientCountry}`);
+            // Success if HTTP 2xx and has data
+            if (response.status >= 200 && response.status < 300 && response.data) {
+              const result = response.data;
+              
+              // Extract trace metrics from trace-redirects response
+              const hopCount = result.chain?.length || 0;
+              const proxyIp = result.proxy_ip || null;
+              const finalUrl = result.final_url || result.chain?.[result.chain.length - 1]?.url || null;
+              const geoLocation = result.geo_location?.country || result.selected_geo || 'unknown';
+              
+              // Extract query parameters from final URL
+              let finalUrlParams = null;
+              if (finalUrl) {
+                try {
+                  const urlObj = new URL(finalUrl);
+                  finalUrlParams = urlObj.search.substring(1); // Remove leading ?
+                  if (finalUrlParams) {
+                    console.log(`[google-ads-click] 📋 Extracted final URL params: ${finalUrlParams.substring(0, 100)}...`);
+                  }
+                } catch (err) {
+                  console.log(`[google-ads-click] ⚠️  Could not parse final URL for params: ${err.message}`);
+                }
+              }
+              
+              console.log(`[google-ads-click] ✅ Trace successful: ${hopCount} hops, final: ${finalUrl?.substring(0, 80)}...`);
+              console.log(`[google-ads-click] 🌍 Trace result - Proxy IP: ${proxyIp || 'unknown'}, Location: ${geoLocation}, Selected Geo: ${traceSelectedGeo}`);
+              
+              // Update database record with trace success
+              supabase
+                .from('gclid_click_mapping')
+                .update({
+                  tracking_trace_status: 'completed',
+                  tracking_trace_hops: hopCount,
+                  tracking_trace_final_url: finalUrl,
+                  tracking_trace_proxy_ip: proxyIp,
+                  trace_selected_geo: traceSelectedGeo,
+                  final_url_params: finalUrlParams,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('gclid', gclidValue)
+                .then(({ error: updateError }) => {
+                  if (updateError) {
+                    console.error(`[google-ads-click] Failed to update trace status:`, updateError);
+                  } else {
+                    console.log(`[google-ads-click] ✅ Trace completion recorded for GCLID: ${gclidValue}`);
+                  }
+                });
             } else {
-              console.log(`[google-ads-click] ⚠️  Tracking trace response: ${response.status}`);
+              console.log(`[google-ads-click] ⚠️  Trace failed with status: ${response.status}, data: ${JSON.stringify(response.data)?.substring(0, 200)}`);
+              
+              // Update database record with trace failure
+              supabase
+                .from('gclid_click_mapping')
+                .update({
+                  tracking_trace_status: 'failed',
+                  tracking_trace_error: `HTTP ${response.status}`,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('gclid', gclidValue)
+                .then(({ error: updateError }) => {
+                  if (updateError) console.error(`[google-ads-click] Failed to update trace failure:`, updateError);
+                });
             }
           }).catch(err => {
-            console.log(`[google-ads-click] ⚠️  Tracking URL trace failed: ${err.message}`);
+            console.error(`[google-ads-click] ❌ Trace error: ${err.message}`);
+            
+            // Update database record with trace error
+            supabase
+              .from('gclid_click_mapping')
+              .update({
+                tracking_trace_status: 'error',
+                tracking_trace_error: err.message,
+                updated_at: new Date().toISOString()
+              })
+              .eq('gclid', gclidValue)
+              .then(({ error: updateError }) => {
+                if (updateError) console.error(`[google-ads-click] Failed to update trace error:`, updateError);
+              });
           });
         }
         

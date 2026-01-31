@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { X, Copy, Check, AlertCircle, Play, RefreshCw, ExternalLink } from 'lucide-react';
+import GclidTraceMonitor from './GclidTraceMonitor';
 
 interface GoogleAdsModalProps {
   offerName: string;
@@ -85,6 +86,9 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
   // State for click analytics
   const [clickAnalytics, setClickAnalytics] = useState<any>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  
+  // State for tab navigation
+  const [activeTab, setActiveTab] = useState<'config' | 'clicks' | 'traces'>('config');
 
   // Load initial data
   useEffect(() => {
@@ -592,6 +596,42 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
           </button>
         </div>
 
+        {/* Tab Navigation */}
+        <div className="border-b border-neutral-200 dark:border-neutral-800">
+          <div className="flex overflow-x-auto bg-neutral-50 dark:bg-neutral-850">
+            <button
+              onClick={() => setActiveTab('config')}
+              className={`px-6 py-3 font-medium text-sm border-b-2 transition-smooth whitespace-nowrap ${
+                activeTab === 'config'
+                  ? 'border-brand-600 dark:border-brand-500 text-brand-600 dark:text-brand-400'
+                  : 'border-transparent text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
+              }`}
+            >
+              Configuration
+            </button>
+            <button
+              onClick={() => setActiveTab('clicks')}
+              className={`px-6 py-3 font-medium text-sm border-b-2 transition-smooth whitespace-nowrap ${
+                activeTab === 'clicks'
+                  ? 'border-brand-600 dark:border-brand-500 text-brand-600 dark:text-brand-400'
+                  : 'border-transparent text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
+              }`}
+            >
+              Click Events
+            </button>
+            <button
+              onClick={() => setActiveTab('traces')}
+              className={`px-6 py-3 font-medium text-sm border-b-2 transition-smooth whitespace-nowrap ${
+                activeTab === 'traces'
+                  ? 'border-brand-600 dark:border-brand-500 text-brand-600 dark:text-brand-400'
+                  : 'border-transparent text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
+              }`}
+            >
+              GCLID Traces
+            </button>
+          </div>
+        </div>
+
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
           {error && (
             <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
@@ -600,6 +640,9 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
             </div>
           )}
 
+          {/* Configuration Tab */}
+          {activeTab === 'config' && (
+            <>
           {/* Enable Toggle */}
           <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
             <div>
@@ -707,6 +750,24 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                     className="w-full px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent text-neutral-900 dark:text-white"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                    GCLID Network Parameter
+                  </label>
+                  <input
+                    type="text"
+                    value={config.gclid_param_token || ''}
+                    onChange={(e) => setConfig({ ...config, gclid_param_token: e.target.value })}
+                    placeholder="e.g., xcust, subid, aff_sub"
+                    className="w-full px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent text-neutral-900 dark:text-white"
+                  />
+                  <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                    Parameter name that will hold the GCLID value in tracking URLs (e.g., "xcust" for Skimlinks)
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="flex items-center gap-2 p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg cursor-pointer">
                     <input
@@ -1349,6 +1410,56 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
             )}
           </button>
         </div>
+            </>
+          )}
+
+          {/* Click Events Tab */}
+          {activeTab === 'clicks' && (
+            <div className="space-y-6">
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  This tab shows click analytics, recent click events, and silent fetch statistics for monitoring user interactions.
+                </p>
+              </div>
+              
+              {/* Add click analytics here - placeholder for now */}
+              <div className="text-center py-8 text-neutral-600 dark:text-neutral-400">
+                Click events and analytics section - Coming soon
+              </div>
+            </div>
+          )}
+
+          {/* GCLID Traces Tab */}
+          {activeTab === 'traces' && (
+            <GclidTraceMonitor offerName={offerName} />
+          )}
+        </div>
+
+        {/* Footer - only show on config tab */}
+        {activeTab === 'config' && (
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-neutral-200 dark:border-neutral-800">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-900 dark:text-white rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 py-2 bg-brand-600 hover:bg-brand-700 disabled:bg-neutral-400 text-white rounded-lg transition-colors flex items-center gap-2"
+          >
+            {saving ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Configuration'
+            )}
+          </button>
+        </div>
+        )}
       </div>
     </div>
   );
