@@ -1029,7 +1029,7 @@ export function V5WebhookManager() {
 
                     {/* ACCOUNTS LEVEL - Only show when offer is expanded */}
                     {offerLevelExpanded && (
-                      <div>
+                      <div className="ml-6">
                         {Object.entries(accountsMap).map(([accountId, mappingsForAccount]) => {
                         const bucketSize = bucketInventory.find(b => b.offer_name === offerName)?.total_suffixes || 0;
                         const expandedAccountKey = `${offerName}|${accountId}`;
