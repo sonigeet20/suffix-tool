@@ -186,7 +186,7 @@ Deno.serve(async (req: Request) => {
 
         if (!existing) {
           // Create mapping
-          const { error: insertError } = await supabase
+          const { data: insertedMapping, error: insertError } = await supabase
             .from('v5_campaign_offer_mapping')
             .insert({
               account_id,
@@ -195,13 +195,66 @@ Deno.serve(async (req: Request) => {
               offer_name,
               is_active: true,
               auto_created: true
-            });
+            })
+            .select('id')
+            .single();
 
-          if (!insertError) {
+          if (!insertError && insertedMapping) {
             newlyMapped.push(campaign.id);
-            console.log(`[V5-AUTO-SETUP] Created mapping for campaign ${campaign.id}`);
+            console.log(`[V5-AUTO-SETUP] Created mapping for campaign ${campaign.id} with mapping_id: ${insertedMapping.id}`);
+            
+            // NOW create the Trackier campaign record linked to this mapping
+            const { error: trackierError } = await supabase
+              .from('v5_trackier_campaigns')
+              .insert({
+                mapping_id: insertedMapping.id,
+                account_id,
+                google_campaign_id: campaign.id,
+                offer_name,
+                trackier_campaign_id: trackierCampaignId,
+                trackier_campaign_name: trackierCampaignName,
+                webhook_url: webhookUrl,
+                tracking_template: trackingTemplate,
+                redirect_type: '200_hrf'
+              })
+              .select()
+              .single();
+
+            if (trackierError) {
+              console.error(`[V5-AUTO-SETUP] Failed to create Trackier campaign record for mapping ${insertedMapping.id}:`, trackierError);
+            } else {
+              console.log(`[V5-AUTO-SETUP] Created Trackier campaign record linked to mapping ${insertedMapping.id}`);
+            }
           } else {
             console.error(`[V5-AUTO-SETUP] Failed to create mapping for campaign ${campaign.id}:`, insertError);
+          }
+        } else {
+          // Mapping already exists - make sure it has a Trackier campaign record
+          const { data: existingTrackierRecord } = await supabase
+            .from('v5_trackier_campaigns')
+            .select('id')
+            .eq('mapping_id', existing.id)
+            .maybeSingle();
+
+          if (!existingTrackierRecord) {
+            console.log(`[V5-AUTO-SETUP] Existing mapping ${existing.id} has no Trackier record, creating one...`);
+            const { error: trackierError } = await supabase
+              .from('v5_trackier_campaigns')
+              .insert({
+                mapping_id: existing.id,
+                account_id,
+                google_campaign_id: campaign.id,
+                offer_name,
+                trackier_campaign_id: trackierCampaignId,
+                trackier_campaign_name: trackierCampaignName,
+                webhook_url: webhookUrl,
+                tracking_template: trackingTemplate,
+                redirect_type: '200_hrf'
+              });
+
+            if (trackierError) {
+              console.error(`[V5-AUTO-SETUP] Failed to create Trackier campaign record for existing mapping ${existing.id}:`, trackierError);
+            }
           }
         }
       }
