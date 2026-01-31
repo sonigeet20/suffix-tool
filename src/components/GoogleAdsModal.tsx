@@ -28,6 +28,7 @@ interface ClickStats {
 interface GoogleAdsConfig {
   enabled: boolean;
   max_traces_per_day?: number;
+  gclid_param_token?: string;
   apply_filters?: boolean;
   single_geo_targets?: string[];
   multi_geo_targets?: string[];
@@ -1379,39 +1380,14 @@ export default function GoogleAdsModal({ offerName, onClose }: GoogleAdsModalPro
                       </tbody>
                     </table>
                   </div>
-                  </div>
+                </div>
                 )}
               </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-neutral-200 dark:border-neutral-800">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2 bg-brand-600 hover:bg-brand-700 disabled:bg-neutral-400 text-white rounded-lg transition-colors flex items-center gap-2"
-          >
-            {saving ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Configuration'
             )}
-          </button>
-        </div>
             </>
           )}
+          </>
+        )}
 
           {/* Click Events Tab */}
           {activeTab === 'clicks' && (
