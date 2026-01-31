@@ -339,7 +339,7 @@ export function V5WebhookManager() {
     try {
       setLoading(true);
       const { error } = await supabase
-        .from('google_ads_buckets')
+        .from('v5_suffix_bucket')
         .delete()
         .eq('account_id', accountId)
         .eq('offer_name', offerName);
