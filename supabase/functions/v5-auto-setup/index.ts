@@ -256,6 +256,55 @@ Deno.serve(async (req: Request) => {
     if (existingMappings && existingMappings.length > 0) {
       console.log(`[V5-AUTO-SETUP] Found ${existingMappings.length} existing mappings`);
       
+      // IMPORTANT: Link existing mappings to Trackier campaign records
+      // This handles the case where mappings existed before Trackier was set up,
+      // or where old v5_trackier_campaigns records need to be linked to mapping_id
+      console.log(`[V5-AUTO-SETUP] Linking existing mappings to Trackier campaign...`);
+      for (const mapping of existingMappings) {
+        const { data: existingTrackierRecord } = await supabase
+          .from('v5_trackier_campaigns')
+          .select('id')
+          .eq('mapping_id', mapping.id)
+          .maybeSingle();
+
+        if (!existingTrackierRecord) {
+          // Check if there's an old record without mapping_id that we can link
+          const { data: oldTrackierRecord } = await supabase
+            .from('v5_trackier_campaigns')
+            .select('*')
+            .eq('account_id', account_id)
+            .eq('offer_name', offer_name)
+            .eq('google_campaign_id', mapping.campaign_id)
+            .maybeSingle();
+
+          if (oldTrackierRecord) {
+            // Update old record with mapping_id
+            console.log(`[V5-AUTO-SETUP] Updating old Trackier record with mapping_id for mapping ${mapping.id}`);
+            await supabase
+              .from('v5_trackier_campaigns')
+              .update({ mapping_id: mapping.id })
+              .eq('id', oldTrackierRecord.id);
+          } else {
+            // No old record either - create a new one with mapping_id
+            console.log(`[V5-AUTO-SETUP] Creating Trackier record for existing mapping ${mapping.id}`);
+            await supabase
+              .from('v5_trackier_campaigns')
+              .insert({
+                mapping_id: mapping.id,
+                account_id,
+                google_campaign_id: mapping.campaign_id,
+                offer_name,
+                trackier_campaign_id: trackierCampaignId,
+                trackier_campaign_name: trackierCampaignName,
+                webhook_url: webhookUrl,
+                tracking_template: trackingTemplate,
+                redirect_type: '200_hrf'
+              })
+              .catch(err => console.warn(`[V5-AUTO-SETUP] Could not create record (may already exist):`, err.message));
+          }
+        }
+      }
+      
       // Load shared Trackier campaign details
       // Get Trackier data from first existing mapping
       let trackierData: any = null;
