@@ -151,15 +151,8 @@ Deno.serve(async (req: Request) => {
       trackierCampaignName = `V5-${offer_name}`;
       isNewTrackierCampaign = true;
 
-      // Store shared Trackier campaign
-      await supabase.from('v5_trackier_campaigns').upsert({
-        offer_name,
-        trackier_campaign_id: trackierCampaignId,
-        trackier_campaign_name: trackierCampaignName,
-        webhook_url: webhookUrl,
-        tracking_template: trackingTemplate,
-        redirect_type: '200_hrf'
-      }, { onConflict: 'offer_name' });
+      // Note: v5_trackier_campaigns records are created per-mapping below
+      // This shared Trackier campaign info will be linked to each mapping
 
       console.log(`[V5-AUTO-SETUP] Created Trackier campaign: ${trackierCampaignId}`);
     }
@@ -264,11 +257,16 @@ Deno.serve(async (req: Request) => {
       console.log(`[V5-AUTO-SETUP] Found ${existingMappings.length} existing mappings`);
       
       // Load shared Trackier campaign details
-      const { data: trackierData } = await supabase
-        .from('v5_trackier_campaigns')
-        .select('*')
-        .eq('offer_name', offer_name)
-        .maybeSingle();
+      // Get Trackier data from first existing mapping
+      let trackierData: any = null;
+      if (existingMappings && existingMappings.length > 0) {
+        const { data: firstTrackier } = await supabase
+          .from('v5_trackier_campaigns')
+          .select('*')
+          .eq('mapping_id', existingMappings[0].id)
+          .maybeSingle();
+        trackierData = firstTrackier;
+      }
 
       return new Response(JSON.stringify({
         success: true,
