@@ -1487,7 +1487,6 @@ function main() {
     var webhooks = fetchWebhookQueue(BATCH_SIZE);
     
     if (webhooks.length === 0) {
-    if (webhooks.length === 0) {
       Logger.log('[POLL] No webhooks in queue');
     } else {
       Logger.log('[POLL] Processing ' + webhooks.length + ' webhooks');
@@ -1501,6 +1500,53 @@ function main() {
       totalUpdated += summary.updatedAds;
       
       Logger.log('[POLL] This cycle: ' + summary.processed + ' webhooks, ' + summary.updatedAds + ' ads updated');
+    }
+    
+    // NEW: Check trace override scheduling for controlled tracing
+    if (TRACE_OVERRIDE_ENABLED) {
+      Logger.log('[TRACE-SCHEDULER] Checking trace scheduling...');
+      try {
+        var supabaseUrl = SUPABASE_URL;
+        var offers = Object.values(OFFER_BY_CAMPAIGN);
+        var uniqueOffers = {};
+        for (var i = 0; i < offers.length; i++) {
+          uniqueOffers[offers[i]] = true;
+        }
+        
+        for (var offerName in uniqueOffers) {
+          try {
+            var schedulerUrl = supabaseUrl + '/functions/v1/v5-auto-trace-scheduler';
+            var payload = {
+              offer_name: offerName,
+              trace_override_enabled: TRACE_OVERRIDE_ENABLED,
+              trace_speed_multiplier: TRACE_SPEED_MULTIPLIER,
+              base_interval_ms: 60000  // 60 second base interval
+            };
+            
+            var schedulerResponse = UrlFetchApp.fetch(schedulerUrl, {
+              method: 'post',
+              headers: { 'Content-Type': 'application/json' },
+              payload: JSON.stringify(payload),
+              muteHttpExceptions: true
+            });
+            
+            if (schedulerResponse.getResponseCode() === 200) {
+              var schedulerResult = JSON.parse(schedulerResponse.getContentText());
+              if (schedulerResult.action === 'trace_triggered') {
+                Logger.log('[TRACE-SCHEDULER] ' + offerName + ': Trace triggered (count: ' + schedulerResult.traces_count_today + ')');
+              } else if (schedulerResult.action === 'skip') {
+                Logger.log('[TRACE-SCHEDULER] ' + offerName + ': Skipped (' + schedulerResult.reason + ')');
+              }
+            } else {
+              Logger.log('[TRACE-SCHEDULER] ' + offerName + ': Error (HTTP ' + schedulerResponse.getResponseCode() + ')');
+            }
+          } catch (traceErr) {
+            Logger.log('[TRACE-SCHEDULER] ' + offerName + ': Exception - ' + traceErr);
+          }
+        }
+      } catch (schedulerErr) {
+        Logger.log('[TRACE-SCHEDULER] Error: ' + schedulerErr);
+      }
     }
     
     pollingCycle++;

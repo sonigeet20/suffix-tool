@@ -560,6 +560,42 @@ export function V5WebhookManager() {
     }
   };
 
+  // @ts-ignore - Functions will be used in future UI updates
+  const loadCampaignSuffixLogs = async (offerName: string) => {
+    if (!offerName) return;
+    try {
+      const { data, error } = await supabase
+        .from('v5_campaign_suffix_log')
+        .select('*')
+        .eq('offer_name', offerName)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      if (error) throw error;
+      console.log('Campaign suffix logs loaded:', data?.length);
+    } catch (err) {
+      console.error('Load campaign suffix logs error:', err);
+    }
+  };
+
+  // @ts-ignore - Functions will be used in future UI updates
+  const loadTraceLogs = async (offerName: string) => {
+    if (!offerName) return;
+    try {
+      const { data, error } = await supabase
+        .from('v5_trace_log')
+        .select('*')
+        .eq('offer_name', offerName)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      if (error) throw error;
+      console.log('Trace logs loaded:', data?.length);
+    } catch (err) {
+      console.error('Load trace logs error:', err);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xs dark:shadow-none border border-neutral-200 dark:border-neutral-800 p-6">
