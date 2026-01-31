@@ -994,12 +994,55 @@ var CACHE_KEY_STATS = 'v5-daily-stats';
 var CACHE_TTL_SECONDS = 6 * 60 * 60; // 6 hours cache
 
 // =============================================================
+// AUTO-SETUP CHECK (FIRST-TIME ACCOUNT DETECTION)
+// =============================================================
+function checkAutoSetup() {
+  try {
+    var url = SUPABASE_URL + '/functions/v1/v5-auto-setup';
+    var payload = {
+      account_id: ACCOUNT_ID,
+      offer_name: OFFER_DEFAULT
+    };
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    var response = UrlFetchApp.fetch(url, options);
+    var data = JSON.parse(response.getContentText());
+    
+    if (data.setup_needed) {
+      Logger.log('[AUTO-SETUP] First-time setup required!');
+      Logger.log('[AUTO-SETUP] Account: ' + ACCOUNT_ID);
+      Logger.log('[AUTO-SETUP] Offer: ' + OFFER_DEFAULT);
+      if (data.instructions) {
+        for (var i = 0; i < data.instructions.length; i++) {
+          Logger.log(data.instructions[i]);
+        }
+      }
+    } else {
+      Logger.log('[AUTO-SETUP] Account already configured');
+      if (data.existing_campaigns) {
+        Logger.log('[AUTO-SETUP] Campaigns mapped: ' + data.existing_campaigns.join(', '));
+      }
+    }
+  } catch (e) {
+    Logger.log('[AUTO-SETUP] Check failed: ' + e);
+  }
+}
+
+// =============================================================
 // ENTRY POINT
 // =============================================================
 function main() {
   ACCOUNT_ID = getAccountId();
   Logger.log('=== V5 WEBHOOK (ALL-IN) ===');
   Logger.log('Account: ' + ACCOUNT_ID);
+
+  // Step 0: Auto-setup check (first-time account detection)
+  checkAutoSetup();
 
   // Step 1: Check and fetch zero-click suffixes (once daily)
   checkAndFetchZeroClickSuffixes();
