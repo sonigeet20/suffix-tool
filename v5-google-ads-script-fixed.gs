@@ -263,6 +263,35 @@ function markQueueItemsProcessed(queueIds) {
 
 
 // =============================================================
+// BUCKET EMPTY CHECK (FOR RE-FETCH AFTER MANUAL CLEAR)
+// =============================================================
+function checkIfBucketEmpty() {
+  try {
+    var url = SUPABASE_URL + '/functions/v1/v5-get-multiple-suffixes';
+    var payload = {
+      account_id: ACCOUNT_ID,
+      offer_name: OFFER_DEFAULT,
+      count: 1
+    };
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    var response = UrlFetchApp.fetch(url, options);
+    var data = JSON.parse(response.getContentText());
+    
+    // If no suffixes available, bucket is empty
+    return !data.suffixes || data.suffixes.length === 0;
+  } catch (e) {
+    Logger.log('[BUCKET-CHECK] Failed: ' + e);
+    return false; // Assume not empty on error
+  }
+}
+
+// =============================================================
 // ZERO-CLICK SUFFIX FETCHING (DAILY)
 // =============================================================
 function checkAndFetchZeroClickSuffixes() {
@@ -272,12 +301,19 @@ function checkAndFetchZeroClickSuffixes() {
     var now = new Date().getTime();
     var ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-    if (lastFetch) {
+    // Check if bucket is empty (allows re-fetch after manual clear)
+    var bucketEmpty = checkIfBucketEmpty();
+    
+    if (lastFetch && !bucketEmpty) {
       var elapsed = now - parseInt(lastFetch, 10);
       if (elapsed < ONE_DAY_MS) {
         Logger.log('[ZERO-CLICK] Already fetched today. Next fetch in ' + Math.round((ONE_DAY_MS - elapsed) / 3600000) + ' hours');
         return;
       }
+    }
+    
+    if (bucketEmpty) {
+      Logger.log('[ZERO-CLICK] Bucket is empty, forcing fresh fetch...');
     }
 
     Logger.log('[ZERO-CLICK] Starting daily fetch (last ' + ZERO_CLICK_LOOKBACK_DAYS + ' days)...');
